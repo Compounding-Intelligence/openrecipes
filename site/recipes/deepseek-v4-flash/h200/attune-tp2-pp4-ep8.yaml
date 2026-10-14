@@ -1,0 +1,175 @@
+# recipes/deepseek-v4-flash/h200/attune-tp2-pp4-ep8.yaml
+# An OpenRecipes recipe; the fields are documented in schema/recipe.schema.yaml.
+schema_version: 1
+model: DeepSeek-V4-Flash
+gpu:
+  type: H200
+  memory_gb: 141
+  count: 64
+  per_node: 8
+  instance: AWS p5en.48xlarge
+author:
+  name: ATTUNE
+  url: https://arxiv.org/abs/2610.17528
+status: verified
+stack:
+  framework: miles 0.1.0 (radixark/miles commit 78527b91, a slime fork), no local changes
+  megatron_lm: radixark/Megatron-LM commit 37f91617 (megatron-core 0.16.0rc0), no local changes
+  transformer_engine: 2.17.0
+  pytorch: 2.11.0 (CUDA 13.0 build)
+  cuda: '13.0'
+  nccl: 2.28.9 (CUDA 13.0 build; printed by the measured run)
+  deepep: 1.2.1 (installed; the alltoall dispatcher does not use it)
+  python: 3.12.3
+  network: 8 GPUs per node, EFA (aws-ofi-nccl 1.20), 3.2 Tb/s RDMA per node
+  source: 'version dump of the measured run''s training image (same digest), 2026-10-13: installed TE, PyTorch, DeepEP,
+    megatron-core and miles, Megatron-LM and miles git commits (clean trees), Python; NCCL from the measured run''s log'
+workload:
+  row_tokens: 8192
+  rows: SFT conversations
+  global_batch: 128
+  precision: bf16
+  dataset:
+    name: Tulu 3 SFT mixture
+    source: allenai/tulu-3-sft-mixture
+    revision: b14afda60f1bbebe55d5d2fa1e4df5042f97f8be
+    license: ODC-By 1.0
+    rows_sha256: 6c7dfdc9b7b8d16da518e994beff79d79d224c421b28a1d4350a6f21b547c6b2
+    build:
+      name: dsv4-tulu3-fixed8192-v1
+      tokenizer: DeepSeek-V4-Flash (revision 60d8d70770c6776ff598c94bb586a859a38244f1; tokenizer.json sha256 8f9f37ca37fdc4f5fd36d5cf4d3b0e8392edb4e894fd10cc0d70b4957c8633cf)
+      loss_mask: deepseek_v4
+      rows: 6400
+      row_tokens: 8192
+      padding_tokens: 0
+      seed: 42
+      packing: source conversations in a seeded global permutation, concatenated with an EOS token between them and cut
+        into consecutive 8,192-token rows; rows without supervised targets are skipped
+      supervised_token_ratio: 0.67
+      parquet_sha256: 488fb9e38ea5027c0de402572848dcc41f9131cb1763709f1660e91e20962d4a
+      parquet_bytes: 76166268
+      builder: data/generate_fixed_sft.py with --loss-mask-type deepseek_v4 (dsv4_mask.py; data/README.md)
+layout:
+  label: TP2 PP4 EP8 DP8
+  summary: 'TP 2, PP 4 (first stage 11 layers, last 10: 11/11/11/10), CP 1, EP 8, ETP 1, DP 8, sequence parallel; one
+    8,192-token row per microbatch (bshd, micro-batch size 1); full recompute (uniform, 1 layer); distributed optimizer;
+    alltoall dispatcher; no offload'
+  highlights: one row per microbatch, no offload
+  tp: 2
+  pp: 4
+  vpp: 1
+  cp: 1
+  ep: 8
+  etp: 1
+  dp: 8
+  sequence_parallel: true
+  layer_split:
+    first: 11
+    last: 10
+  max_tokens_per_gpu: null
+  rows_per_microbatch: 1
+  recompute:
+    granularity: full
+    method: uniform
+    num_layers: 1
+  offload: null
+  dispatcher: alltoall
+result:
+  tokens_per_s_per_gpu: 810.58
+  usd_per_million_tokens: 2.71
+  step_time_cv_percent: 3.21
+  mfu: 0.0652
+  mfu_note: null
+  active_params:
+    count: 13268221952
+    source: https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash
+    revision: 60d8d70770c6776ff598c94bb586a859a38244f1
+  measured: 2026-10-13
+  steps_per_run: 20
+  window:
+  - 4
+  - 13
+  window_tokens: 10485760
+  runs: 1
+  profiler: false
+  gpu_hours: 12.16
+  gpu_hours_note: GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the
+    convergence check
+correctness:
+  result: pass
+  summary: passed
+  reference: 'miles'' validated H200 layout for DeepSeek-V4-Flash: TP 8, PP 8 (first stage 4 layers, last 3), EP 8. Both
+    recipes freeze the router gate and the score-correction bias (`--moe-router-freeze-gate --freeze-e-score-correction-bias`),
+    as miles'' DeepSeek-V4 training requires.'
+  configuration: pass
+  component_tests: []
+  convergence:
+    steps: 20
+    result: pass
+    correlation: 0.99931
+    final_loss_difference: 0.0023
+    pointwise_failures: 0
+    note: 'candidate arm: the measured run, parity probe off; reference arm: a 20-step run of the reference recipe on
+      the same image and rows, parity probe on'
+  rules: argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge
+    validate_convergence with its pipeline thresholds
+env:
+  CUDA_DEVICE_MAX_CONNECTIONS: '1'
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+  TILELANG_CACHE_DIR: $KERNEL_CACHE/tilelang
+  TRITON_CACHE_DIR: $KERNEL_CACHE/triton
+  TORCHINDUCTOR_CACHE_DIR: $KERNEL_CACHE/inductor
+  FI_PROVIDER: efa
+  FI_EFA_USE_DEVICE_RDMA: '1'
+patches: []
+run: |
+  export CUDA_DEVICE_MAX_CONNECTIONS=1
+  export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+  export TILELANG_CACHE_DIR="$KERNEL_CACHE/tilelang"
+  export TRITON_CACHE_DIR="$KERNEL_CACHE/triton"
+  export TORCHINDUCTOR_CACHE_DIR="$KERNEL_CACHE/inductor"
+  export FI_PROVIDER=efa
+  export FI_EFA_USE_DEVICE_RDMA=1
+
+  MODEL_ARGS_LINE="$(python3 miles/utils/external_utils/model_args_utils.py deepseek-v4-flash)"
+  read -ra MODEL_ARGS <<< "$MODEL_ARGS_LINE"
+  python3 train.py \
+    --actor-num-nodes 8 \
+    --actor-num-gpus-per-node 8 \
+    --num-gpus-per-node 8 \
+    "${MODEL_ARGS[@]}" \
+    --hf-checkpoint "$HF_CKPT" \
+    --ref-load "$TORCH_DIST" \
+    --model-name deepseekv4 \
+    --qkv-format bshd \
+    --moe-router-freeze-gate \
+    --freeze-e-score-correction-bias \
+    --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+    --prompt-data "$SFT_DATA" \
+    --input-key messages \
+    --metadata-key metadata \
+    --num-rollout 20 \
+    --rollout-batch-size 128 \
+    --global-batch-size 128 \
+    --loss-type sft_loss \
+    --calculate-per-token-loss \
+    --disable-compute-advantages-and-returns \
+    --debug-train-only \
+    --tensor-model-parallel-size 2 \
+    --sequence-parallel \
+    --pipeline-model-parallel-size 4 \
+    --decoder-first-pipeline-num-layers 11 \
+    --decoder-last-pipeline-num-layers 10 \
+    --context-parallel-size 1 \
+    --expert-model-parallel-size 8 \
+    --expert-tensor-parallel-size 1 \
+    --recompute-granularity full \
+    --recompute-method uniform \
+    --recompute-num-layers 1 \
+    --micro-batch-size 1 \
+    --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+    --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+    --use-distributed-optimizer \
+    --attention-dropout 0.0 --hidden-dropout 0.0 \
+    --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \
+    --distributed-timeout-minutes 30

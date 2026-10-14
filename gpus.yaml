@@ -1,0 +1,28 @@
+# GPU types the recipes run on: memory, dense BF16 peak (the MFU denominator) and the hourly rate behind
+# $ / 1M tokens. Rates are AWS EC2 on-demand prices in us-east-1, fetched 2026-09-18, divided by the 8 GPUs of the
+# instance. Prices change; recompute for your region and commitment.
+rates:
+  basis: AWS EC2 on-demand, us-east-1, instance price / 8 GPUs
+  fetched: 2026-09-18
+gpus:
+  - type: H100
+    name: NVIDIA H100 80GB
+    memory_gb: 80
+    peak_bf16_tflops: 989
+    instance: AWS p5.48xlarge
+    usd_per_gpu_hour: 6.88
+    rate_source: https://instances.vantage.sh/aws/ec2/p5.48xlarge
+  - type: H200
+    name: NVIDIA H200 141GB
+    memory_gb: 141
+    peak_bf16_tflops: 989
+    instance: AWS p5en.48xlarge
+    usd_per_gpu_hour: 7.912
+    rate_source: https://instances.vantage.sh/aws/ec2/p5en.48xlarge
+  - type: B200
+    name: NVIDIA B200 180GB
+    memory_gb: 180
+    peak_bf16_tflops: 2250
+    instance: AWS p6-b200.48xlarge
+    usd_per_gpu_hour: 14.2416
+    rate_source: https://instances.vantage.sh/aws/ec2/p6-b200.48xlarge

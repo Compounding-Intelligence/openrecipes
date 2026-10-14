@@ -1,0 +1,203 @@
+# Models the site lists, with or without recipes, in display order: families newest first.
+# The text models of 20B parameters or more that miles supports (https://miles.radixark.com/docs/models,
+# read 2026-10-13), plus MiniMax-M2. `slug` names the directory under recipes/ and the page path,
+# and `notes` holds what every recipe of the model needs to run.
+# Derived from ATTUNE's benchmark/models.json (see NOTICE). Modified for OpenRecipes, 2026-10-14: converted
+# to YAML with a slug per model, and MiniMax-M2 added. Add a model by pull request.
+models:
+  - family: GLM
+    model: GLM-5.3-Flash
+    slug: glm-5.3-flash
+    hf: zai-org/GLM-5.3-Flash
+  - family: GLM
+    model: GLM-5.3
+    slug: glm-5.3
+    hf: zai-org/GLM-5.3
+  - family: GLM
+    model: GLM-5.2-744B-A40B
+    slug: glm-5.2-744b-a40b
+    hf: zai-org/GLM-5.2
+    notes: |
+      Patch slime's `mask_utils.py` with `data/patch_glm5_mask.py` before building the rows.
+  - family: GLM
+    model: GLM-5.1
+    slug: glm-5.1
+    hf: zai-org/GLM-5.1
+  - family: GLM
+    model: GLM-5
+    slug: glm-5
+    hf: zai-org/GLM-5
+  - family: GLM
+    model: GLM-4.7-Flash
+    slug: glm-4.7-flash
+    hf: zai-org/GLM-4.7-Flash
+  - family: GLM
+    model: GLM-4.5
+    slug: glm-4.5
+    hf: zai-org/GLM-4.5
+  - family: Qwen
+    model: Qwen3.8-27B
+    slug: qwen3.8-27b
+    hf: Qwen/Qwen3.8-27B
+    notes: |
+      `MODEL_ARGS` are slime's `scripts/models/qwen3.5-27B.sh`: Qwen3.8-27B has the Qwen3.5-27B architecture. Its
+      tokenizer adds 7 special tokens and a default system prompt, so it trains on its own rows (data/README.md).
+  - family: Qwen
+    model: Qwen3.8-Flash-Next
+    slug: qwen3.8-flash-next
+    hf: Qwen/Qwen3.8-Flash-Next
+  - family: Qwen
+    model: Qwen3.6-27B
+    slug: qwen3.6-27b
+    hf: Qwen/Qwen3.6-27B
+  - family: Qwen
+    model: Qwen3.6-35B-A3B
+    slug: qwen3.6-35b-a3b
+    hf: Qwen/Qwen3.6-35B-A3B
+    notes: |
+      `MODEL_ARGS` are slime's `scripts/models/qwen3.5-35B-A3B.sh`: Qwen3.6-35B-A3B has the Qwen3.5-35B-A3B architecture and
+      a byte-identical tokenizer, so it trains on the Qwen3.5 rows.
+  - family: Qwen
+    model: Qwen3.5-27B
+    slug: qwen3.5-27b
+    hf: Qwen/Qwen3.5-27B
+  - family: Qwen
+    model: Qwen3.5-35B-A3B
+    slug: qwen3.5-35b-a3b
+    hf: Qwen/Qwen3.5-35B-A3B
+  - family: Qwen
+    model: Qwen3.5-122B-A10B
+    slug: qwen3.5-122b-a10b
+    hf: Qwen/Qwen3.5-122B-A10B
+  - family: Qwen
+    model: Qwen3.5-397B-A17B
+    slug: qwen3.5-397b-a17b
+    hf: Qwen/Qwen3.5-397B-A17B
+  - family: Qwen
+    model: Qwen3-Next-80B-A3B
+    slug: qwen3-next-80b-a3b
+    hf: Qwen/Qwen3-Next-80B-A3B-Thinking
+  - family: Qwen
+    model: Qwen3-30B-A3B
+    slug: qwen3-30b-a3b
+    hf: Qwen/Qwen3-30B-A3B
+  - family: Qwen
+    model: Qwen3-32B
+    slug: qwen3-32b
+    hf: Qwen/Qwen3-32B
+  - family: Qwen
+    model: Qwen3-235B-A22B
+    slug: qwen3-235b-a22b
+    hf: Qwen/Qwen3-235B-A22B
+  - family: DeepSeek
+    model: DeepSeek-V4.1-Flash
+    slug: deepseek-v4.1-flash
+    hf: deepseek-ai/DeepSeek-V4.1-Flash
+  - family: DeepSeek
+    model: DeepSeek-V4-Flash
+    slug: deepseek-v4-flash
+    hf: deepseek-ai/DeepSeek-V4-Flash
+    notes: |
+      - Weights: a BF16 cast of `sgl-project/DeepSeek-V4-Flash-FP8` (an FP8 repackaging of `deepseek-ai/DeepSeek-V4-Flash`),
+        converted to Megatron `torch_dist` with miles v0.1.0.
+      - `MODEL_ARGS` come from miles' `miles/utils/external_utils/model_args_utils.py deepseek-v4-flash`; run the command
+        from a miles checkout.
+      - Build the rows with `--loss-mask-type deepseek_v4 --trust-remote-code` from a checkout of
+        `deepseek-ai/DeepSeek-V4-Flash` that carries `encoding/` (data/README.md).
+      - The router gate and the score-correction bias stay frozen (`--moe-router-freeze-gate
+        --freeze-e-score-correction-bias`), as miles' DeepSeek-V4 training requires.
+      - Keep the kernel caches (`$KERNEL_CACHE`) on shared storage so pipeline stages reuse each other's TileLang and Triton
+        compiles; with per-node caches, step 0 compiles stage by stage.
+  - family: DeepSeek
+    model: DeepSeek-V4-Pro
+    slug: deepseek-v4-pro
+    hf: deepseek-ai/DeepSeek-V4-Pro
+  - family: DeepSeek
+    model: DeepSeek-V3.2
+    slug: deepseek-v3.2
+    hf: deepseek-ai/DeepSeek-V3.2
+  - family: DeepSeek
+    model: DeepSeek-V3
+    slug: deepseek-v3
+    hf: deepseek-ai/DeepSeek-V3
+  - family: Kimi
+    model: Kimi-K3
+    slug: kimi-k3
+    hf: moonshotai/Kimi-K3
+  - family: Kimi
+    model: Kimi-K2.6
+    slug: kimi-k2.6
+    hf: moonshotai/Kimi-K2.6
+  - family: Kimi
+    model: Kimi-K2.5
+    slug: kimi-k2.5
+    hf: moonshotai/Kimi-K2.5
+  - family: Kimi
+    model: Kimi-K2
+    slug: kimi-k2
+    hf: moonshotai/Kimi-K2-Instruct
+  - family: Nemotron
+    model: Nemotron-3-Nano-30B-A3B
+    slug: nemotron-3-nano-30b-a3b
+    hf: nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16
+  - family: Nemotron
+    model: Nemotron-3-Super-120B-A12B
+    slug: nemotron-3-super-120b-a12b
+    hf: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16
+  - family: Nemotron
+    model: Nemotron-3-Ultra-550B-A55B
+    slug: nemotron-3-ultra-550b-a55b
+    hf: nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16
+  - family: Gemma
+    model: Gemma-4-26B-A4B
+    slug: gemma-4-26b-a4b
+    hf: google/gemma-4-26B-A4B-it
+  - family: Gemma
+    model: Gemma-4-31B
+    slug: gemma-4-31b
+    hf: google/gemma-4-31B-it
+  - family: MiMo
+    model: MiMo-V2.6-Flash
+    slug: mimo-v2.6-flash
+    hf: XiaomiMiMo/MiMo-V2.6-Flash-RL
+  - family: GPT-OSS
+    model: gpt-oss-120b
+    slug: gpt-oss-120b
+    hf: openai/gpt-oss-120b
+    notes: |
+      - Weights: `openai/gpt-oss-120b` (revision b5c939de) with its MXFP4 experts dequantized to BF16 by the training
+        image's `tools/preprocess_gpt_oss.py`, converted to Megatron `torch_dist` with slime's
+        `tools/convert_hf_to_torch_dist.py`.
+      - `MODEL_ARGS` are the architecture written out in the command, with `--spec attune_gpt_oss_yarn
+        get_gpt_oss_yarn_spec`. The spec in `patches/attune_gpt_oss_yarn.py` sets YaRN RoPE from the checkpoint's
+        `config.json`, which slime's stock gpt-oss script does not build.
+      - It trains on the gpt-oss rows; the tokenizer and chat template are byte-identical to gpt-oss-20b's.
+  - family: GPT-OSS
+    model: gpt-oss-20b
+    slug: gpt-oss-20b
+    hf: openai/gpt-oss-20b
+    notes: |
+      - Weights: `openai/gpt-oss-20b` (revision 6cee5e81) with its MXFP4 experts dequantized to BF16 by the training image's
+        `tools/preprocess_gpt_oss.py`, converted to Megatron `torch_dist` with slime's `tools/convert_hf_to_torch_dist.py`.
+      - `MODEL_ARGS` are the architecture written out in the command, with `--spec attune_gpt_oss_yarn
+        get_gpt_oss_yarn_spec`. The spec in `patches/attune_gpt_oss_yarn.py` sets YaRN RoPE from the checkpoint's
+        `config.json`, which slime's stock gpt-oss script does not build.
+      - The loss is the mean over each row's supervised tokens (Megatron-Bridge's SFT loss mode); the command does not pass
+        `--calculate-per-token-loss`.
+      - On 80 GB GPUs the FP32 logits of an 8,192-token microbatch (6.14 GiB) need full recompute; H200 and B200 hold them.
+  - family: MiniMax
+    model: MiniMax-M2
+    slug: minimax-m2
+    hf: MiniMaxAI/MiniMax-M2
+  - family: Inkling
+    model: Inkling-Small
+    slug: inkling-small
+    hf: thinkingmachines/Inkling-Small
+  - family: Inkling
+    model: Inkling
+    slug: inkling
+    hf: thinkingmachines/Inkling
+  - family: JoyAI
+    model: JoyAI-LLM-Flash
+    slug: joyai-llm-flash
+    hf: jdopensource/JoyAI-LLM-Flash

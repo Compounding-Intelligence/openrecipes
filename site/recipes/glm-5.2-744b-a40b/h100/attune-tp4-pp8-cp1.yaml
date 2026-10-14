@@ -1,0 +1,164 @@
+# recipes/glm-5.2-744b-a40b/h100/attune-tp4-pp8-cp1.yaml
+# An OpenRecipes recipe; the fields are documented in schema/recipe.schema.yaml.
+schema_version: 1
+model: GLM-5.2-744B-A40B
+gpu:
+  type: H100
+  memory_gb: 80
+  count: 256
+  per_node: 8
+  instance: AWS p5.48xlarge
+author:
+  name: ATTUNE
+  url: https://arxiv.org/abs/2610.17528
+status: verified
+stack:
+  framework: slime 0.3.0 with local patches; commit not recorded
+  megatron_lm: commit 1dcf0daf (megatron-core 0.16.0rc0) with local patches
+  transformer_engine: 2.10.0
+  pytorch: 2.11.0 (CUDA 12.9 build)
+  cuda: '12.9'
+  nccl: 2.28.9 (PyTorch's NCCL wheel; printed by the measured run)
+  deepep: 1.2.1
+  python: 3.12.3
+  network: 8 GPUs per node, EFA, 3.2 Tb/s RDMA per node
+  source: 'in-pod version dump of the measured run''s training image (same digest), 2026-10-11: Megatron-LM git commit
+    and status, installed megatron-core, TE, PyTorch, NCCL, DeepEP and slime, Python'
+workload:
+  row_tokens: 8192
+  rows: SFT conversations
+  global_batch: 128
+  precision: bf16
+  dataset:
+    name: Tulu 3 SFT mixture
+    source: allenai/tulu-3-sft-mixture
+    revision: b14afda60f1bbebe55d5d2fa1e4df5042f97f8be
+    license: ODC-By 1.0
+    rows_sha256: bb302c134974b96f3905e9c87bfc4c0bb2be674a50e6dad09121aed2a0eb3455
+    build:
+      name: glm52-tulu3-fixed8192-v1
+      tokenizer: GLM-5.2 (tokenizer.json sha256 19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d)
+      loss_mask: glm5
+      rows: 12800
+      row_tokens: 8192
+      padding_tokens: 0
+      seed: 20260828
+      packing: source conversations in a seeded global permutation, concatenated with an EOS token between them and cut
+        into consecutive 8,192-token rows; rows without supervised targets are skipped
+      supervised_token_ratio: 0.661
+      parquet_sha256: 5d951089abd622511a40e0b3a1e5e36ad56859459e4d8c3aff14538cadbd0743
+      parquet_bytes: 169929706
+      builder: data/generate_fixed_sft.py with patch_glm5_mask.py (data/README.md)
+layout:
+  label: TP4 PP8 EP32 DP8
+  summary: TP 4, PP 8 (first stage 14 layers, last 16), CP 1, EP 32, ETP 1, DP 8, sequence parallel; one 8,192-token row
+    per microbatch; full recompute (uniform, 1 layer); CPU optimizer offload with overlapped copies and the precision-aware
+    optimizer; alltoall dispatcher
+  highlights: max 8,192 tokens/GPU, CPU optimizer offload
+  tp: 4
+  pp: 8
+  vpp: 1
+  cp: 1
+  ep: 32
+  etp: 1
+  dp: 8
+  sequence_parallel: true
+  layer_split:
+    first: 14
+    last: 16
+  max_tokens_per_gpu: 8192
+  rows_per_microbatch: 1
+  recompute:
+    granularity: full
+    method: uniform
+    num_layers: 1
+  offload:
+    optimizer_fraction: 1.0
+    overlap_d2h_h2d: true
+  dispatcher: alltoall
+result:
+  tokens_per_s_per_gpu: 68.26
+  usd_per_million_tokens: 28.0
+  step_time_cv_percent: 1.73
+  mfu: 0.0167
+  mfu_note: null
+  active_params:
+    count: 40297758720
+    source: https://huggingface.co/zai-org/GLM-5.2
+    revision: cf457fa734ab149ffef225f80893eb38c6ff5cdc
+  measured: 2026-10-11
+  steps_per_run: 14
+  window:
+  - 4
+  - 13
+  window_tokens: 10485760
+  runs: 1
+  profiler: false
+  gpu_hours: 122.2
+  gpu_hours_note: GPUs x (job start to end), including startup
+correctness:
+  result: pass
+  summary: passed
+  reference: Not published.
+  configuration: pass
+  component_tests: []
+  convergence:
+    steps: 20
+    result: pass
+    correlation: 0.99954
+    final_loss_difference: 0.0015
+    pointwise_failures: 0
+    note: on the measured run's training image
+  rules: argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge
+    validate_convergence with its pipeline thresholds
+env:
+  CUDA_DEVICE_MAX_CONNECTIONS: '1'
+  INDEXER_ROPE_NEOX_STYLE: '0'
+  NCCL_NVLS_ENABLE: $([ "$NVLINK_COUNT" -gt 0 ] && echo 1 || echo 0)
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+patches: []
+run: |
+  export CUDA_DEVICE_MAX_CONNECTIONS=1
+  export INDEXER_ROPE_NEOX_STYLE=0
+  export NCCL_NVLS_ENABLE=$([ "$NVLINK_COUNT" -gt 0 ] && echo 1 || echo 0)
+  export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True  # set in the pod environment
+
+  python3 -m <slime entry module> --async \
+    --actor-num-nodes 32 \
+    --actor-num-gpus-per-node 8 \
+    ${MODEL_ARGS[@]} \
+    --hf-checkpoint "$HF_CKPT" \
+    --ref-load "$TORCH_DIST" \
+    --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+    --prompt-data "$SFT_DATA" \
+    --input-key messages \
+    --metadata-key metadata \
+    --num-rollout 14 \
+    --rollout-batch-size 128 \
+    --global-batch-size 128 \
+    --loss-type sft_loss \
+    --calculate-per-token-loss \
+    --disable-compute-advantages-and-returns \
+    --debug-train-only \
+    --tensor-model-parallel-size 4 \
+    --sequence-parallel \
+    --pipeline-model-parallel-size 8 \
+    --decoder-first-pipeline-num-layers 14 \
+    --decoder-last-pipeline-num-layers 16 \
+    --context-parallel-size 1 \
+    --expert-model-parallel-size 32 \
+    --expert-tensor-parallel-size 1 \
+    --recompute-granularity full \
+    --recompute-method uniform \
+    --recompute-num-layers 1 \
+    --use-dynamic-batch-size \
+    --max-tokens-per-gpu 8192 \
+    --data-pad-size-multiplier 256 \
+    --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+    --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+    --optimizer-cpu-offload --overlap-cpu-optimizer-d2h-h2d --use-precision-aware-optimizer \
+    --attention-dropout 0.0 --hidden-dropout 0.0 \
+    --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \
+    --attention-backend flash \
+    --moe-token-dispatcher-type alltoall \
+    --allgather-cp

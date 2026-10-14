@@ -1,0 +1,23 @@
+Third-party notices
+
+This repository contains a small amount of code vendored from, or adapted from, the projects below. Each such file
+keeps its upstream notice and says what it took and what it changed. None of the projects' source trees are
+included. The training stack (Megatron-LM, slime, PyTorch, Transformer Engine) and the Python packages the scripts
+import (PyYAML, pytest, pyarrow, transformers) are runtime dependencies installed separately; they are not
+distributed here.
+
+------------------------------------------------------------------------------------------------------------------------
+slime
+  Source:  https://github.com/THUDM/slime
+  License: Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
+  Used in: data/patch_glm5_mask.py
+  What:    gen_multi_turn_loss_mask_glm5() is adapted from gen_multi_turn_loss_mask_qwen3_5() in slime's
+           slime/utils/mask_utils.py (the rendered-text, offset-mapping and character-mask approach).
+  Changes: GLM-5 chat-template markers (<|assistant|>, <|user|>, <|observation|>, <|endoftext|>), think-prefix
+           handling, and an in-place installer that adds the method and its get_loss_mask() branch.
+  Used in: data/patch_gptoss_mask.py
+  What:    gen_multi_turn_loss_mask_gpt_oss() is adapted from gen_multi_turn_loss_mask_qwen3_5() in slime's
+           slime/utils/mask_utils.py (the rendered-text, offset-mapping and character-mask approach).
+  Changes: harmony chat-template markers (<|start|>assistant, <|end|>, <|return|>, <|call|>), a frozen template date,
+           checks that refuse conversations the template would not render faithfully, and an in-place installer that
+           adds the method and its get_loss_mask() branch.

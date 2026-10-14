@@ -1,0 +1,148 @@
+# recipes/qwen3.5-122b-a10b/h100/attune-tp4-pp6-ep8-flex-mt16k.yaml
+# An OpenRecipes recipe; the fields are documented in schema/recipe.schema.yaml.
+schema_version: 1
+model: Qwen3.5-122B-A10B
+gpu:
+  type: H100
+  memory_gb: 80
+  count: 48
+  per_node: 8
+  instance: AWS p5.48xlarge
+author:
+  name: ATTUNE
+  url: https://arxiv.org/abs/2610.17528
+status: verified
+stack:
+  framework: 'slime 0.3.0: THUDM/slime a897e1f plus 8 commits that do not change the training step'
+  megatron_lm: commit 1dcf0daf (megatron-core 0.16.0rc0), with a backported upstream fix for the Qwen3.5 attention output
+    gate at TP above the query-group count
+  transformer_engine: 2.10.0
+  pytorch: 2.11.0 (CUDA 12.9 build)
+  cuda: '12.9'
+  nccl: 2.28.9 (CUDA 12.9 build; printed by the measured run)
+  deepep: 1.2.1
+  python: '3.12'
+  network: 8 GPUs per node, EFA, 3.2 Tb/s RDMA per node
+  source: 'in-pod environment dump of the measured run''s training image (same digest), taken by the component tests on
+    2026-10-11: installed TE, PyTorch and DeepEP, Megatron-LM git commit; NCCL from the measured run''s log'
+workload:
+  row_tokens: 8192
+  rows: SFT conversations
+  global_batch: 128
+  precision: bf16
+  dataset:
+    name: Tulu 3 SFT mixture
+    source: allenai/tulu-3-sft-mixture
+    revision: b14afda60f1bbebe55d5d2fa1e4df5042f97f8be
+    license: ODC-By 1.0
+    rows_sha256: 7a837641dcde9ebcac9d3ed5ed84ddd941fc9bfc173606cc701e9a3f51c307f1
+    build:
+      name: qwen35-tulu3-fixed8192-v1
+      tokenizer: Qwen3.5 (the Qwen3.5-122B-A10B tokenizer; tokenizer.json sha256 5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42)
+      loss_mask: qwen3_5
+      rows: 6400
+      row_tokens: 8192
+      padding_tokens: 0
+      seed: 42
+      packing: source conversations in a seeded global permutation, concatenated with an EOS token between them and cut
+        into consecutive 8,192-token rows; rows without supervised targets are skipped
+      supervised_token_ratio: 0.676
+      parquet_sha256: f215bdc6aba60d6d0dff4471eaef805765cb393e40b95762190535376491ab01
+      parquet_bytes: 76127393
+      builder: data/generate_fixed_sft.py (data/README.md)
+layout:
+  label: TP4 PP6 EP8 DP2
+  summary: TP 4, PP 6, CP 1, EP 8, ETP 1, DP 2, sequence parallel; two 8,192-token rows per microbatch (max 16,384 tokens
+    per GPU); full recompute (uniform, 1 layer); flex dispatcher; distributed optimizer with the precision-aware optimizer;
+    TE cross-entropy fusion; no offload
+  highlights: max 16,384 tokens/GPU, flex dispatcher
+  tp: 4
+  pp: 6
+  vpp: 1
+  cp: 1
+  ep: 8
+  etp: 1
+  dp: 2
+  sequence_parallel: true
+  layer_split: null
+  max_tokens_per_gpu: 16384
+  rows_per_microbatch: 2
+  recompute:
+    granularity: full
+    method: uniform
+    num_layers: 1
+  offload: null
+  dispatcher: flex
+result:
+  tokens_per_s_per_gpu: 999.73
+  usd_per_million_tokens: 1.91
+  step_time_cv_percent: 0.73
+  mfu: 0.0546
+  mfu_note: null
+  active_params:
+    count: 9008136192
+    source: https://huggingface.co/Qwen/Qwen3.5-122B-A10B
+    revision: dc4d348443bc740c68e2d77492492c11606384d5
+  measured: 2026-10-11
+  steps_per_run: 14
+  window:
+  - 4
+  - 13
+  window_tokens: 10485760
+  runs: 1
+  profiler: false
+  gpu_hours: 17.7
+  gpu_hours_note: GPUs x (job start to end), including startup
+correctness:
+  result: pass
+  summary: passed; the flex dispatcher passed its component test at this model's shape
+  reference: Not published.
+  configuration: pass
+  component_tests:
+  - test: flex dispatcher against an FP32 reference
+    shape: 'one Qwen3.5-122B-A10B MoE layer: hidden 3072, 256 experts, top-8, expert FFN 1024, EP 8, ETP 1; TP 4 with
+      sequence parallel and TP 1; 4,096 and 16,384 tokens per rank'
+    gpu: H100
+    date: 2026-10-11
+    result: pass
+    detail: routing identical; worst tensor (output) relative L2 error 4.11e-3 against a bound of 8.76e-3 (2 x the alltoall
+      dispatcher's error + 1e-3); input and weight gradients pass; the negative controls fail
+  convergence:
+    steps: 20
+    result: pass
+    correlation: 0.99999
+    final_loss_difference: 1.6e-05
+    pointwise_failures: 0
+  rules: argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge
+    validate_convergence with its pipeline thresholds
+env:
+  CUDA_DEVICE_MAX_CONNECTIONS: '1'
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+  NCCL_NVLS_ENABLE: $([ "$NVLINK_COUNT" -gt 0 ] && echo 1 || echo 0)
+patches: []
+run: |
+  export CUDA_DEVICE_MAX_CONNECTIONS=1
+  export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+  export NCCL_NVLS_ENABLE=$([ "$NVLINK_COUNT" -gt 0 ] && echo 1 || echo 0)
+
+  python3 -m <slime entry module> --async \
+    --actor-num-nodes 6 --actor-num-gpus-per-node 8 \
+    ${MODEL_ARGS[@]} \
+    --hf-checkpoint $HF_CKPT --ref-load $TORCH_DIST \
+    --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+    --prompt-data $SFT_DATA --input-key messages \
+    --num-rollout 14 --rollout-batch-size 128 --global-batch-size 128 \
+    --loss-type sft_loss --loss-mask-type qwen3_5 --calculate-per-token-loss \
+    --disable-compute-advantages-and-returns --debug-train-only \
+    --tensor-model-parallel-size 4 --pipeline-model-parallel-size 6 \
+    --context-parallel-size 1 --expert-model-parallel-size 8 --expert-tensor-parallel-size 1 \
+    --sequence-parallel \
+    --recompute-granularity full --recompute-method uniform --recompute-num-layers 1 \
+    --use-dynamic-batch-size --max-tokens-per-gpu 16384 \
+    --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+    --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+    --use-distributed-optimizer --use-precision-aware-optimizer \
+    --cross-entropy-loss-fusion --cross-entropy-fusion-impl te \
+    --attention-dropout 0.0 --hidden-dropout 0.0 \
+    --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 --attention-backend flash \
+    --moe-token-dispatcher-type flex --max-tokens-per-gpu 16384

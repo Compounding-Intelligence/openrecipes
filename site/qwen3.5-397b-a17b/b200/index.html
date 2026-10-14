@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training Qwen3.5-397B-A17B on B200 | OpenRecipes</title>
+<meta name="description" content="Verified training recipes for Qwen3.5-397B-A17B on B200: best 1,176.1 tokens/s per GPU on 64 GPUs, $3.36 per million tokens.">
+<link rel="canonical" href="https://openrecipes.ai/qwen3.5-397b-a17b/b200/">
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+<script src="../../app.js" defer></script>
+</head>
+<body>
+<header class="nav"><a class="brand" href="../../"><svg class="mark" width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><path d="M25.85 14.26A10 10 0 1 1 21 7.34" fill="none" stroke="#0e7490" stroke-width="4" stroke-linecap="round"/><circle cx="25.2" cy="7.6" r="2.6" fill="#0f172a"/></svg>OpenRecipes</a><nav class="links" aria-label="Site"><a href="../../#models">Models</a><a href="../../rankings">Rankings</a><a href="../../protocol">Protocol</a><a href="../../submit">Submit</a><a href="https://github.com/Compounding-Intelligence/openrecipes">GitHub</a></nav></header>
+<main class="wrap">
+<div class="crumb"><a href="../../#models">Models</a> &middot; Qwen &middot; Qwen3.5-397B-A17B</div>
+<h1>Training Qwen3.5-397B-A17B on B200</h1>
+<div class="sub">8,192-token SFT rows &middot; global batch 128 &middot; BF16</div>
+<div class="card qa"><b>Quick answer.</b> The fastest verified recipe trains Qwen3.5-397B-A17B at <b>1,176.1 tokens/s per GPU</b> on 64 &times; B200, or <b>$3.36 per million tokens</b>, with TP2 PP8 VPP2 EP8 DP4 (max 16,384 tokens/GPU, VPP 2, no offload).</div>
+<div class="stats"><div class="card"><div class="k">Verified recipes</div><div class="v">3</div></div><div class="card"><div class="k">Best tokens/s/GPU</div><div class="v">1,176.1</div></div><div class="card"><div class="k">Lowest $ / 1M tokens</div><div class="v">$3.36</div></div><div class="card"><div class="k">Measured</div><div class="v date"><span class="nw">2026-10-11</span> to <span class="nw">2026-10-13</span></div></div></div>
+<div class="card tablewrap"><table class="stack"><thead><tr><th>#</th><th>Tokens/s per GPU</th><th>$ / 1M tokens</th><th class="hide-s">GPUs</th><th>Layout</th><th class="hide-s">Measured</th><th></th></tr></thead><tbody><tr class="best"><td data-label="#"><span class="cv">1</span></td><td class="n" data-label="Tokens/s per GPU"><span class="cv">1,176.1</span></td><td class="n" data-label="$ / 1M tokens"><span class="cv">$3.36</span></td><td class="hide-s" data-label="GPUs"><span class="cv">64</span></td><td data-label="Layout"><span class="cv">TP2 PP8 VPP2 EP8 DP4<br><small>max 16,384 tokens/GPU, VPP 2, no offload</small></span></td><td class="hide-s nw" data-label="Measured"><span class="cv">2026-10-11</span></td><td data-label=""><span class="cv"><a href="#attune-tp2-pp8-ep8-vpp2-mt16k">Recipe&nbsp;&rsaquo;</a></span></td></tr><tr class=""><td data-label="#"><span class="cv">2</span></td><td class="n" data-label="Tokens/s per GPU"><span class="cv">1,054.9</span></td><td class="n" data-label="$ / 1M tokens"><span class="cv">$3.75</span></td><td class="hide-s" data-label="GPUs"><span class="cv">64</span></td><td data-label="Layout"><span class="cv">TP2 PP8 VPP2 EP8 DP4<br><small>max 8,192 tokens/GPU, VPP 2, no offload</small></span></td><td class="hide-s nw" data-label="Measured"><span class="cv">2026-10-13</span></td><td data-label=""><span class="cv"><a href="#attune-tp2-pp8-ep8-vpp2-mt8k">Recipe&nbsp;&rsaquo;</a></span></td></tr><tr class=""><td data-label="#"><span class="cv">3</span></td><td class="n" data-label="Tokens/s per GPU"><span class="cv">1,046.7</span></td><td class="n" data-label="$ / 1M tokens"><span class="cv">$3.78</span></td><td class="hide-s" data-label="GPUs"><span class="cv">48</span></td><td data-label="Layout"><span class="cv">TP2 PP6 EP8 DP4<br><small>max 8,192 tokens/GPU, no offload</small></span></td><td class="hide-s nw" data-label="Measured"><span class="cv">2026-10-13</span></td><td data-label=""><span class="cv"><a href="#attune-48gpu-tp2-pp6-ep8">Recipe&nbsp;&rsaquo;</a></span></td></tr></tbody></table></div>
+
+<h2>Recipes</h2>
+<details class="card recipe" id="attune-tp2-pp8-ep8-vpp2-mt16k" open>
+<summary><span class="rank">#1</span><span class="slug">attune-tp2-pp8-ep8-vpp2-mt16k</span><span class="tps">1,176.1 tokens/s/GPU</span><span class="muted small">TP2 PP8 VPP2 EP8 DP4</span><span class="hl">max 16,384 tokens/GPU, VPP 2, no offload</span></summary>
+<div class="body">
+<dl class="facts"><dt>Author</dt><dd><a href="https://arxiv.org/abs/2610.17528">ATTUNE</a></dd><dt>GPUs</dt><dd>64 x B200 180 GB (AWS p6-b200.48xlarge, 8 per node)</dd><dt>Layout</dt><dd>TP 2, PP 8 (first and last stage 6 layers), VPP 2, CP 1, EP 8, ETP 1, DP 4; two 8,192-token rows per microbatch (max 16,384 tokens per GPU); full recompute (uniform, 1 layer); precision-aware distributed optimizer; alltoall dispatcher; no offload</dd><dt>Tokens/s per GPU</dt><dd>1,176.14</dd><dt>$ / 1M tokens</dt><dd>$3.36</dd><dt>MFU</dt><dd>5.1% (N = 16,331,407,360 active parameters per token)</dd><dt>Step-time CV</dt><dd>5.43%</dd><dt>Convergence check</dt><dd>correlation 0.999996, final loss difference 6.5e-05, 0 pointwise failures over 20 steps</dd><dt>Component test</dt><dd>precision-aware Adam on GPU (TE FusedAdam, FP32 masters stored as BF16 parameter plus remainder) against an FP64 reference: B200, 2026-10-11. Shape: one Qwen3.5-397B-A17B MoE layer: hidden 4096, 512 experts, top-10, expert FFN 1024, EP 8, ETP 1, 4,096 tokens per rank. worst tensor (update) relative L2 error 5.12e-7 against a bound of 1.0e-3 after one step, and within bound after three steps at the entry&#x27;s hyperparameters; reconstructed FP32 masters bitwise identical to an arm with explicit FP32 masters; the negative controls fail</dd><dt>Measured</dt><dd>2026-10-11, 14-step run</dd><dt>GPU-hours</dt><dd>22.6</dd><dt>Rows</dt><dd><code>qwen35-tulu3-fixed8192-v1</code> (rows_sha256 <code>7a837641dcde9ebcac9d3ed5ed84ddd941fc9bfc173606cc701e9a3f51c307f1</code>)</dd></dl>
+<div class="cols"><div><h3>Stack</h3><dl class="facts"><dt>framework</dt><dd>slime with local patches, not pinned</dd><dt>megatron lm</dt><dd>commit 1dcf0daf (megatron-core 0.16.0rc0)</dd><dt>transformer engine</dt><dd>2.10.0</dd><dt>pytorch</dt><dd>2.11.0 (CUDA 12.9 build)</dd><dt>cuda</dt><dd>12.9</dd><dt>nccl</dt><dd>2.28.9 (CUDA 12.9 build; printed by the measured run)</dd><dt>deepep</dt><dd>1.2.1</dd><dt>python</dt><dd>3.12</dd><dt>network</dt><dd>8 GPUs per node, EFA, 3.2 Tb/s RDMA per node</dd></dl></div><div><h3>Environment</h3><ul class="env"><li><code>CUDA_DEVICE_MAX_CONNECTIONS=1</code></li><li><code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code></li><li><code>TORCHINDUCTOR_COMPILE_THREADS=1</code></li><li><code>NCCL_NVLS_ENABLE=$([ &quot;$NVLINK_COUNT&quot; -gt 0 ] &amp;&amp; echo 1 || echo 0)</code></li></ul></div></div>
+<div class="filebar"><span class="k">Command</span><span class="acts"><a class="btn o" href="../../protocol#run">How to run</a><button type="button" class="btn o" data-copy="run-attune-tp2-pp8-ep8-vpp2-mt16k">Copy</button></span></div>
+<pre id="run-attune-tp2-pp8-ep8-vpp2-mt16k">export CUDA_DEVICE_MAX_CONNECTIONS=1
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export TORCHINDUCTOR_COMPILE_THREADS=1
+export NCCL_NVLS_ENABLE=$([ &quot;$NVLINK_COUNT&quot; -gt 0 ] &amp;&amp; echo 1 || echo 0)
+
+python3 -m &lt;slime entry module&gt; --async \
+  --actor-num-nodes 8 \
+  --actor-num-gpus-per-node 8 \
+  ${MODEL_ARGS[@]} \
+  --hf-checkpoint &quot;$HF_CKPT&quot; \
+  --ref-load &quot;$TORCH_DIST&quot; \
+  --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+  --prompt-data &quot;$SFT_DATA&quot; \
+  --input-key messages \
+  --metadata-key metadata \
+  --num-rollout 14 \
+  --rollout-batch-size 128 \
+  --global-batch-size 128 \
+  --loss-type sft_loss \
+  --calculate-per-token-loss \
+  --disable-compute-advantages-and-returns \
+  --debug-train-only \
+  --tensor-model-parallel-size 2 \
+  --pipeline-model-parallel-size 8 \
+  --decoder-first-pipeline-num-layers 6 \
+  --decoder-last-pipeline-num-layers 6 \
+  --context-parallel-size 1 \
+  --expert-model-parallel-size 8 \
+  --expert-tensor-parallel-size 1 \
+  --sequence-parallel \
+  --recompute-granularity full \
+  --recompute-method uniform \
+  --recompute-num-layers 1 \
+  --use-dynamic-batch-size \
+  --max-tokens-per-gpu 16384 \
+  --data-pad-size-multiplier 256 \
+  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+  --use-distributed-optimizer \
+  --use-precision-aware-optimizer \
+  --attention-dropout 0.0 --hidden-dropout 0.0 \
+  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \
+  --attention-backend flash \
+  --distributed-timeout-minutes 30 \
+  --num-virtual-stages-per-pipeline-rank 2
+</pre>
+<div class="filebar"><span class="k">recipes/qwen3.5-397b-a17b/b200/attune-tp2-pp8-ep8-vpp2-mt16k.yaml</span><span class="acts"><a class="btn o" href="../../recipes/qwen3.5-397b-a17b/b200/attune-tp2-pp8-ep8-vpp2-mt16k.yaml" download>Download</a><a class="btn o" href="https://github.com/Compounding-Intelligence/openrecipes/blob/main/recipes/qwen3.5-397b-a17b/b200/attune-tp2-pp8-ep8-vpp2-mt16k.yaml">GitHub</a><button type="button" class="btn o" data-copy="file-attune-tp2-pp8-ep8-vpp2-mt16k">Copy</button></span></div>
+<pre class="file" id="file-attune-tp2-pp8-ep8-vpp2-mt16k"># recipes/qwen3.5-397b-a17b/b200/attune-tp2-pp8-ep8-vpp2-mt16k.yaml
+# An OpenRecipes recipe; the fields are documented in schema/recipe.schema.yaml.
+schema_version: 1
+model: Qwen3.5-397B-A17B
+gpu:
+  type: B200
+  memory_gb: 180
+  count: 64
+  per_node: 8
+  instance: AWS p6-b200.48xlarge
+author:
+  name: ATTUNE
+  url: https://arxiv.org/abs/2610.17528
+status: verified
+stack:
+  framework: slime with local patches, not pinned
+  megatron_lm: commit 1dcf0daf (megatron-core 0.16.0rc0)
+  transformer_engine: 2.10.0
+  pytorch: 2.11.0 (CUDA 12.9 build)
+  cuda: &#x27;12.9&#x27;
+  nccl: 2.28.9 (CUDA 12.9 build; printed by the measured run)
+  deepep: 1.2.1
+  python: &#x27;3.12&#x27;
+  network: 8 GPUs per node, EFA, 3.2 Tb/s RDMA per node
+  source: &#x27;in-pod environment dump of the measured run&#x27;&#x27;s training image (same digest), taken by the component tests on
+    2026-10-11: installed TE, PyTorch and DeepEP, Megatron-LM git commit; NCCL from the measured run&#x27;&#x27;s log&#x27;
+workload:
+  row_tokens: 8192
+  rows: SFT conversations
+  global_batch: 128
+  precision: bf16
+  dataset:
+    name: Tulu 3 SFT mixture
+    source: allenai/tulu-3-sft-mixture
+    revision: b14afda60f1bbebe55d5d2fa1e4df5042f97f8be
+    license: ODC-By 1.0
+    rows_sha256: 7a837641dcde9ebcac9d3ed5ed84ddd941fc9bfc173606cc701e9a3f51c307f1
+    build:
+      name: qwen35-tulu3-fixed8192-v1
+      tokenizer: Qwen3.5 (the Qwen3.5-122B-A10B tokenizer; tokenizer.json sha256 5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42)
+      loss_mask: qwen3_5
+      rows: 6400
+      row_tokens: 8192
+      padding_tokens: 0
+      seed: 42
+      packing: source conversations in a seeded global permutation, concatenated with an EOS token between them and cut
+        into consecutive 8,192-token rows; rows without supervised targets are skipped
+      supervised_token_ratio: 0.676
+      parquet_sha256: f215bdc6aba60d6d0dff4471eaef805765cb393e40b95762190535376491ab01
+      parquet_bytes: 76127393
+      builder: data/generate_fixed_sft.py (data/README.md)
+layout:
+  label: TP2 PP8 VPP2 EP8 DP4
+  summary: TP 2, PP 8 (first and last stage 6 layers), VPP 2, CP 1, EP 8, ETP 1, DP 4; two 8,192-token rows per microbatch
+    (max 16,384 tokens per GPU); full recompute (uniform, 1 layer); precision-aware distributed optimizer; alltoall dispatcher;
+    no offload
+  highlights: max 16,384 tokens/GPU, VPP 2, no offload
+  tp: 2
+  pp: 8
+  vpp: 2
+  cp: 1
+  ep: 8
+  etp: 1
+  dp: 4
+  sequence_parallel: true
+  layer_split:
+    first: 6
+    last: 6
+  max_tokens_per_gpu: 16384
+  rows_per_microbatch: 2
+  recompute:
+    granularity: full
+    method: uniform
+    num_layers: 1
+  offload: null
+  dispatcher: alltoall
+result:
+  tokens_per_s_per_gpu: 1176.14
+  usd_per_million_tokens: 3.36
+  step_time_cv_percent: 5.43
+  mfu: 0.0512
+  mfu_note: null
+  active_params:
+    count: 16331407360
+    source: https://huggingface.co/Qwen/Qwen3.5-397B-A17B
+    revision: 8472618112abcbd45acbcdc58436aff4233c23f7
+  measured: 2026-10-11
+  steps_per_run: 14
+  window:
+  - 4
+  - 13
+  window_tokens: 10485760
+  runs: 1
+  profiler: false
+  gpu_hours: 22.6
+  gpu_hours_note: GPUs x (job start to end), including startup
+correctness:
+  result: pass
+  summary: passed; the on-GPU optimizer passed its component test at this model&#x27;s shape
+  reference: Not published.
+  configuration: pass
+  component_tests:
+  - test: precision-aware Adam on GPU (TE FusedAdam, FP32 masters stored as BF16 parameter plus remainder) against an
+      FP64 reference
+    shape: &#x27;one Qwen3.5-397B-A17B MoE layer: hidden 4096, 512 experts, top-10, expert FFN 1024, EP 8, ETP 1, 4,096 tokens
+      per rank&#x27;
+    gpu: B200
+    date: 2026-10-11
+    result: pass
+    detail: worst tensor (update) relative L2 error 5.12e-7 against a bound of 1.0e-3 after one step, and within bound
+      after three steps at the entry&#x27;s hyperparameters; reconstructed FP32 masters bitwise identical to an arm with explicit
+      FP32 masters; the negative controls fail
+  convergence:
+    steps: 20
+    result: pass
+    correlation: 0.999996
+    final_loss_difference: 6.5e-05
+    pointwise_failures: 0
+    note: on the measured run&#x27;s training image
+  rules: argument classes of ATTUNE&#x27;s skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge
+    validate_convergence with its pipeline thresholds
+env:
+  CUDA_DEVICE_MAX_CONNECTIONS: &#x27;1&#x27;
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+  TORCHINDUCTOR_COMPILE_THREADS: &#x27;1&#x27;
+  NCCL_NVLS_ENABLE: $([ &quot;$NVLINK_COUNT&quot; -gt 0 ] &amp;&amp; echo 1 || echo 0)
+patches: []
+run: |
+  export CUDA_DEVICE_MAX_CONNECTIONS=1
+  export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+  export TORCHINDUCTOR_COMPILE_THREADS=1
+  export NCCL_NVLS_ENABLE=$([ &quot;$NVLINK_COUNT&quot; -gt 0 ] &amp;&amp; echo 1 || echo 0)
+
+  python3 -m &lt;slime entry module&gt; --async \
+    --actor-num-nodes 8 \
+    --actor-num-gpus-per-node 8 \
+    ${MODEL_ARGS[@]} \
+    --hf-checkpoint &quot;$HF_CKPT&quot; \
+    --ref-load &quot;$TORCH_DIST&quot; \
+    --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+    --prompt-data &quot;$SFT_DATA&quot; \
+    --input-key messages \
+    --metadata-key metadata \
+    --num-rollout 14 \
+    --rollout-batch-size 128 \
+    --global-batch-size 128 \
+    --loss-type sft_loss \
+    --calculate-per-token-loss \
+    --disable-compute-advantages-and-returns \
+    --debug-train-only \
+    --tensor-model-parallel-size 2 \
+    --pipeline-model-parallel-size 8 \
+    --decoder-first-pipeline-num-layers 6 \
+    --decoder-last-pipeline-num-layers 6 \
+    --context-parallel-size 1 \
+    --expert-model-parallel-size 8 \
+    --expert-tensor-parallel-size 1 \
+    --sequence-parallel \
+    --recompute-granularity full \
+    --recompute-method uniform \
+    --recompute-num-layers 1 \
+    --use-dynamic-batch-size \
+    --max-tokens-per-gpu 16384 \
+    --data-pad-size-multiplier 256 \
+    --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+    --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+    --use-distributed-optimizer \
+    --use-precision-aware-optimizer \
+    --attention-dropout 0.0 --hidden-dropout 0.0 \
+    --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \
+    --attention-backend flash \
+    --distributed-timeout-minutes 30 \
+    --num-virtual-stages-per-pipeline-rank 2
+</pre>
+</div>
+</details>
+<details class="card recipe" id="attune-tp2-pp8-ep8-vpp2-mt8k">
+<summary><span class="rank">#2</span><span class="slug">attune-tp2-pp8-ep8-vpp2-mt8k</span><span class="tps">1,054.9 tokens/s/GPU</span><span class="muted small">TP2 PP8 VPP2 EP8 DP4</span><span class="hl">max 8,192 tokens/GPU, VPP 2, no offload</span></summary>
+<div class="body">
+<dl class="facts"><dt>Author</dt><dd><a href="https://arxiv.org/abs/2610.17528">ATTUNE</a></dd><dt>GPUs</dt><dd>64 x B200 180 GB (AWS p6-b200.48xlarge, 8 per node)</dd><dt>Layout</dt><dd>TP 2, PP 8 (first and last stage 6 layers), VPP 2, CP 1, EP 8, ETP 1, DP 4, sequence parallel; one 8,192-token row per microbatch; full recompute (uniform, 1 layer); precision-aware distributed optimizer; alltoall dispatcher; no offload</dd><dt>Tokens/s per GPU</dt><dd>1,054.89</dd><dt>$ / 1M tokens</dt><dd>$3.75</dd><dt>MFU</dt><dd>4.6% (N = 16,331,407,360 active parameters per token)</dd><dt>Step-time CV</dt><dd>2.74%</dd><dt>Convergence check</dt><dd>correlation 0.999998, final loss difference 0.00018, 0 pointwise failures over 20 steps</dd><dt>Component test</dt><dd>precision-aware Adam on GPU (TE FusedAdam, FP32 masters stored as BF16 parameter plus remainder) against an FP64 reference: B200, 2026-10-11. Shape: one Qwen3.5-397B-A17B MoE layer: hidden 4096, 512 experts, top-10, expert FFN 1024, EP 8, ETP 1, 4,096 tokens per rank. worst tensor (update) relative L2 error 5.12e-7 against a bound of 1.0e-3 after one step, and within bound after three steps at the entry&#x27;s hyperparameters; reconstructed FP32 masters bitwise identical to an arm with explicit FP32 masters; the negative controls fail</dd><dt>Measured</dt><dd>2026-10-13</dd><dt>GPU-hours</dt><dd>32.28</dd><dt>Rows</dt><dd><code>qwen35-tulu3-fixed8192-v1</code> (rows_sha256 <code>7a837641dcde9ebcac9d3ed5ed84ddd941fc9bfc173606cc701e9a3f51c307f1</code>)</dd></dl>
+<div class="cols"><div><h3>Stack</h3><dl class="facts"><dt>framework</dt><dd>slime with local patches, not pinned</dd><dt>megatron lm</dt><dd>commit 1dcf0daf (megatron-core 0.16.0rc0)</dd><dt>transformer engine</dt><dd>2.10.0</dd><dt>pytorch</dt><dd>2.11.0 (CUDA 12.9 build)</dd><dt>cuda</dt><dd>12.9</dd><dt>nccl</dt><dd>2.28.9 (CUDA 12.9 build; printed by the measured run)</dd><dt>deepep</dt><dd>1.2.1</dd><dt>python</dt><dd>3.12</dd><dt>network</dt><dd>8 GPUs per node, EFA, 3.2 Tb/s RDMA per node</dd></dl></div><div><h3>Environment</h3><ul class="env"><li><code>CUDA_DEVICE_MAX_CONNECTIONS=1</code></li><li><code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code></li><li><code>TORCHINDUCTOR_COMPILE_THREADS=1</code></li><li><code>NCCL_NVLS_ENABLE=$([ &quot;$NVLINK_COUNT&quot; -gt 0 ] &amp;&amp; echo 1 || echo 0)</code></li></ul></div></div>
+<div class="filebar"><span class="k">Command</span><span class="acts"><a class="btn o" href="../../protocol#run">How to run</a><button type="button" class="btn o" data-copy="run-attune-tp2-pp8-ep8-vpp2-mt8k">Copy</button></span></div>
+<pre id="run-attune-tp2-pp8-ep8-vpp2-mt8k">export CUDA_DEVICE_MAX_CONNECTIONS=1
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export TORCHINDUCTOR_COMPILE_THREADS=1
+export NCCL_NVLS_ENABLE=$([ &quot;$NVLINK_COUNT&quot; -gt 0 ] &amp;&amp; echo 1 || echo 0)
+
+python3 -m &lt;slime entry module&gt; --async \
+  --actor-num-nodes 8 \
+  --actor-num-gpus-per-node 8 \
+  ${MODEL_ARGS[@]} \
+  --hf-checkpoint &quot;$HF_CKPT&quot; \
+  --ref-load &quot;$TORCH_DIST&quot; \
+  --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+  --prompt-data &quot;$SFT_DATA&quot; \
+  --input-key messages \
+  --metadata-key metadata \
+  --num-rollout 20 \
+  --rollout-batch-size 128 \
+  --global-batch-size 128 \
+  --loss-type sft_loss \
+  --calculate-per-token-loss \
+  --disable-compute-advantages-and-returns \
+  --debug-train-only \
+  --tensor-model-parallel-size 2 \
+  --pipeline-model-parallel-size 8 \
+  --decoder-first-pipeline-num-layers 6 \
+  --decoder-last-pipeline-num-layers 6 \
+  --context-parallel-size 1 \
+  --expert-model-parallel-size 8 \
+  --expert-tensor-parallel-size 1 \
+  --sequence-parallel \
+  --recompute-granularity full \
+  --recompute-method uniform \
+  --recompute-num-layers 1 \
+  --use-dynamic-batch-size \
+  --max-tokens-per-gpu 8192 \
+  --data-pad-size-multiplier 256 \
+  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+  --use-distributed-optimizer \
+  --use-precision-aware-optimizer \
+  --attention-dropout 0.0 --hidden-dropout 0.0 \
+  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \
+  --attention-backend flash \
+  --distributed-timeout-minutes 30 \
+  --num-virtual-stages-per-pipeline-rank 2
+</pre>
+<div class="filebar"><span class="k">recipes/qwen3.5-397b-a17b/b200/attune-tp2-pp8-ep8-vpp2-mt8k.yaml</span><span class="acts"><a class="btn o" href="../../recipes/qwen3.5-397b-a17b/b200/attune-tp2-pp8-ep8-vpp2-mt8k.yaml" download>Download</a><a class="btn o" href="https://github.com/Compounding-Intelligence/openrecipes/blob/main/recipes/qwen3.5-397b-a17b/b200/attune-tp2-pp8-ep8-vpp2-mt8k.yaml">GitHub</a><button type="button" class="btn o" data-copy="file-attune-tp2-pp8-ep8-vpp2-mt8k">Copy</button></span></div>
+<pre class="file" id="file-attune-tp2-pp8-ep8-vpp2-mt8k"># recipes/qwen3.5-397b-a17b/b200/attune-tp2-pp8-ep8-vpp2-mt8k.yaml
+# An OpenRecipes recipe; the fields are documented in schema/recipe.schema.yaml.
+schema_version: 1
+model: Qwen3.5-397B-A17B
+gpu:
+  type: B200
+  memory_gb: 180
+  count: 64
+  per_node: 8
+  instance: AWS p6-b200.48xlarge
+author:
+  name: ATTUNE
+  url: https://arxiv.org/abs/2610.17528
+status: verified
+stack:
+  framework: slime with local patches, not pinned
+  megatron_lm: commit 1dcf0daf (megatron-core 0.16.0rc0)
+  transformer_engine: 2.10.0
+  pytorch: 2.11.0 (CUDA 12.9 build)
+  cuda: &#x27;12.9&#x27;
+  nccl: 2.28.9 (CUDA 12.9 build; printed by the measured run)
+  deepep: 1.2.1
+  python: &#x27;3.12&#x27;
+  network: 8 GPUs per node, EFA, 3.2 Tb/s RDMA per node
+  source: &#x27;in-pod environment dump of the measured run&#x27;&#x27;s training image (same digest), taken by the component tests on
+    2026-10-11: installed TE, PyTorch and DeepEP, Megatron-LM git commit; NCCL from the measured run&#x27;&#x27;s log&#x27;
+workload:
+  row_tokens: 8192
+  rows: SFT conversations
+  global_batch: 128
+  precision: bf16
+  dataset:
+    name: Tulu 3 SFT mixture
+    source: allenai/tulu-3-sft-mixture
+    revision: b14afda60f1bbebe55d5d2fa1e4df5042f97f8be
+    license: ODC-By 1.0
+    rows_sha256: 7a837641dcde9ebcac9d3ed5ed84ddd941fc9bfc173606cc701e9a3f51c307f1
+    build:
+      name: qwen35-tulu3-fixed8192-v1
+      tokenizer: Qwen3.5 (the Qwen3.5-122B-A10B tokenizer; tokenizer.json sha256 5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42)
+      loss_mask: qwen3_5
+      rows: 6400
+      row_tokens: 8192
+      padding_tokens: 0
+      seed: 42
+      packing: source conversations in a seeded global permutation, concatenated with an EOS token between them and cut
+        into consecutive 8,192-token rows; rows without supervised targets are skipped
+      supervised_token_ratio: 0.676
+      parquet_sha256: f215bdc6aba60d6d0dff4471eaef805765cb393e40b95762190535376491ab01
+      parquet_bytes: 76127393
+      builder: data/generate_fixed_sft.py (data/README.md)
+layout:
+  label: TP2 PP8 VPP2 EP8 DP4
+  summary: TP 2, PP 8 (first and last stage 6 layers), VPP 2, CP 1, EP 8, ETP 1, DP 4, sequence parallel; one 8,192-token
+    row per microbatch; full recompute (uniform, 1 layer); precision-aware distributed optimizer; alltoall dispatcher;
+    no offload
+  highlights: max 8,192 tokens/GPU, VPP 2, no offload
+  tp: 2
+  pp: 8
+  vpp: 2
+  cp: 1
+  ep: 8
+  etp: 1
+  dp: 4
+  sequence_parallel: true
+  layer_split:
+    first: 6
+    last: 6
+  max_tokens_per_gpu: 8192
+  rows_per_microbatch: 1
+  recompute:
+    granularity: full
+    method: uniform
+    num_layers: 1
+  offload: null
+  dispatcher: alltoall
+result:
+  tokens_per_s_per_gpu: 1054.89
+  usd_per_million_tokens: 3.75
+  step_time_cv_percent: 2.74
+  mfu: 0.0459
+  mfu_note: null
+  active_params:
+    count: 16331407360
+    source: https://huggingface.co/Qwen/Qwen3.5-397B-A17B
+    revision: 8472618112abcbd45acbcdc58436aff4233c23f7
+  measured: 2026-10-13
+  steps_per_run: 20
+  window:
+  - 4
+  - 13
+  window_tokens: 10485760
+  runs: 1
+  profiler: false
+  gpu_hours: 32.28
+  gpu_hours_note: GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the
+    convergence check
+correctness:
+  result: pass
+  summary: passed; 1 component test passed at this model&#x27;s shape
+  reference: Not published.
+  configuration: pass
+  component_tests:
+  - test: precision-aware Adam on GPU (TE FusedAdam, FP32 masters stored as BF16 parameter plus remainder) against an
+      FP64 reference
+    shape: &#x27;one Qwen3.5-397B-A17B MoE layer: hidden 4096, 512 experts, top-10, expert FFN 1024, EP 8, ETP 1, 4,096 tokens
+      per rank&#x27;
+    gpu: B200
+    date: 2026-10-11
+    result: pass
+    detail: worst tensor (update) relative L2 error 5.12e-7 against a bound of 1.0e-3 after one step, and within bound
+      after three steps at the entry&#x27;s hyperparameters; reconstructed FP32 masters bitwise identical to an arm with explicit
+      FP32 masters; the negative controls fail
+  convergence:
+    steps: 20
+    result: pass
+    correlation: 0.999998
+    final_loss_difference: 0.00018
+    pointwise_failures: 0
+    note: &#x27;candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and
+      rows; the parity probe off in both&#x27;
+  rules: argument classes of ATTUNE&#x27;s skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge
+    validate_convergence with its pipeline thresholds
+env:
+  CUDA_DEVICE_MAX_CONNECTIONS: &#x27;1&#x27;
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+  TORCHINDUCTOR_COMPILE_THREADS: &#x27;1&#x27;
+  NCCL_NVLS_ENABLE: $([ &quot;$NVLINK_COUNT&quot; -gt 0 ] &amp;&amp; echo 1 || echo 0)
+patches: []
+run: |
+  export CUDA_DEVICE_MAX_CONNECTIONS=1
+  export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+  export TORCHINDUCTOR_COMPILE_THREADS=1
+  export NCCL_NVLS_ENABLE=$([ &quot;$NVLINK_COUNT&quot; -gt 0 ] &amp;&amp; echo 1 || echo 0)
+
+  python3 -m &lt;slime entry module&gt; --async \
+    --actor-num-nodes 8 \
+    --actor-num-gpus-per-node 8 \
+    ${MODEL_ARGS[@]} \
+    --hf-checkpoint &quot;$HF_CKPT&quot; \
+    --ref-load &quot;$TORCH_DIST&quot; \
+    --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+    --prompt-data &quot;$SFT_DATA&quot; \
+    --input-key messages \
+    --metadata-key metadata \
+    --num-rollout 20 \
+    --rollout-batch-size 128 \
+    --global-batch-size 128 \
+    --loss-type sft_loss \
+    --calculate-per-token-loss \
+    --disable-compute-advantages-and-returns \
+    --debug-train-only \
+    --tensor-model-parallel-size 2 \
+    --pipeline-model-parallel-size 8 \
+    --decoder-first-pipeline-num-layers 6 \
+    --decoder-last-pipeline-num-layers 6 \
+    --context-parallel-size 1 \
+    --expert-model-parallel-size 8 \
+    --expert-tensor-parallel-size 1 \
+    --sequence-parallel \
+    --recompute-granularity full \
+    --recompute-method uniform \
+    --recompute-num-layers 1 \
+    --use-dynamic-batch-size \
+    --max-tokens-per-gpu 8192 \
+    --data-pad-size-multiplier 256 \
+    --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+    --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+    --use-distributed-optimizer \
+    --use-precision-aware-optimizer \
+    --attention-dropout 0.0 --hidden-dropout 0.0 \
+    --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \
+    --attention-backend flash \
+    --distributed-timeout-minutes 30 \
+    --num-virtual-stages-per-pipeline-rank 2
+</pre>
+</div>
+</details>
+<details class="card recipe" id="attune-48gpu-tp2-pp6-ep8">
+<summary><span class="rank">#3</span><span class="slug">attune-48gpu-tp2-pp6-ep8</span><span class="tps">1,046.7 tokens/s/GPU</span><span class="muted small">TP2 PP6 EP8 DP4</span><span class="hl">max 8,192 tokens/GPU, no offload</span></summary>
+<div class="body">
+<dl class="facts"><dt>Author</dt><dd><a href="https://arxiv.org/abs/2610.17528">ATTUNE</a></dd><dt>GPUs</dt><dd>48 x B200 180 GB (AWS p6-b200.48xlarge, 8 per node)</dd><dt>Layout</dt><dd>TP 2, PP 6, CP 1, EP 8, ETP 1, DP 4, sequence parallel; one 8,192-token row per microbatch; full recompute (uniform, 1 layer); precision-aware distributed optimizer; alltoall dispatcher; no offload</dd><dt>Tokens/s per GPU</dt><dd>1,046.67</dd><dt>$ / 1M tokens</dt><dd>$3.78</dd><dt>MFU</dt><dd>4.6% (N = 16,331,407,360 active parameters per token)</dd><dt>Step-time CV</dt><dd>0.96%</dd><dt>Convergence check</dt><dd>correlation 0.999999, final loss difference 0.0001, 0 pointwise failures over 20 steps</dd><dt>Component test</dt><dd>precision-aware Adam on GPU (TE FusedAdam, FP32 masters stored as BF16 parameter plus remainder) against an FP64 reference: B200, 2026-10-11. Shape: one Qwen3.5-397B-A17B MoE layer: hidden 4096, 512 experts, top-10, expert FFN 1024, EP 8, ETP 1, 4,096 tokens per rank. worst tensor (update) relative L2 error 5.12e-7 against a bound of 1.0e-3 after one step, and within bound after three steps at the entry&#x27;s hyperparameters; reconstructed FP32 masters bitwise identical to an arm with explicit FP32 masters; the negative controls fail</dd><dt>Measured</dt><dd>2026-10-13</dd><dt>GPU-hours</dt><dd>17.77</dd><dt>Rows</dt><dd><code>qwen35-tulu3-fixed8192-v1</code> (rows_sha256 <code>7a837641dcde9ebcac9d3ed5ed84ddd941fc9bfc173606cc701e9a3f51c307f1</code>)</dd></dl>
+<div class="cols"><div><h3>Stack</h3><dl class="facts"><dt>framework</dt><dd>slime with local patches, not pinned</dd><dt>megatron lm</dt><dd>commit 1dcf0daf (megatron-core 0.16.0rc0)</dd><dt>transformer engine</dt><dd>2.10.0</dd><dt>pytorch</dt><dd>2.11.0 (CUDA 12.9 build)</dd><dt>cuda</dt><dd>12.9</dd><dt>nccl</dt><dd>2.28.9 (CUDA 12.9 build; printed by the measured run)</dd><dt>deepep</dt><dd>1.2.1</dd><dt>python</dt><dd>3.12</dd><dt>network</dt><dd>8 GPUs per node, EFA, 3.2 Tb/s RDMA per node</dd></dl></div><div><h3>Environment</h3><ul class="env"><li><code>CUDA_DEVICE_MAX_CONNECTIONS=1</code></li><li><code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code></li><li><code>TORCHINDUCTOR_COMPILE_THREADS=1</code></li><li><code>NCCL_NVLS_ENABLE=$([ &quot;$NVLINK_COUNT&quot; -gt 0 ] &amp;&amp; echo 1 || echo 0)</code></li></ul></div></div>
+<div class="filebar"><span class="k">Command</span><span class="acts"><a class="btn o" href="../../protocol#run">How to run</a><button type="button" class="btn o" data-copy="run-attune-48gpu-tp2-pp6-ep8">Copy</button></span></div>
+<pre id="run-attune-48gpu-tp2-pp6-ep8">export CUDA_DEVICE_MAX_CONNECTIONS=1
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export TORCHINDUCTOR_COMPILE_THREADS=1
+export NCCL_NVLS_ENABLE=$([ &quot;$NVLINK_COUNT&quot; -gt 0 ] &amp;&amp; echo 1 || echo 0)
+
+python3 -m &lt;slime entry module&gt; --async \
+  --actor-num-nodes 6 \
+  --actor-num-gpus-per-node 8 \
+  ${MODEL_ARGS[@]} \
+  --hf-checkpoint &quot;$HF_CKPT&quot; \
+  --ref-load &quot;$TORCH_DIST&quot; \
+  --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+  --prompt-data &quot;$SFT_DATA&quot; \
+  --input-key messages \
+  --metadata-key metadata \
+  --num-rollout 20 \
+  --rollout-batch-size 128 \
+  --global-batch-size 128 \
+  --loss-type sft_loss \
+  --calculate-per-token-loss \
+  --disable-compute-advantages-and-returns \
+  --debug-train-only \
+  --tensor-model-parallel-size 2 \
+  --pipeline-model-parallel-size 6 \
+  --context-parallel-size 1 \
+  --expert-model-parallel-size 8 \
+  --expert-tensor-parallel-size 1 \
+  --sequence-parallel \
+  --recompute-granularity full \
+  --recompute-method uniform \
+  --recompute-num-layers 1 \
+  --use-dynamic-batch-size \
+  --max-tokens-per-gpu 8192 \
+  --data-pad-size-multiplier 256 \
+  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+  --use-distributed-optimizer \
+  --use-precision-aware-optimizer \
+  --attention-dropout 0.0 --hidden-dropout 0.0 \
+  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \
+  --attention-backend flash \
+  --distributed-timeout-minutes 30
+</pre>
+<div class="filebar"><span class="k">recipes/qwen3.5-397b-a17b/b200/attune-48gpu-tp2-pp6-ep8.yaml</span><span class="acts"><a class="btn o" href="../../recipes/qwen3.5-397b-a17b/b200/attune-48gpu-tp2-pp6-ep8.yaml" download>Download</a><a class="btn o" href="https://github.com/Compounding-Intelligence/openrecipes/blob/main/recipes/qwen3.5-397b-a17b/b200/attune-48gpu-tp2-pp6-ep8.yaml">GitHub</a><button type="button" class="btn o" data-copy="file-attune-48gpu-tp2-pp6-ep8">Copy</button></span></div>
+<pre class="file" id="file-attune-48gpu-tp2-pp6-ep8"># recipes/qwen3.5-397b-a17b/b200/attune-48gpu-tp2-pp6-ep8.yaml
+# An OpenRecipes recipe; the fields are documented in schema/recipe.schema.yaml.
+schema_version: 1
+model: Qwen3.5-397B-A17B
+gpu:
+  type: B200
+  memory_gb: 180
+  count: 48
+  per_node: 8
+  instance: AWS p6-b200.48xlarge
+author:
+  name: ATTUNE
+  url: https://arxiv.org/abs/2610.17528
+status: verified
+stack:
+  framework: slime with local patches, not pinned
+  megatron_lm: commit 1dcf0daf (megatron-core 0.16.0rc0)
+  transformer_engine: 2.10.0
+  pytorch: 2.11.0 (CUDA 12.9 build)
+  cuda: &#x27;12.9&#x27;
+  nccl: 2.28.9 (CUDA 12.9 build; printed by the measured run)
+  deepep: 1.2.1
+  python: &#x27;3.12&#x27;
+  network: 8 GPUs per node, EFA, 3.2 Tb/s RDMA per node
+  source: &#x27;in-pod environment dump of the measured run&#x27;&#x27;s training image (same digest), taken by the component tests on
+    2026-10-11: installed TE, PyTorch and DeepEP, Megatron-LM git commit; NCCL from the measured run&#x27;&#x27;s log&#x27;
+workload:
+  row_tokens: 8192
+  rows: SFT conversations
+  global_batch: 128
+  precision: bf16
+  dataset:
+    name: Tulu 3 SFT mixture
+    source: allenai/tulu-3-sft-mixture
+    revision: b14afda60f1bbebe55d5d2fa1e4df5042f97f8be
+    license: ODC-By 1.0
+    rows_sha256: 7a837641dcde9ebcac9d3ed5ed84ddd941fc9bfc173606cc701e9a3f51c307f1
+    build:
+      name: qwen35-tulu3-fixed8192-v1
+      tokenizer: Qwen3.5 (the Qwen3.5-122B-A10B tokenizer; tokenizer.json sha256 5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42)
+      loss_mask: qwen3_5
+      rows: 6400
+      row_tokens: 8192
+      padding_tokens: 0
+      seed: 42
+      packing: source conversations in a seeded global permutation, concatenated with an EOS token between them and cut
+        into consecutive 8,192-token rows; rows without supervised targets are skipped
+      supervised_token_ratio: 0.676
+      parquet_sha256: f215bdc6aba60d6d0dff4471eaef805765cb393e40b95762190535376491ab01
+      parquet_bytes: 76127393
+      builder: data/generate_fixed_sft.py (data/README.md)
+layout:
+  label: TP2 PP6 EP8 DP4
+  summary: TP 2, PP 6, CP 1, EP 8, ETP 1, DP 4, sequence parallel; one 8,192-token row per microbatch; full recompute
+    (uniform, 1 layer); precision-aware distributed optimizer; alltoall dispatcher; no offload
+  highlights: max 8,192 tokens/GPU, no offload
+  tp: 2
+  pp: 6
+  vpp: 1
+  cp: 1
+  ep: 8
+  etp: 1
+  dp: 4
+  sequence_parallel: true
+  layer_split: null
+  max_tokens_per_gpu: 8192
+  rows_per_microbatch: 1
+  recompute:
+    granularity: full
+    method: uniform
+    num_layers: 1
+  offload: null
+  dispatcher: alltoall
+result:
+  tokens_per_s_per_gpu: 1046.67
+  usd_per_million_tokens: 3.78
+  step_time_cv_percent: 0.96
+  mfu: 0.0456
+  mfu_note: null
+  active_params:
+    count: 16331407360
+    source: https://huggingface.co/Qwen/Qwen3.5-397B-A17B
+    revision: 8472618112abcbd45acbcdc58436aff4233c23f7
+  measured: 2026-10-13
+  steps_per_run: 20
+  window:
+  - 4
+  - 13
+  window_tokens: 10485760
+  runs: 1
+  profiler: false
+  gpu_hours: 17.77
+  gpu_hours_note: GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the
+    convergence check
+correctness:
+  result: pass
+  summary: passed; 1 component test passed at this model&#x27;s shape
+  reference: Not published.
+  configuration: pass
+  component_tests:
+  - test: precision-aware Adam on GPU (TE FusedAdam, FP32 masters stored as BF16 parameter plus remainder) against an
+      FP64 reference
+    shape: &#x27;one Qwen3.5-397B-A17B MoE layer: hidden 4096, 512 experts, top-10, expert FFN 1024, EP 8, ETP 1, 4,096 tokens
+      per rank&#x27;
+    gpu: B200
+    date: 2026-10-11
+    result: pass
+    detail: worst tensor (update) relative L2 error 5.12e-7 against a bound of 1.0e-3 after one step, and within bound
+      after three steps at the entry&#x27;s hyperparameters; reconstructed FP32 masters bitwise identical to an arm with explicit
+      FP32 masters; the negative controls fail
+  convergence:
+    steps: 20
+    result: pass
+    correlation: 0.999999
+    final_loss_difference: 0.0001
+    pointwise_failures: 0
+    note: &#x27;candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and
+      rows; the parity probe off in both&#x27;
+  rules: argument classes of ATTUNE&#x27;s skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge
+    validate_convergence with its pipeline thresholds
+env:
+  CUDA_DEVICE_MAX_CONNECTIONS: &#x27;1&#x27;
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+  TORCHINDUCTOR_COMPILE_THREADS: &#x27;1&#x27;
+  NCCL_NVLS_ENABLE: $([ &quot;$NVLINK_COUNT&quot; -gt 0 ] &amp;&amp; echo 1 || echo 0)
+patches: []
+run: |
+  export CUDA_DEVICE_MAX_CONNECTIONS=1
+  export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+  export TORCHINDUCTOR_COMPILE_THREADS=1
+  export NCCL_NVLS_ENABLE=$([ &quot;$NVLINK_COUNT&quot; -gt 0 ] &amp;&amp; echo 1 || echo 0)
+
+  python3 -m &lt;slime entry module&gt; --async \
+    --actor-num-nodes 6 \
+    --actor-num-gpus-per-node 8 \
+    ${MODEL_ARGS[@]} \
+    --hf-checkpoint &quot;$HF_CKPT&quot; \
+    --ref-load &quot;$TORCH_DIST&quot; \
+    --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+    --prompt-data &quot;$SFT_DATA&quot; \
+    --input-key messages \
+    --metadata-key metadata \
+    --num-rollout 20 \
+    --rollout-batch-size 128 \
+    --global-batch-size 128 \
+    --loss-type sft_loss \
+    --calculate-per-token-loss \
+    --disable-compute-advantages-and-returns \
+    --debug-train-only \
+    --tensor-model-parallel-size 2 \
+    --pipeline-model-parallel-size 6 \
+    --context-parallel-size 1 \
+    --expert-model-parallel-size 8 \
+    --expert-tensor-parallel-size 1 \
+    --sequence-parallel \
+    --recompute-granularity full \
+    --recompute-method uniform \
+    --recompute-num-layers 1 \
+    --use-dynamic-batch-size \
+    --max-tokens-per-gpu 8192 \
+    --data-pad-size-multiplier 256 \
+    --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+    --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+    --use-distributed-optimizer \
+    --use-precision-aware-optimizer \
+    --attention-dropout 0.0 --hidden-dropout 0.0 \
+    --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \
+    --attention-backend flash \
+    --distributed-timeout-minutes 30
+</pre>
+</div>
+</details>
+<h2>Qwen3.5-397B-A17B on other GPUs</h2>
+<div class="others"><a class="card gpu" href="../../qwen3.5-397b-a17b/h100/"><div class="k">H100 &middot; 128 GPUs</div><div class="v">313.0</div><div class="small muted">tokens/s/GPU &middot; $6.11 / 1M tokens</div></a><a class="card gpu" href="../../qwen3.5-397b-a17b/h200/"><div class="k">H200 &middot; 128 GPUs</div><div class="v">545.3</div><div class="small muted">tokens/s/GPU &middot; $4.03 / 1M tokens</div></a><div class="card gpu here"><div class="k">B200 &middot; 64 GPUs &middot; this page</div><div class="v">1,176.1</div><div class="small muted">tokens/s/GPU &middot; $3.36 / 1M tokens</div></div></div>
+</main>
+<footer><div class="wrap">OpenRecipes, Copyright 2026 Compounding Intelligence, Apache-2.0. Measurements through 2026-10-14.</div></footer>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  // Cloudflare Workers static assets: serve the generated site/ directory (tools/build.py writes it).
+  "name": "openrecipes",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./site",
+    "not_found_handling": "404-page"
+  }
+}

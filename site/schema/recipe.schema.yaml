@@ -1,0 +1,260 @@
+# Schema of an OpenRecipes recipe: one YAML file per recipe at recipes/<model-slug>/<gpu>/<recipe-slug>.yaml.
+#
+# The structure below is JSON Schema (draft 2020-12 keywords) written in YAML. tools/validate.py enforces it with a
+# small built-in interpreter (no third-party schema library) that supports: type, properties, required,
+# additionalProperties, items, enum, const, pattern, minimum, exclusiveMinimum, maximum, minLength, minItems, maxItems.
+# It adds one type of its own, "date": a YAML date (2026-10-13) or a YYYY-MM-DD string.
+#
+# tools/validate.py also checks what a schema cannot express:
+#   - the path matches the content: <model-slug> is the model's slug in models.yaml, <gpu> is gpu.type in lower case,
+#     and <recipe-slug> starts with the author's handle (github) or lower-cased name;
+#   - gpu.type is in gpus.yaml and gpu.memory_gb matches it;
+#   - layout.dp = gpu.count / (tp x pp x cp); (gpu.count / pp) is a multiple of ep x etp; global_batch divides by dp;
+#   - result.usd_per_million_tokens = usd_per_gpu_hour / (tokens_per_s_per_gpu x 3600) x 1e6, to the cent, with the
+#     rate of gpus.yaml;
+#   - result.mfu = 6 x active_params.count x tokens_per_s_per_gpu / peak, to 1e-4, with the peak of gpus.yaml; when
+#     active_params.count is null, mfu is null and mfu_note says why;
+#   - result.window_tokens = (window end - window start + 1) x global_batch x row_tokens, and the run is long enough
+#     for the window;
+#   - every path in patches exists under patches/;
+#   - status verified requires correctness.result, correctness.configuration and correctness.convergence.result to
+#     be pass, and every component test to pass.
+#
+# notes is plain text: paragraphs separated by blank lines, list items starting with "- ", and `code` in
+# backticks. The site renders nothing else.
+
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://openrecipes.ai/schema/recipe.schema.yaml
+title: OpenRecipes recipe
+type: object
+additionalProperties: false
+required: [schema_version, model, gpu, author, status, stack, workload, layout, result, correctness, env, patches, run]
+properties:
+  schema_version:
+    const: 1
+  model:
+    description: The model's name exactly as in models.yaml.
+    type: string
+    minLength: 1
+  gpu:
+    type: object
+    additionalProperties: false
+    required: [type, memory_gb, count, per_node, instance]
+    properties:
+      type: {type: string, enum: [H100, H200, B200], description: A GPU type listed in gpus.yaml.}
+      memory_gb: {type: integer, minimum: 1}
+      count: {type: integer, minimum: 1, description: GPUs the measured run used.}
+      per_node: {type: integer, minimum: 1}
+      instance: {type: string, minLength: 1, description: 'The machine, for example "AWS p5en.48xlarge".'}
+  author:
+    description: >-
+      Who submitted the recipe: a GitHub handle for a person or team, or a name and a link for a tool. At least one of
+      github and url.
+    type: object
+    additionalProperties: false
+    properties:
+      github: {type: string, pattern: '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$'}
+      name: {type: string, minLength: 1}
+      url: {type: string, pattern: '^https://'}
+      paper: {type: string, pattern: '^https://', description: A paper that describes the author's method.}
+  status:
+    description: verified = measured under the protocol and passed the correctness check. The site lists verified only.
+    enum: [verified]
+  stack:
+    description: >-
+      The versions the measured run used. A version the run's evidence does not show reads "not pinned".
+    type: object
+    required: [framework, megatron_lm, transformer_engine, pytorch, cuda, nccl]
+    additionalProperties: {type: string}
+    properties:
+      framework: {type: string, description: 'slime or miles, with its commit.'}
+      megatron_lm: {type: string}
+      transformer_engine: {type: string}
+      pytorch: {type: string}
+      cuda: {type: string}
+      nccl: {type: string}
+      deepep: {type: string}
+      python: {type: string}
+      network: {type: string, description: GPUs per node and the inter-node network.}
+      runtime_fixes: {type: string, description: Run-time patches the run loaded.}
+      source: {type: string, description: How the versions were read.}
+  workload:
+    type: object
+    additionalProperties: false
+    required: [row_tokens, rows, global_batch, precision, dataset]
+    properties:
+      row_tokens: {type: integer, minimum: 1, description: Tokens in every row; rows are packed to exactly this length.}
+      rows: {type: string}
+      global_batch: {type: integer, minimum: 1, description: Rows per optimizer step.}
+      precision: {enum: [bf16]}
+      dataset:
+        type: object
+        additionalProperties: false
+        required: [name, source, revision, license, rows_sha256, build]
+        properties:
+          name: {type: string}
+          source: {type: string, description: The Hugging Face dataset id.}
+          revision: {type: string, pattern: '^[0-9a-f]{40}$'}
+          license: {type: string}
+          rows_sha256:
+            description: sha256 of the rows' row_hash values in file order, one per line (data/verify_rows.py).
+            type: string
+            pattern: '^[0-9a-f]{64}$'
+          build:
+            description: How the rows were built (data/README.md); any further keys describe the build.
+            type: object
+            required: [name, tokenizer, loss_mask, rows, row_tokens, seed, builder]
+            additionalProperties: true
+            properties:
+              name: {type: string}
+              tokenizer: {type: string}
+              loss_mask: {type: string}
+              rows: {type: integer, minimum: 1}
+              row_tokens: {type: integer, minimum: 1}
+              padding_tokens: {type: integer, minimum: 0}
+              seed: {type: integer}
+              parquet_sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+              builder: {type: string}
+  layout:
+    type: object
+    additionalProperties: false
+    required: [label, summary, highlights, tp, pp, vpp, cp, ep, etp, dp, sequence_parallel, layer_split,
+               max_tokens_per_gpu, rows_per_microbatch, recompute, offload, dispatcher]
+    properties:
+      label: {type: string, description: 'Short form for tables, for example "TP1 PP4 EP8 DP8".'}
+      summary: {type: string, description: The full layout in words.}
+      highlights: {type: string, description: The non-parallel settings that set the recipe apart, for tables.}
+      tp: {type: integer, minimum: 1}
+      pp: {type: integer, minimum: 1}
+      vpp: {type: integer, minimum: 1, description: Virtual pipeline stages per pipeline rank; 1 means none.}
+      cp: {type: integer, minimum: 1}
+      ep: {type: integer, minimum: 1}
+      etp: {type: integer, minimum: 1}
+      dp: {type: integer, minimum: 1}
+      sequence_parallel:
+        type: boolean
+        description: True when sequence parallelism is on with TP above 1 (Megatron turns it off at TP 1).
+      layer_split:
+        description: Layers on the first and last pipeline stages when the split is uneven; null for an even split.
+        type: [object, 'null']
+        additionalProperties: false
+        required: [first, last]
+        properties:
+          first: {type: integer, minimum: 1}
+          last: {type: integer, minimum: 1}
+      max_tokens_per_gpu: {type: [integer, 'null'], minimum: 1, description: Dynamic batching budget; null without it.}
+      rows_per_microbatch:
+        type: integer
+        minimum: 1
+        description: floor(max_tokens_per_gpu x cp / row_tokens) under dynamic batching, else the micro-batch size.
+      recompute:
+        type: [object, 'null']
+        additionalProperties: false
+        required: [granularity, method, num_layers]
+        properties:
+          granularity: {enum: [full, selective]}
+          method: {enum: [uniform, block, null]}
+          num_layers: {type: [integer, 'null'], minimum: 1}
+      offload:
+        description: CPU optimizer offload; null when the optimizer stays on the GPU.
+        type: [object, 'null']
+        additionalProperties: false
+        required: [optimizer_fraction, overlap_d2h_h2d]
+        properties:
+          optimizer_fraction: {type: number, exclusiveMinimum: 0, maximum: 1}
+          overlap_d2h_h2d: {type: boolean}
+      dispatcher: {enum: [alltoall, flex, allgather, null], description: The MoE token dispatcher; null for a dense model.}
+  result:
+    type: object
+    additionalProperties: false
+    required: [tokens_per_s_per_gpu, usd_per_million_tokens, step_time_cv_percent, mfu, mfu_note, active_params,
+               measured, steps_per_run, window, window_tokens, runs, profiler, gpu_hours, gpu_hours_note]
+    properties:
+      tokens_per_s_per_gpu:
+        description: Sum of tokens over the window / (GPUs x sum of step times over the window).
+        type: number
+        exclusiveMinimum: 0
+      usd_per_million_tokens: {type: number, exclusiveMinimum: 0}
+      step_time_cv_percent: {type: number, minimum: 0}
+      mfu: {type: [number, 'null'], minimum: 0, maximum: 1}
+      mfu_note: {type: [string, 'null']}
+      active_params:
+        type: object
+        additionalProperties: false
+        required: [count, source, revision]
+        properties:
+          count: {type: [integer, 'null'], minimum: 1, description: N of the MFU (tools/active_params.py).}
+          source: {type: string, pattern: '^https://'}
+          revision: {type: string}
+      measured: {type: date}
+      steps_per_run: {type: integer, minimum: 14}
+      window:
+        type: array
+        items: {type: integer, minimum: 0}
+        minItems: 2
+        maxItems: 2
+      window_tokens: {type: integer, minimum: 1}
+      runs: {type: integer, minimum: 1}
+      profiler: {const: false}
+      gpu_hours: {type: number, exclusiveMinimum: 0}
+      gpu_hours_note: {type: string}
+  correctness:
+    type: object
+    additionalProperties: false
+    required: [result, summary, reference, configuration, component_tests, convergence, rules]
+    properties:
+      result: {enum: [pass, fail]}
+      summary: {type: string}
+      reference: {type: string, description: The reference recipe the recipe was checked against, or "Not published."}
+      configuration:
+        description: >-
+          The configuration check (layer 1): every argument that differs from the reference recipe is structural or a
+          same-math swap with a passed component test.
+        enum: [pass, fail]
+      component_tests:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [test, shape, gpu, date, result, detail]
+          properties:
+            test: {type: string}
+            shape: {type: string}
+            gpu: {type: string}
+            date: {type: date}
+            result: {enum: [pass, fail]}
+            detail: {type: string}
+            note: {type: string}
+      convergence:
+        description: The 20-step loss comparison against the reference recipe (Megatron-Bridge validate_convergence).
+        type: object
+        additionalProperties: false
+        required: [steps, result, correlation, final_loss_difference, pointwise_failures]
+        properties:
+          steps: {type: integer, minimum: 20}
+          result: {enum: [pass, fail]}
+          correlation: {type: number, minimum: -1, maximum: 1}
+          final_loss_difference: {type: number, minimum: 0}
+          pointwise_failures: {type: integer, minimum: 0}
+          worst_step_tolerance_ratio: {type: number, minimum: 0}
+          note: {type: string}
+      rules: {type: string, description: The rule lists the check used.}
+  env:
+    description: Environment variables the run sets, in the command or in the container, as name -> value.
+    type: object
+    additionalProperties: {type: string}
+  patches:
+    description: Files under patches/ the recipe needs (patches/README.md).
+    type: array
+    items: {type: string, pattern: '^patches/[A-Za-z0-9_./-]+$'}
+  run:
+    description: The training command as run, with paths replaced by variables.
+    type: string
+    minLength: 1
+  notes:
+    description: >-
+      What a reader needs that is specific to this recipe, if anything; the site shows it with the recipe. Steps every
+      recipe shares are on the protocol page (Running a recipe), and those a model's recipes share are its notes in
+      models.yaml.
+    type: string
+    minLength: 1
