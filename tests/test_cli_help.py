@@ -1,4 +1,3 @@
-# Copyright 2026 Compounding Intelligence
 # SPDX-License-Identifier: Apache-2.0
 """Each command-line tool answers --help with its usage and exit status 0, with only the standard library and PyYAML."""
 import os

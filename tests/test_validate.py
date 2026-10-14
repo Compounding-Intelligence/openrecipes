@@ -1,4 +1,3 @@
-# Copyright 2026 Compounding Intelligence
 # SPDX-License-Identifier: Apache-2.0
 """tools/validate.py: the schema interpreter, the cross-field rules, and every recipe in the repository."""
 import copy

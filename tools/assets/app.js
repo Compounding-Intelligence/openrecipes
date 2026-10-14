@@ -1,4 +1,4 @@
-// Copyright 2026 Compounding Intelligence. SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: Apache-2.0
 // OpenRecipes: copy buttons, opening the recipe a link points at, and the index and GPU filters. No dependencies.
 (function () {
   "use strict";

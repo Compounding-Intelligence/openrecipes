@@ -1,4 +1,4 @@
-/* Copyright 2026 Compounding Intelligence. SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: Apache-2.0 */
 /* OpenRecipes site style. Light theme only; one accent colour; no gradients. */
 :root {
   --bg: #f4f6f8; --card: #fff; --ink: #0f172a; --fg: #1e293b; --mut: #5b6b7b; --line: #dfe5eb; --soft: #eef2f5;

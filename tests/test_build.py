@@ -1,4 +1,3 @@
-# Copyright 2026 Compounding Intelligence
 # SPDX-License-Identifier: Apache-2.0
 """tools/build.py: the pages it writes, their content, determinism and the --check mode."""
 import json

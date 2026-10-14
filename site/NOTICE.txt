@@ -1,6 +1,5 @@
 OpenRecipes
 https://openrecipes.ai
-Copyright 2026 Compounding Intelligence
 
 This repository includes material from ATTUNE (https://github.com/amazon-science/attune), licensed under the Apache
 License, Version 2.0, and changed for this repository; each carried-over code file keeps its copyright header.

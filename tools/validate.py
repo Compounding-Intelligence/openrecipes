@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# Copyright 2026 Compounding Intelligence
 # SPDX-License-Identifier: Apache-2.0
 """Validate OpenRecipes recipes against schema/recipe.schema.yaml and the cross-field rules it lists.
 

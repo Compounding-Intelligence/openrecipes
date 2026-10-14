@@ -40,4 +40,4 @@ steps, the template and the fields.
 
 ## License
 
-Apache-2.0 (`LICENSE`), Copyright 2026 Compounding Intelligence; see `NOTICE` and `THIRD_PARTY_NOTICES`.
+Apache-2.0 (`LICENSE`); see `NOTICE` and `THIRD_PARTY_NOTICES`.

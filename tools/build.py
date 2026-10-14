@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# Copyright 2026 Compounding Intelligence
 # SPDX-License-Identifier: Apache-2.0
 """Build the OpenRecipes static site from recipes/, models.yaml and gpus.yaml into site/.
 
@@ -154,7 +153,7 @@ def shell(rel, title, description, body, current=None, data_date=None, absolute=
         links.append('<a href="%s%s"%s>%s</a>' % (prefix, href, cur, label))
     links.append('<a href="%s">GitHub</a>' % REPO_URL)
     body = re.sub(r"<table>.*?</table>", lambda m: stack_table(m.group(0)), body, flags=re.S)
-    footer = "OpenRecipes, Copyright 2026 Compounding Intelligence, Apache-2.0."
+    footer = "OpenRecipes, Apache-2.0."
     if data_date:
         footer += " Measurements through %s." % esc(data_date)
     canonical = '<link rel="canonical" href="%s">\n' % esc(url) if canonical else ""
