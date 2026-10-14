@@ -91,6 +91,12 @@ def test_footer(files):
     assert "Copyright Amazon.com, Inc. or its affiliates" in files["NOTICE.txt"]
 
 
+def test_no_attune_repo_links(files):
+    for name, text in files.items():
+        if name.endswith((".html", ".json", ".yaml")):
+            assert "github.com/amazon-science" not in (text if isinstance(text, str) else text.decode()), name
+
+
 def test_brand_mark(files):
     for name in ("index.html", "qwen3.5-122b-a10b/h200/index.html", "404.html"):
         assert '<a class="brand" href' in files[name] and build.MARK in files[name], name

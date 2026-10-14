@@ -10,8 +10,7 @@ gpu:
   instance: AWS p5.48xlarge
 author:
   name: ATTUNE
-  url: https://github.com/amazon-science/attune
-  paper: https://arxiv.org/abs/2610.17528
+  url: https://arxiv.org/abs/2610.17528
 status: verified
 stack:
   framework: 'slime 0.3.0: THUDM/slime a897e1f plus 8 commits that do not change the training step'
