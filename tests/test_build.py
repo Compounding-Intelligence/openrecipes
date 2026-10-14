@@ -29,7 +29,7 @@ def test_pages(files):
                  "robots.txt", "data.json", "style.css", "app.js", "favicon.svg", "_headers", "LICENSE.txt", "NOTICE.txt",
                  "schema/recipe.schema.yaml"):
         assert page in files, page
-    assert len([k for k in files if k.startswith("recipes/")]) == 42
+    assert len([k for k in files if k.startswith("recipes/")]) == 43
 
 
 def test_build_is_deterministic():
@@ -117,7 +117,7 @@ def test_internal_links_use_clean_urls(files):
 
 def test_data_json_and_sitemap(files):
     data = json.loads(files["data.json"])
-    assert len(data["recipes"]) == 42 and len(data["models"]) == 40
+    assert len(data["recipes"]) == 43 and len(data["models"]) == 40
     best = [r for r in data["recipes"] if r["model"] == "Qwen3.5-122B-A10B" and r["gpu"]["type"] == "H200"]
     assert [r["rank"] for r in best] == [1, 2, 3] and best[0]["result"]["measured"] == "2026-10-13"
     assert files["sitemap.xml"].count("<url>") == 3 + 19
