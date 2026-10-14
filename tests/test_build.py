@@ -58,6 +58,8 @@ def test_notes_appear_once(files):
     assert "<h2>Notes for" not in files["qwen3.5-122b-a10b/h200/index.html"]
     index = files["index.html"].split('id="models">')[1].split("</section>")[0]
     assert "gauge" not in index and "$" not in index   # the index lists GPU types only; numbers sit in the blocks
+    assert files["index.html"].count('class="irow has"') == 9 and "9 of 40 models have recipes" in files["index.html"]
+    assert 'class="tg" aria-pressed="false" hidden>With recipes only</button>' in files["index.html"]
     assert files["index.html"].count('<section class="hud mb"') == 9 and 'data-gpu="H100"' in files["index.html"]
 
 

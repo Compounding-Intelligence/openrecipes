@@ -1,5 +1,5 @@
 // Copyright 2026 Compounding Intelligence. SPDX-License-Identifier: Apache-2.0
-// OpenRecipes: copy buttons, opening the recipe a link points at and the GPU filter. No dependencies.
+// OpenRecipes: copy buttons, opening the recipe a link points at, and the index and GPU filters. No dependencies.
 (function () {
   "use strict";
   function flash(button, text) {
@@ -34,6 +34,15 @@
     if (!id) return;
     var node = document.getElementById(id);
     if (node && node.tagName === "DETAILS") node.open = true;
+  }
+  var toggle = document.querySelector(".idx .tg");
+  if (toggle) {
+    toggle.hidden = false;
+    toggle.addEventListener("click", function () {
+      var on = toggle.getAttribute("aria-pressed") !== "true";
+      toggle.setAttribute("aria-pressed", on ? "true" : "false");
+      toggle.closest(".idx").classList.toggle("only", on);
+    });
   }
   var seg = document.querySelector(".seg");
   if (seg) seg.addEventListener("click", function (event) {

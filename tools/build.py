@@ -215,8 +215,11 @@ def index_page(pairs, models, gpus, date):
                 name = ('<a href="#m-%s">%s</a>' % (esc(m["slug"]), esc(m["model"])) if ours else esc(m["model"]))
                 chips = "".join('<a href="%s">%s</a>' % (pair_url(m, gt), gt) if gt in ours else '<span class="off">%s</span>' % gt
                                 for gt in gpus)
-                rows.append('<div class="irow"><span class="mname">%s</span><span class="lbs">%s</span></div>' % (name, chips))
-            fams.append('<div class="fam"><div class="fname">%s</div><div>%s</div></div>' % (esc(fam), "".join(rows)))
+                rows.append('<div class="irow%s"><span class="mname">%s</span><span class="lbs">%s</span></div>'
+                            % (" has" if ours else "", name, chips))
+            has = any((m["model"], gt) in pairs for m in ms for gt in gpus)
+            fams.append('<div class="fam%s"><div class="fname">%s</div><div>%s</div></div>'
+                        % (" has" if has else "", esc(fam), "".join(rows)))
         columns.append('<div><div class="ihead ml"><span>Family</span><span>Model</span><span>GPU</span></div>%s</div>' % "".join(fams))
     n_recipes = sum(len(v) for v in pairs.values())
     hero = ('<header class="hud hero"><h1>OpenRecipes</h1>'
@@ -251,7 +254,10 @@ def index_page(pairs, models, gpus, date):
                       '<table><thead><tr><th>GPU</th><th>GPUs</th><th>Tokens/s per GPU</th><th>$ / 1M tokens</th><th>Layout</th>'
                       '<th>Measured</th><th>Author</th><th></th></tr></thead><tbody>{rows}</tbody></table></div></section>'.format(
                           slug=esc(m["slug"]), fam=esc(m["family"]), model=esc(m["model"]), rows="".join(trs)))
-    body = "\n".join([hero, '<section class="hud idx" id="models">%s</section>' % "".join(columns), seg] + blocks)
+    with_recipes = len({m for m, _ in pairs})
+    bar = ('<div class="ibar"><span class="ml">%d of %d models have recipes</span><button type="button" class="tg" '
+           'aria-pressed="false" hidden>With recipes only</button></div>' % (with_recipes, len(models)))
+    body = "\n".join([hero, '<section class="hud idx" id="models">%s%s</section>' % (bar, "".join(columns)), seg] + blocks)
     return shell("index.html", "OpenRecipes: tuned, verified LLM training recipes",
                  "Training recipes for LLMs on H100, H200 and B200, each measured one way and checked for correctness.",
                  body, "models", date)
