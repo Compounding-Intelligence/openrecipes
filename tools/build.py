@@ -28,12 +28,11 @@ ASSETS = Path(__file__).resolve().parent / "assets"
 MARK = ('<svg class="mark" width="22" height="22" viewBox="0 0 32 32" aria-hidden="true">'
         '<path d="M25.85 14.26A10 10 0 1 1 21 7.34" fill="none" stroke="#0e7490" stroke-width="4" stroke-linecap="round"/>'
         '<circle cx="25.2" cy="7.6" r="2.6" fill="#0f172a"/></svg>')
-NAV = [("models", "Models", "index.html#models"), ("rankings", "Rankings", "rankings.html"),
-       ("protocol", "Protocol", "protocol.html"), ("submit", "Submit", "submit.html")]
+NAV = [("models", "Models", "index.html#models"), ("protocol", "Protocol", "protocol.html"), ("submit", "Submit", "submit.html")]
 
 esc = html.escape
-# Internal page links, written as files (rankings.html) and served at clean URLs (/rankings) by Workers static assets.
-PAGE_HREF = re.compile(r'href="((?:/|(?:\.\./)*))(index|rankings|protocol|submit)\.html(#[^"]*)?"')
+# Internal page links, written as files (protocol.html) and served at clean URLs (/protocol) by Workers static assets.
+PAGE_HREF = re.compile(r'href="((?:/|(?:\.\./)*))(index|protocol|submit)\.html(#[^"]*)?"')
 
 
 def tps(v):
@@ -361,63 +360,6 @@ def pair_page(model, gpu, items, pairs, gpus, date, root):
                  desc, body, None, date)
 
 
-# ---- rankings -----------------------------------------------------------------------------------------------------
-
-def rankings_page(pairs, models, gpus, date):
-    by_model = {}
-    for (mname, gt), items in pairs.items():
-        by_model.setdefault(mname, []).append((gt, items[0]))
-    order = [m for m in models.values() if m["model"] in by_model]
-
-    def row(m, gt, x, first):
-        r = x["r"]["result"]
-        a, b = tps(r["tokens_per_s_per_gpu"]), usd(r["usd_per_million_tokens"])
-        if first != "tps":
-            a, b = b, a
-        return ('<tr><td>{model}</td><td>{gpu}</td><td class="n">{a}</td><td class="n">{b}</td>'
-                '<td class="hide-s">{count}</td><td><a href="{url}#{slug}">{label}</a></td></tr>').format(
-            model=esc(m["model"]), gpu=esc(gt), a=a, b=b, count=x["r"]["gpu"]["count"],
-            url=pair_url(m, gt), slug=esc(x["slug"]), label=esc(x["r"]["layout"]["label"]))
-
-    fast, cheap = [], []
-    for m in order:
-        opts = by_model[m["model"]]
-        gt, x = max(opts, key=lambda o: (o[1]["r"]["result"]["tokens_per_s_per_gpu"], o[0]))
-        fast.append(row(m, gt, x, "tps"))
-        gt, x = min(opts, key=lambda o: (o[1]["r"]["result"]["usd_per_million_tokens"], o[0]))
-        cheap.append(row(m, gt, x, "usd"))
-    head = '<div class="card tablewrap"><table><thead><tr><th>Model</th><th>GPU</th><th>{a}</th><th>{b}</th>' \
-           '<th class="hide-s">GPUs</th><th>Recipe</th></tr></thead><tbody>{rows}</tbody></table></div>'
-    matrix = []
-    for m in order:
-        cells = []
-        for gt in gpus:
-            o = pairs.get((m["model"], gt))
-            if o:
-                r = o[0]["r"]["result"]
-                cells.append('<td class="n"><a href="%s">%s</a><br><small>%s / 1M</small></td>'
-                             % (pair_url(m, gt), tps(r["tokens_per_s_per_gpu"]), usd(r["usd_per_million_tokens"])))
-            else:
-                cells.append('<td><span class="pill grey">no recipe</span></td>')
-        matrix.append("<tr><td>%s</td>%s</tr>" % (esc(m["model"]), "".join(cells)))
-    body = "\n".join([
-        "<h1>Rankings</h1>",
-        '<p class="lede">For each model with recipes, the GPU type whose best recipe has the highest tokens/s per GPU, '
-        'and the one with the lowest cost per million tokens. Pairs differ in GPU count; each recipe page gives the '
-        'count, and the <a href="protocol.html#cost">cost basis</a> is the on-demand rate of each GPU type.</p>',
-        "<h2>Fastest GPU per model</h2>",
-        head.format(a="Tokens/s per GPU", b="$ / 1M tokens", rows="".join(fast)),
-        "<h2>Cheapest GPU per model</h2>",
-        head.format(a="$ / 1M tokens", b="Tokens/s per GPU", rows="".join(cheap)),
-        "<h2>Every pair</h2>",
-        '<p class="muted small">Best recipe of each model and GPU type: tokens/s per GPU, then $ / 1M tokens.</p>',
-        '<div class="card tablewrap"><table><thead><tr><th>Model</th>%s</tr></thead><tbody>%s</tbody></table></div>'
-        % ("".join("<th>%s</th>" % esc(g) for g in gpus), "".join(matrix))])
-    return shell("rankings.html", "Rankings | OpenRecipes",
-                 "The fastest and the cheapest GPU type for each model, from the best verified training recipe.",
-                 body, "rankings", date)
-
-
 # ---- protocol -----------------------------------------------------------------------------------------------------
 
 def protocol_page(recipes, gpus, rates, date):
@@ -456,7 +398,7 @@ def protocol_page(recipes, gpus, rates, date):
 <p>The measured run serves as the recipe's arm when nothing in it adds work to the step. A reference arm serves every recipe of its pair that runs on the same image and rows. Publishing the reference recipe is optional; a recipe states it when it is public.</p>
 <p><b>Objective conventions.</b> Qwen3.5 and Qwen3.6 recipes train with the load-balancing loss off (<code>--moe-aux-loss-coeff 0</code>), in the reference recipe and the recipe alike. Megatron computes that loss per microbatch, so with the loss on, the number of rows per microbatch would be part of the objective.</p>
 <h2 id="cost">Cost</h2>
-<p><code>$ / 1M tokens = per-GPU hourly rate / (tokens/s/GPU x 3,600) x 10^6</code>. The rates are {basis}, fetched {fetched}, from <a href="{repo}/blob/main/gpus.yaml"><code>gpus.yaml</code></a>. Prices change; recompute for your region and commitment. Within a pair every recipe uses the same rate, so the fastest recipe is also the cheapest; across GPU types the <a href="rankings.html">rankings</a> compare both.</p>
+<p><code>$ / 1M tokens = per-GPU hourly rate / (tokens/s/GPU x 3,600) x 10^6</code>. The rates are {basis}, fetched {fetched}, from <a href="{repo}/blob/main/gpus.yaml"><code>gpus.yaml</code></a>. Prices change; recompute for your region and commitment. Within a pair every recipe uses the same rate, so the fastest recipe is also the cheapest; each model's pages compare its GPU types on both.</p>
 <div class="card tablewrap"><table><thead><tr><th>Type</th><th>GPU</th><th>Instance</th><th>$ / GPU-hour</th><th>Dense BF16 peak, TFLOP/s</th><th></th></tr></thead><tbody>{rates}</tbody></table></div>
 <h2 id="mfu">MFU</h2>
 <p>MFU = 6 x N x tokens/s/GPU / peak. <em>N</em> is the model's active parameters per token: every weight the text model applies to each token in a matrix multiplication (attention, linear attention, sparse-attention indexer, dense and shared-expert MLPs, routers and the output projection), with routed experts counted at top-k of the expert count. N leaves out the input embedding (a lookup), norms and biases, position embeddings and integer index tables, multi-token prediction layers and vision towers; FP4 weights stored two per byte count at their unpacked size. <a href="{repo}/blob/main/tools/active_params.py"><code>tools/active_params.py</code></a> counts N from the checkpoint's safetensors headers, and a recipe records N with the checkpoint and its revision. The peak is the GPU's dense BF16 peak in the table above. Attention-score FLOPs and recomputation are not counted, so MFU compares models with softmax, linear and sparse attention on one basis and sits below the hardware's actual FLOP rate.</p>
@@ -640,7 +582,6 @@ def render(root=ROOT):
     for (mname, gt), items in sorted(pairs.items(), key=lambda kv: (kv[0][0], list(gpus).index(kv[0][1]))):
         m = models[mname]
         put(pair_url(m, gt) + "index.html", pair_page(m, gpus[gt], items, pairs, gpus, date, root))
-    put("rankings.html", rankings_page(pairs, models, gpus, date))
     put("protocol.html", protocol_page(recipes, gpus, rates, date))
     schema_path = Path(root) / "schema" / "recipe.schema.yaml"
     put("submit.html", submit_page(load_yaml(schema_path), date))
@@ -662,7 +603,7 @@ def render(root=ROOT):
                     for key in sorted(pairs, key=lambda k: (k[0], list(gpus).index(k[1]))) for x in pairs[key]],
     }
     put("data.json", json.dumps(data, indent=1, ensure_ascii=False) + "\n")
-    pages = ["", "rankings", "protocol", "submit"] + [
+    pages = ["", "protocol", "submit"] + [
         pair_url(models[m], gt) for m, gt in sorted(pairs, key=lambda k: (k[0], list(gpus).index(k[1])))]
     put("sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'

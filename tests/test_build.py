@@ -25,7 +25,7 @@ def files():
 def test_pages(files):
     pairs = [k for k in files if re.match(r"^[a-z0-9.-]+/(h100|h200|b200)/index\.html$", k)]
     assert len(pairs) == 19
-    for page in ("index.html", "rankings.html", "protocol.html", "submit.html", "404.html", "sitemap.xml",
+    for page in ("index.html", "protocol.html", "submit.html", "404.html", "sitemap.xml",
                  "robots.txt", "data.json", "style.css", "app.js", "favicon.svg", "_headers", "LICENSE.txt", "NOTICE.txt",
                  "schema/recipe.schema.yaml"):
         assert page in files, page
@@ -67,17 +67,6 @@ def test_missing_gpu_types_are_grey(files):
     assert files["index.html"].count('class="chip off"') == 3 * 40 - 19
 
 
-def test_rankings(files):
-    page = files["rankings.html"]
-    assert "<h2>Fastest GPU per model</h2>" in page and "<h2>Cheapest GPU per model</h2>" in page
-    fastest = page.split("<h2>Fastest GPU per model</h2>")[1].split("<h2>")[0]
-    row = re.search(r"Qwen3\.5-122B-A10B</span></td><td[^>]*><span class=\"cv\">(\w+)</span>", fastest)
-    assert row and row.group(1) == "H200"
-    cheapest = page.split("<h2>Cheapest GPU per model</h2>")[1].split("<h2>")[0]
-    row = re.search(r"gpt-oss-20b</span></td><td[^>]*><span class=\"cv\">(\w+)</span>", cheapest)
-    assert row and row.group(1) == "H200"   # $0.23 on H200 against $0.28 (H100) and $0.32 (B200)
-
-
 def test_protocol_and_submit(files):
     proto = files["protocol.html"]
     for anchor in ("workload", "measurement", "correctness", "cost", "mfu", "stack"):
@@ -112,10 +101,10 @@ def test_internal_links_use_clean_urls(files):
     for name, text in files.items():
         if name.endswith(".html"):
             assert not re.search(r'href="(?!https?:)[^"]*\.html\b', text), name
-    assert 'href="./#models"' in files["rankings.html"] and 'href="../../protocol#run"' in \
+    assert 'href="./#models"' in files["protocol.html"] and 'href="../../protocol#run"' in \
         files["qwen3.5-122b-a10b/h200/index.html"] and 'href="/#models"' in files["404.html"]
     assert '<link rel="canonical" href="https://openrecipes.ai/submit">' in files["submit.html"]
-    assert "<loc>https://openrecipes.ai/rankings</loc>" in files["sitemap.xml"]
+    assert "<loc>https://openrecipes.ai/protocol</loc>" in files["sitemap.xml"] and "rankings" not in files["sitemap.xml"]
 
 
 def test_data_json_and_sitemap(files):
@@ -123,7 +112,7 @@ def test_data_json_and_sitemap(files):
     assert len(data["recipes"]) == 42 and len(data["models"]) == 40
     best = [r for r in data["recipes"] if r["model"] == "Qwen3.5-122B-A10B" and r["gpu"]["type"] == "H200"]
     assert [r["rank"] for r in best] == [1, 2, 3] and best[0]["result"]["measured"] == "2026-10-13"
-    assert files["sitemap.xml"].count("<url>") == 4 + 19
+    assert files["sitemap.xml"].count("<url>") == 3 + 19
     assert "Sitemap: https://openrecipes.ai/sitemap.xml" in files["robots.txt"]
 
 
