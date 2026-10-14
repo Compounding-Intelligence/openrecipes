@@ -41,10 +41,8 @@ def test_build_is_deterministic():
 def test_pair_page_follows_design_a(files):
     page = files["qwen3.5-122b-a10b/h200/index.html"]
     assert "<h1>Training Qwen3.5-122B-A10B on H200</h1>" in page
-    assert "<b>Quick answer.</b>" in page and "<b>2,453.7 tokens/s per GPU</b>" in page
-    assert "It passed" not in page and "Correctness</th>" not in page and "<h2>Questions</h2>" not in page
-    for label in ("Verified recipes", "Best tokens/s/GPU", "Lowest $ / 1M tokens", "Measured"):
-        assert label in page
+    assert '<span class="v hi">2,453.7</span><span class="gauge"' in page and page.count('class="gauge"') == 3
+    assert "Correctness</th>" not in page and "<h2>Questions</h2>" not in page and 'class="back"' in page
     ranked = re.findall(r'<details class="card recipe" id="([^"]+)"( open)?>', page)
     assert ranked == [("attune-tp1-pp4-ep8-rc2", " open"), ("attune-tp1-pp4-ep8", ""), ("attune-tp1-pp4-ep8-flex", "")]
     assert page.count("<dt>Convergence check</dt>") == 3 and "baseline" not in page.lower()
@@ -58,13 +56,15 @@ def test_notes_appear_once(files):
     assert page.count("<h2>Notes for gpt-oss-20b</h2>") == 1 and page.count("patches/attune_gpt_oss_yarn.py</code>") >= 1
     assert "it was not tuned on B200" in page
     assert "<h2>Notes for" not in files["qwen3.5-122b-a10b/h200/index.html"]
-    assert "tok/s/GPU" not in files["index.html"].split('<h2 id="models">')[1]
+    index = files["index.html"].split('id="models">')[1].split("</section>")[0]
+    assert "gauge" not in index and "$" not in index   # the index lists GPU types only; numbers sit in the blocks
+    assert files["index.html"].count('<section class="hud mb"') == 9 and 'data-gpu="H100"' in files["index.html"]
 
 
 def test_missing_gpu_types_are_grey(files):
     page = files["deepseek-v4-flash/h200/index.html"]
     assert page.count('class="card gpu off"') == 2
-    assert files["index.html"].count('class="chip off"') == 3 * 40 - 19
+    assert files["index.html"].count('<span class="off">') == 3 * 40 - 19
 
 
 def test_protocol_and_submit(files):

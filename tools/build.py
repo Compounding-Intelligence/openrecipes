@@ -183,37 +183,78 @@ def shell(rel, title, description, body, current=None, data_date=None, absolute=
 
 # ---- index --------------------------------------------------------------------------------------------------------
 
+SEGS = 24   # segments in a throughput gauge
+
+
+def gauge(share):
+    k = max(1, round(share * SEGS))
+    return '<span class="gauge" title="%d%% of the best">%s</span>' % (
+        round(share * 100), "".join('<b class="on"></b>' if i < k else "<b></b>" for i in range(SEGS)))
+
+
+def author_html(a):
+    if a.get("github"):
+        return '<a href="https://github.com/%s">%s</a>' % (esc(a["github"]), esc(a.get("name") or a["github"]))
+    return '<a href="%s">%s</a>' % (esc(a["url"]), esc(a["name"]))
+
+
 def index_page(pairs, models, gpus, date):
-    fams = families(models)
-    with_recipes = {m for m, _ in pairs}
+    groups = list(families(models).items())
+    total, left, count = len(models), [], 0
+    for fam, ms in groups:
+        if count < total / 2:
+            left.append((fam, ms))
+            count += len(ms)
+    columns = []
+    for col in (left, groups[len(left):]):
+        fams = []
+        for fam, ms in col:
+            rows = []
+            for m in ms:
+                ours = [gt for gt in gpus if (m["model"], gt) in pairs]
+                name = ('<a href="#m-%s">%s</a>' % (esc(m["slug"]), esc(m["model"])) if ours else esc(m["model"]))
+                chips = "".join('<a href="%s">%s</a>' % (pair_url(m, gt), gt) if gt in ours else '<span class="off">%s</span>' % gt
+                                for gt in gpus)
+                rows.append('<div class="irow"><span class="mname">%s</span><span class="lbs">%s</span></div>' % (name, chips))
+            fams.append('<div class="fam"><div class="fname">%s</div><div>%s</div></div>' % (esc(fam), "".join(rows)))
+        columns.append('<div><div class="ihead ml"><span>Family</span><span>Model</span><span>GPU</span></div>%s</div>' % "".join(fams))
     n_recipes = sum(len(v) for v in pairs.values())
-    stats = [("Recipes", n_recipes), ("Model x GPU pairs", len(pairs)), ("Models with recipes", len(with_recipes)),
-             ("Models listed", len(models))]
-    parts = ['<h1>Tuned, verified LLM training recipes</h1>',
-             '<p class="lede">OpenRecipes publishes training recipes for each model and GPU type: the parallel layout, '
-             'the command as run, the measured throughput and the evidence that the recipe still trains the same '
-             'model. Every recipe is measured one way (<a href="protocol.html">protocol</a>), so recipes for the same '
-             'model and GPU type compare directly.</p>',
-             '<div class="stats">%s</div>' % "".join(
-                 '<div class="card"><div class="k">%s</div><div class="v">%d</div></div>' % (k, v) for k, v in stats),
-             '<h2 id="models">Models</h2>']
-    for fam, ms in fams.items():
-        rows = []
-        for m in ms:
-            chips = []
-            for gt in gpus:
-                items = pairs.get((m["model"], gt))
-                if items:
-                    chips.append('<a class="chip" href="%s"><b>%s</b></a>' % (pair_url(m, gt), gt))
-                else:
-                    chips.append('<span class="chip off" title="No recipe yet"><b>%s</b></span>' % gt)
-            rows.append('<div class="model"><div><span class="name">%s</span><a class="hf" href="https://huggingface.co/%s">'
-                        '%s</a></div><div class="chips">%s</div></div>'
-                        % (esc(m["model"]), esc(m["hf"]), esc(m["hf"]), "".join(chips)))
-        parts.append('<section class="card family"><h2>%s</h2>%s</section>' % (esc(fam), "".join(rows)))
+    hero = ('<header class="hud hero"><h1>OpenRecipes</h1>'
+            '<p class="tag">Tuned, verified LLM training recipes on one fixed SFT workload, each with its cost per million '
+            'tokens and a passed convergence check.</p>'
+            '<p class="spec"><span>8,192-token SFT rows</span> &middot; <span>global batch 128</span> &middot; <span>BF16</span>'
+            ' &middot; <span>%d recipes on %d model and GPU pairs</span></p>'
+            '<div class="acts"><a class="btn pri" href="submit.html">Submit a recipe</a><a class="btn" href="protocol.html">Protocol</a>'
+            '<a class="btn" href="%s">GitHub</a></div></header>') % (n_recipes, len(pairs), REPO_URL)
+    seg = ('<div class="seg" role="group" aria-label="GPU"><span class="ml">GPU</span><button type="button" class="on" '
+           'data-gpu="" aria-pressed="true">All</button>%s</div>' % "".join(
+               '<button type="button" data-gpu="%s" aria-pressed="false">%s</button>' % (gt, gt) for gt in gpus))
+    blocks = []
+    for m in models.values():
+        rows = [(gt, pairs[(m["model"], gt)]) for gt in gpus if (m["model"], gt) in pairs]
+        if not rows:
+            continue
+        top = max(items[0]["r"]["result"]["tokens_per_s_per_gpu"] for _, items in rows)
+        low = min(items[0]["r"]["result"]["usd_per_million_tokens"] for _, items in rows)
+        trs = []
+        for gt, items in rows:
+            r = items[0]["r"]
+            t_, u = r["result"]["tokens_per_s_per_gpu"], r["result"]["usd_per_million_tokens"]
+            trs.append('<tr data-gpu="{gt}"><td class="g">{gt}</td><td class="n">{count}</td><td class="tp"><span class="v{hi}">{tps}'
+                       '</span>{gauge}</td><td class="n{lo}">{usd}</td><td>{label}<br><small>{hl}</small></td>'
+                       '<td class="nw">{date}</td><td>{author}</td><td class="go"><a href="{url}">{more}&nbsp;&rsaquo;</a></td></tr>'.format(
+                           gt=esc(gt), count=r["gpu"]["count"], hi=" hi" if t_ == top else "", tps=tps(t_), gauge=gauge(t_ / top),
+                           lo=" hi" if u == low else "", usd=usd(u), label=esc(r["layout"]["label"]),
+                           hl=esc(r["layout"]["highlights"]), date=esc(iso(r["result"]["measured"])), author=author_html(r["author"]),
+                           url=pair_url(m, gt), more="All recipes" if len(items) > 1 else "Recipe"))
+        blocks.append('<section class="hud mb" id="m-{slug}"><div class="ml">{fam}</div><h2>{model}</h2><div class="tablewrap">'
+                      '<table><thead><tr><th>GPU</th><th>GPUs</th><th>Tokens/s per GPU</th><th>$ / 1M tokens</th><th>Layout</th>'
+                      '<th>Measured</th><th>Author</th><th></th></tr></thead><tbody>{rows}</tbody></table></div></section>'.format(
+                          slug=esc(m["slug"]), fam=esc(m["family"]), model=esc(m["model"]), rows="".join(trs)))
+    body = "\n".join([hero, '<section class="hud idx" id="models">%s</section>' % "".join(columns), seg] + blocks)
     return shell("index.html", "OpenRecipes: tuned, verified LLM training recipes",
                  "Training recipes for LLMs on H100, H200 and B200, each measured one way and checked for correctness.",
-                 "\n".join(parts), "models", date)
+                 body, "models", date)
 
 
 # ---- pair page ----------------------------------------------------------------------------------------------------
@@ -237,10 +278,7 @@ def recipe_details(x, root):
     r, slug = x["r"], x["slug"]
     res, lay, ds = r["result"], r["layout"], r["workload"]["dataset"]
     a = r["author"]
-    if a.get("github"):
-        author = '<a href="https://github.com/%s">%s</a>' % (esc(a["github"]), esc(a.get("name") or a["github"]))
-    else:
-        author = '<a href="%s">%s</a>' % (esc(a["url"]), esc(a["name"]))
+    author = author_html(a)
     if a.get("paper"):
         author += ' (<a href="%s">paper</a>)' % esc(a["paper"])
     if res["mfu"] is None:
@@ -292,38 +330,26 @@ def pair_page(model, gpu, items, pairs, gpus, date, root):
     br = best["r"]
     res = br["result"]
     wl = br["workload"]
-    n = len(items)
-    dates = sorted(iso(x["r"]["result"]["measured"]) for x in items)
-    span = ('<span class="nw">%s</span>' % dates[0] if dates[0] == dates[-1] else
-            '<span class="nw">%s</span> to <span class="nw">%s</span>' % (dates[0], dates[-1]))
     workload = "{:,}-token SFT rows &middot; global batch {} &middot; {}".format(
         wl["row_tokens"], wl["global_batch"], esc(wl["precision"].upper()))
-    lead = "The fastest verified recipe" if n > 1 else "The verified recipe"
-    hl = (" (%s)" % esc(br["layout"]["highlights"])) if br["layout"]["highlights"] else ""
-    qa = ('<div class="card qa"><b>Quick answer.</b> {lead} trains {model} at <b>{tps} tokens/s per GPU</b> on '
-          '{count} &times; {gpu}, or <b>{usd} per million tokens</b>, with {label}{hl}.</div>').format(
-        lead=lead, model=esc(model["model"]), tps=tps(res["tokens_per_s_per_gpu"]), count=br["gpu"]["count"],
-        gpu=esc(gt), usd=usd(res["usd_per_million_tokens"]), label=esc(br["layout"]["label"]), hl=hl)
     cheapest = min(x["r"]["result"]["usd_per_million_tokens"] for x in items)
-    stats = ('<div class="stats"><div class="card"><div class="k">Verified recipes</div><div class="v">{n}</div></div>'
-             '<div class="card"><div class="k">Best tokens/s/GPU</div><div class="v">{tps}</div></div>'
-             '<div class="card"><div class="k">Lowest $ / 1M tokens</div><div class="v">{usd}</div></div>'
-             '<div class="card"><div class="k">Measured</div><div class="v date">{span}</div></div></div>').format(
-        n=n, tps=tps(res["tokens_per_s_per_gpu"]), usd=usd(cheapest), span=span)
+    top = res["tokens_per_s_per_gpu"]
     rows = []
     for x in items:
         r = x["r"]
-        rows.append('<tr class="{cls}"><td>{rank}</td><td class="n">{tps}</td><td class="n">{usd}</td>'
-                    '<td class="hide-s">{gpus}</td><td>{label}<br><small>{hl}</small></td>'
-                    '<td class="hide-s nw">{date}</td><td><a href="#{slug}">Recipe&nbsp;&rsaquo;</a></td></tr>'.format(
-                        cls="best" if x["rank"] == 1 else "", rank=x["rank"],
-                        tps=tps(r["result"]["tokens_per_s_per_gpu"]), usd=usd(r["result"]["usd_per_million_tokens"]),
-                        gpus=r["gpu"]["count"], label=esc(r["layout"]["label"]), hl=esc(r["layout"]["highlights"]),
-                        date=esc(iso(r["result"]["measured"])),
+        t_, u = r["result"]["tokens_per_s_per_gpu"], r["result"]["usd_per_million_tokens"]
+        rows.append('<tr><td class="rk">#{rank}</td><td class="tp"><span class="v{hi}">{tps}</span>{gauge}</td>'
+                    '<td class="n{lo}">{usd}</td><td class="n">{gpus}</td><td>{label}<br><small>{hl}</small></td>'
+                    '<td class="nw">{date}</td><td>{author}</td><td class="go"><a href="#{slug}">Recipe&nbsp;&rsaquo;</a></td></tr>'.format(
+                        rank=x["rank"], hi=" hi" if x["rank"] == 1 else "", tps=tps(t_), gauge=gauge(t_ / top),
+                        lo=" hi" if u == cheapest else "", usd=usd(u), gpus=r["gpu"]["count"], label=esc(r["layout"]["label"]),
+                        hl=esc(r["layout"]["highlights"]), date=esc(iso(r["result"]["measured"])), author=author_html(r["author"]),
                         slug=esc(x["slug"])))
-    table = ('<div class="card tablewrap"><table><thead><tr><th>#</th><th>Tokens/s per GPU</th><th>$ / 1M tokens</th>'
-             '<th class="hide-s">GPUs</th><th>Layout</th><th class="hide-s">Measured</th><th></th>'
-             '</tr></thead><tbody>%s</tbody></table></div>' % "".join(rows))
+    table = ('<section class="hud rank"><div class="ml">{fam}</div><h1>Training {model} on {gpu}</h1>'
+             '<div class="ml">Ranked by tokens/s per GPU &middot; {workload}</div><div class="tablewrap"><table><thead><tr>'
+             '<th>#</th><th>Tokens/s per GPU</th><th>$ / 1M tokens</th><th>GPUs</th><th>Layout</th><th>Measured</th><th>Author</th>'
+             '<th></th></tr></thead><tbody>{rows}</tbody></table></div></section>').format(
+        fam=esc(model["family"]), model=esc(model["model"]), gpu=esc(gt), workload=workload, rows="".join(rows))
     others = []
     for ot, og in gpus.items():
         o = pairs.get((model["model"], ot))
@@ -346,10 +372,7 @@ def pair_page(model, gpu, items, pairs, gpus, date, root):
                  'shares: <a href="../../protocol.html#run">Running a recipe</a>.</p></div>'
                  % (esc(model["model"]), render_text(model["notes"])))
     body = "\n".join([
-        '<div class="crumb"><a href="../../index.html#models">Models</a> &middot; %s &middot; %s</div>'
-        % (esc(model["family"]), esc(model["model"])),
-        "<h1>Training %s on %s</h1>" % (esc(model["model"]), esc(gt)),
-        '<div class="sub">%s</div>' % workload, qa, stats, table, notes,
+        '<a class="back" href="../../index.html#models">&lsaquo; All models</a>', table, notes,
         "<h2>Recipes</h2>",
         "\n".join(recipe_details(x, root) for x in items),
         "<h2>%s on other GPUs</h2>" % esc(model["model"]),
