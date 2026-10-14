@@ -36,83 +36,6 @@
  ],
  "models": [
   {
-   "family": "GLM",
-   "model": "GLM-5.3-Flash",
-   "slug": "glm-5.3-flash",
-   "hf": "zai-org/GLM-5.3-Flash",
-   "pairs": []
-  },
-  {
-   "family": "GLM",
-   "model": "GLM-5.3",
-   "slug": "glm-5.3",
-   "hf": "zai-org/GLM-5.3",
-   "pairs": []
-  },
-  {
-   "family": "GLM",
-   "model": "GLM-5.2-744B-A40B",
-   "slug": "glm-5.2-744b-a40b",
-   "hf": "zai-org/GLM-5.2",
-   "notes": "Patch slime's `mask_utils.py` with `data/patch_glm5_mask.py` before building the rows.\n",
-   "pairs": [
-    {
-     "gpu": "H100",
-     "url": "https://openrecipes.ai/glm-5.2-744b-a40b/h100/",
-     "recipes": [
-      "recipes/glm-5.2-744b-a40b/h100/attune-tp4-pp8-cp1-rc2.yaml",
-      "recipes/glm-5.2-744b-a40b/h100/attune-tp4-pp8-cp1.yaml",
-      "recipes/glm-5.2-744b-a40b/h100/attune-tp4-pp8-cp2.yaml"
-     ]
-    },
-    {
-     "gpu": "H200",
-     "url": "https://openrecipes.ai/glm-5.2-744b-a40b/h200/",
-     "recipes": [
-      "recipes/glm-5.2-744b-a40b/h200/attune-tp4-pp4.yaml",
-      "recipes/glm-5.2-744b-a40b/h200/attune-tp8-pp4.yaml"
-     ]
-    },
-    {
-     "gpu": "B200",
-     "url": "https://openrecipes.ai/glm-5.2-744b-a40b/b200/",
-     "recipes": [
-      "recipes/glm-5.2-744b-a40b/b200/attune-tp4-pp2-cp4-mt12k.yaml",
-      "recipes/glm-5.2-744b-a40b/b200/attune-tp4-pp2-cp4-mt16k.yaml",
-      "recipes/glm-5.2-744b-a40b/b200/attune-tp4-pp2-cp8.yaml"
-     ]
-    }
-   ]
-  },
-  {
-   "family": "GLM",
-   "model": "GLM-5.1",
-   "slug": "glm-5.1",
-   "hf": "zai-org/GLM-5.1",
-   "pairs": []
-  },
-  {
-   "family": "GLM",
-   "model": "GLM-5",
-   "slug": "glm-5",
-   "hf": "zai-org/GLM-5",
-   "pairs": []
-  },
-  {
-   "family": "GLM",
-   "model": "GLM-4.7-Flash",
-   "slug": "glm-4.7-flash",
-   "hf": "zai-org/GLM-4.7-Flash",
-   "pairs": []
-  },
-  {
-   "family": "GLM",
-   "model": "GLM-4.5",
-   "slug": "glm-4.5",
-   "hf": "zai-org/GLM-4.5",
-   "pairs": []
-  },
-  {
    "family": "Qwen",
    "model": "Qwen3.8-27B",
    "slug": "qwen3.8-27b",
@@ -296,6 +219,111 @@
    "pairs": []
   },
   {
+   "family": "GLM",
+   "model": "GLM-5.3-Flash",
+   "slug": "glm-5.3-flash",
+   "hf": "zai-org/GLM-5.3-Flash",
+   "pairs": []
+  },
+  {
+   "family": "GLM",
+   "model": "GLM-5.3",
+   "slug": "glm-5.3",
+   "hf": "zai-org/GLM-5.3",
+   "pairs": []
+  },
+  {
+   "family": "GLM",
+   "model": "GLM-5.2-744B-A40B",
+   "slug": "glm-5.2-744b-a40b",
+   "hf": "zai-org/GLM-5.2",
+   "notes": "Patch slime's `mask_utils.py` with `data/patch_glm5_mask.py` before building the rows.\n",
+   "pairs": [
+    {
+     "gpu": "H100",
+     "url": "https://openrecipes.ai/glm-5.2-744b-a40b/h100/",
+     "recipes": [
+      "recipes/glm-5.2-744b-a40b/h100/attune-tp4-pp8-cp1-rc2.yaml",
+      "recipes/glm-5.2-744b-a40b/h100/attune-tp4-pp8-cp1.yaml",
+      "recipes/glm-5.2-744b-a40b/h100/attune-tp4-pp8-cp2.yaml"
+     ]
+    },
+    {
+     "gpu": "H200",
+     "url": "https://openrecipes.ai/glm-5.2-744b-a40b/h200/",
+     "recipes": [
+      "recipes/glm-5.2-744b-a40b/h200/attune-tp4-pp4.yaml",
+      "recipes/glm-5.2-744b-a40b/h200/attune-tp8-pp4.yaml"
+     ]
+    },
+    {
+     "gpu": "B200",
+     "url": "https://openrecipes.ai/glm-5.2-744b-a40b/b200/",
+     "recipes": [
+      "recipes/glm-5.2-744b-a40b/b200/attune-tp4-pp2-cp4-mt12k.yaml",
+      "recipes/glm-5.2-744b-a40b/b200/attune-tp4-pp2-cp4-mt16k.yaml",
+      "recipes/glm-5.2-744b-a40b/b200/attune-tp4-pp2-cp8.yaml"
+     ]
+    }
+   ]
+  },
+  {
+   "family": "GLM",
+   "model": "GLM-5.1",
+   "slug": "glm-5.1",
+   "hf": "zai-org/GLM-5.1",
+   "pairs": []
+  },
+  {
+   "family": "GLM",
+   "model": "GLM-5",
+   "slug": "glm-5",
+   "hf": "zai-org/GLM-5",
+   "pairs": []
+  },
+  {
+   "family": "GLM",
+   "model": "GLM-4.7-Flash",
+   "slug": "glm-4.7-flash",
+   "hf": "zai-org/GLM-4.7-Flash",
+   "pairs": []
+  },
+  {
+   "family": "GLM",
+   "model": "GLM-4.5",
+   "slug": "glm-4.5",
+   "hf": "zai-org/GLM-4.5",
+   "pairs": []
+  },
+  {
+   "family": "Kimi",
+   "model": "Kimi-K3",
+   "slug": "kimi-k3",
+   "hf": "moonshotai/Kimi-K3",
+   "pairs": []
+  },
+  {
+   "family": "Kimi",
+   "model": "Kimi-K2.6",
+   "slug": "kimi-k2.6",
+   "hf": "moonshotai/Kimi-K2.6",
+   "pairs": []
+  },
+  {
+   "family": "Kimi",
+   "model": "Kimi-K2.5",
+   "slug": "kimi-k2.5",
+   "hf": "moonshotai/Kimi-K2.5",
+   "pairs": []
+  },
+  {
+   "family": "Kimi",
+   "model": "Kimi-K2",
+   "slug": "kimi-k2",
+   "hf": "moonshotai/Kimi-K2-Instruct",
+   "pairs": []
+  },
+  {
    "family": "DeepSeek",
    "model": "DeepSeek-V4.1-Flash",
    "slug": "deepseek-v4.1-flash",
@@ -337,34 +365,6 @@
    "model": "DeepSeek-V3",
    "slug": "deepseek-v3",
    "hf": "deepseek-ai/DeepSeek-V3",
-   "pairs": []
-  },
-  {
-   "family": "Kimi",
-   "model": "Kimi-K3",
-   "slug": "kimi-k3",
-   "hf": "moonshotai/Kimi-K3",
-   "pairs": []
-  },
-  {
-   "family": "Kimi",
-   "model": "Kimi-K2.6",
-   "slug": "kimi-k2.6",
-   "hf": "moonshotai/Kimi-K2.6",
-   "pairs": []
-  },
-  {
-   "family": "Kimi",
-   "model": "Kimi-K2.5",
-   "slug": "kimi-k2.5",
-   "hf": "moonshotai/Kimi-K2.5",
-   "pairs": []
-  },
-  {
-   "family": "Kimi",
-   "model": "Kimi-K2",
-   "slug": "kimi-k2",
-   "hf": "moonshotai/Kimi-K2-Instruct",
    "pairs": []
   },
   {

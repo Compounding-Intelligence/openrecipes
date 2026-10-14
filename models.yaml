@@ -1,40 +1,10 @@
-# Models the site lists, with or without recipes, in display order: families newest first.
+# Models the site lists, with or without recipes, in display order.
 # The text models of 20B parameters or more that miles supports (https://miles.radixark.com/docs/models,
 # read 2026-10-13), plus MiniMax-M2. `slug` names the directory under recipes/ and the page path,
 # and `notes` holds what every recipe of the model needs to run.
 # Derived from ATTUNE's benchmark/models.json (see NOTICE). Modified for OpenRecipes, 2026-10-14: converted
 # to YAML with a slug per model, and MiniMax-M2 added. Add a model by pull request.
 models:
-  - family: GLM
-    model: GLM-5.3-Flash
-    slug: glm-5.3-flash
-    hf: zai-org/GLM-5.3-Flash
-  - family: GLM
-    model: GLM-5.3
-    slug: glm-5.3
-    hf: zai-org/GLM-5.3
-  - family: GLM
-    model: GLM-5.2-744B-A40B
-    slug: glm-5.2-744b-a40b
-    hf: zai-org/GLM-5.2
-    notes: |
-      Patch slime's `mask_utils.py` with `data/patch_glm5_mask.py` before building the rows.
-  - family: GLM
-    model: GLM-5.1
-    slug: glm-5.1
-    hf: zai-org/GLM-5.1
-  - family: GLM
-    model: GLM-5
-    slug: glm-5
-    hf: zai-org/GLM-5
-  - family: GLM
-    model: GLM-4.7-Flash
-    slug: glm-4.7-flash
-    hf: zai-org/GLM-4.7-Flash
-  - family: GLM
-    model: GLM-4.5
-    slug: glm-4.5
-    hf: zai-org/GLM-4.5
   - family: Qwen
     model: Qwen3.8-27B
     slug: qwen3.8-27b
@@ -89,6 +59,52 @@ models:
     model: Qwen3-235B-A22B
     slug: qwen3-235b-a22b
     hf: Qwen/Qwen3-235B-A22B
+  - family: GLM
+    model: GLM-5.3-Flash
+    slug: glm-5.3-flash
+    hf: zai-org/GLM-5.3-Flash
+  - family: GLM
+    model: GLM-5.3
+    slug: glm-5.3
+    hf: zai-org/GLM-5.3
+  - family: GLM
+    model: GLM-5.2-744B-A40B
+    slug: glm-5.2-744b-a40b
+    hf: zai-org/GLM-5.2
+    notes: |
+      Patch slime's `mask_utils.py` with `data/patch_glm5_mask.py` before building the rows.
+  - family: GLM
+    model: GLM-5.1
+    slug: glm-5.1
+    hf: zai-org/GLM-5.1
+  - family: GLM
+    model: GLM-5
+    slug: glm-5
+    hf: zai-org/GLM-5
+  - family: GLM
+    model: GLM-4.7-Flash
+    slug: glm-4.7-flash
+    hf: zai-org/GLM-4.7-Flash
+  - family: GLM
+    model: GLM-4.5
+    slug: glm-4.5
+    hf: zai-org/GLM-4.5
+  - family: Kimi
+    model: Kimi-K3
+    slug: kimi-k3
+    hf: moonshotai/Kimi-K3
+  - family: Kimi
+    model: Kimi-K2.6
+    slug: kimi-k2.6
+    hf: moonshotai/Kimi-K2.6
+  - family: Kimi
+    model: Kimi-K2.5
+    slug: kimi-k2.5
+    hf: moonshotai/Kimi-K2.5
+  - family: Kimi
+    model: Kimi-K2
+    slug: kimi-k2
+    hf: moonshotai/Kimi-K2-Instruct
   - family: DeepSeek
     model: DeepSeek-V4.1-Flash
     slug: deepseek-v4.1-flash
@@ -120,22 +136,6 @@ models:
     model: DeepSeek-V3
     slug: deepseek-v3
     hf: deepseek-ai/DeepSeek-V3
-  - family: Kimi
-    model: Kimi-K3
-    slug: kimi-k3
-    hf: moonshotai/Kimi-K3
-  - family: Kimi
-    model: Kimi-K2.6
-    slug: kimi-k2.6
-    hf: moonshotai/Kimi-K2.6
-  - family: Kimi
-    model: Kimi-K2.5
-    slug: kimi-k2.5
-    hf: moonshotai/Kimi-K2.5
-  - family: Kimi
-    model: Kimi-K2
-    slug: kimi-k2
-    hf: moonshotai/Kimi-K2-Instruct
   - family: Nemotron
     model: Nemotron-3-Nano-30B-A3B
     slug: nemotron-3-nano-30b-a3b
