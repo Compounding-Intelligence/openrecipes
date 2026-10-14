@@ -254,9 +254,7 @@ def index_page(pairs, models, gpus, date):
                       '<table><thead><tr><th>GPU</th><th>GPUs</th><th>Tokens/s per GPU</th><th>$ / 1M tokens</th><th>Layout</th>'
                       '<th>Measured</th><th>Author</th><th></th></tr></thead><tbody>{rows}</tbody></table></div></section>'.format(
                           slug=esc(m["slug"]), fam=esc(m["family"]), model=esc(m["model"]), rows="".join(trs)))
-    with_recipes = len({m for m, _ in pairs})
-    bar = ('<div class="ibar"><span class="ml">%d of %d models have recipes</span><button type="button" class="tg" '
-           'aria-pressed="false" hidden>With recipes only</button></div>' % (with_recipes, len(models)))
+    bar = '<div class="ibar"><button type="button" class="tg" aria-pressed="false" hidden>With recipes only</button></div>'
     body = "\n".join([hero, '<section class="hud idx" id="models">%s%s</section>' % (bar, "".join(columns)), seg] + blocks)
     return shell("index.html", "OpenRecipes: tuned, verified LLM training recipes",
                  "Training recipes for LLMs on H100, H200 and B200, each measured one way and checked for correctness.",

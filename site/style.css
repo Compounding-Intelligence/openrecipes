@@ -188,7 +188,7 @@ footer .wrap { padding: 18px 32px; }
 .lbs a:hover { text-decoration: none; background: #e3f2f7; }
 .lbs span.off { color: #8a99a7; border: 1px dashed #cfd9e1; background: transparent; font-weight: 500; }
 
-.ibar { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 4px 0 2px; }
+.ibar { grid-column: 1 / -1; display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding: 4px 0 2px; }
 .tg { display: inline-flex; align-items: center; gap: 8px; font: 600 .68rem var(--mono); letter-spacing: .12em; text-transform: uppercase;
   color: var(--mut); background: rgba(255, 255, 255, .75); border: 1px solid #cfd9e1; padding: 6px 12px; cursor: pointer; }
 .tg::before { content: ""; width: 22px; height: 12px; border: 1px solid #a9bcc8; background:
