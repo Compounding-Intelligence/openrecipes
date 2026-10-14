@@ -162,6 +162,7 @@
      "gpu": "B200",
      "url": "https://openrecipes.ai/qwen3.6-35b-a3b/b200/",
      "recipes": [
+      "recipes/qwen3.6-35b-a3b/b200/attune-tp1-pp1-ep8-mt16k.yaml",
       "recipes/qwen3.6-35b-a3b/b200/attune-tp1-pp1-ep8.yaml"
      ]
     }
@@ -185,6 +186,13 @@
      "url": "https://openrecipes.ai/qwen3.5-35b-a3b/h200/",
      "recipes": [
       "recipes/qwen3.5-35b-a3b/h200/attune-tp1-pp1-ep8.yaml"
+     ]
+    },
+    {
+     "gpu": "B200",
+     "url": "https://openrecipes.ai/qwen3.5-35b-a3b/b200/",
+     "recipes": [
+      "recipes/qwen3.5-35b-a3b/b200/attune-tp1-pp1-ep8-mt16k.yaml"
      ]
     }
    ]
@@ -422,12 +430,13 @@
    "model": "gpt-oss-20b",
    "slug": "gpt-oss-20b",
    "hf": "openai/gpt-oss-20b",
-   "notes": "- Weights: `openai/gpt-oss-20b` (revision 6cee5e81) with its MXFP4 experts dequantized to BF16 by the training image's\n  `tools/preprocess_gpt_oss.py`, converted to Megatron `torch_dist` with slime's `tools/convert_hf_to_torch_dist.py`.\n- `MODEL_ARGS` are the architecture written out in the command, with `--spec attune_gpt_oss_yarn\n  get_gpt_oss_yarn_spec`. The spec in `patches/attune_gpt_oss_yarn.py` sets YaRN RoPE from the checkpoint's\n  `config.json`, which slime's stock gpt-oss script does not build.\n- The loss is the mean over each row's supervised tokens (Megatron-Bridge's SFT loss mode); the command does not pass\n  `--calculate-per-token-loss`.\n- On 80 GB GPUs the FP32 logits of an 8,192-token microbatch (6.14 GiB) need full recompute; H200 and B200 hold them.\n",
+   "notes": "- Weights: `openai/gpt-oss-20b` (revision 6cee5e81) with its MXFP4 experts dequantized to BF16 by the training image's\n  `tools/preprocess_gpt_oss.py`, converted to Megatron `torch_dist` with slime's `tools/convert_hf_to_torch_dist.py`.\n- `MODEL_ARGS` are the architecture written out in the command, with `--spec attune_gpt_oss_yarn\n  get_gpt_oss_yarn_spec`. The spec in `patches/attune_gpt_oss_yarn.py` sets YaRN RoPE from the checkpoint's\n  `config.json`, which slime's stock gpt-oss script does not build.\n- The loss is the mean over each row's supervised tokens (Megatron-Bridge's SFT loss mode); the command does not pass\n  `--calculate-per-token-loss`.\n- On 80 GB GPUs the FP32 logits of an 8,192-token microbatch (6.14 GiB) leave no room to keep every layer's\n  activations, so H100 recipes recompute layers; H200 and B200 hold them.\n",
    "pairs": [
     {
      "gpu": "H100",
      "url": "https://openrecipes.ai/gpt-oss-20b/h100/",
      "recipes": [
+      "recipes/gpt-oss-20b/h100/attune-tp1-pp2-ep4-split13-rb8.yaml",
       "recipes/gpt-oss-20b/h100/attune-tp1-pp2-ep4.yaml"
      ]
     },
@@ -435,6 +444,7 @@
      "gpu": "H200",
      "url": "https://openrecipes.ai/gpt-oss-20b/h200/",
      "recipes": [
+      "recipes/gpt-oss-20b/h200/attune-tp1-pp1-ep4.yaml",
       "recipes/gpt-oss-20b/h200/attune-tp1-pp2-ep4.yaml"
      ]
     },
@@ -442,6 +452,7 @@
      "gpu": "B200",
      "url": "https://openrecipes.ai/gpt-oss-20b/b200/",
      "recipes": [
+      "recipes/gpt-oss-20b/b200/attune-tp1-pp1-ep8-sel-mt16k.yaml",
       "recipes/gpt-oss-20b/b200/attune-tp1-pp2-ep4.yaml"
      ]
     }
@@ -3023,6 +3034,145 @@
    "notes": "Qwen3.6-35B-A3B's H200 recipe, run unchanged; the two models share the architecture and the tokenizer.\n"
   },
   {
+   "path": "recipes/qwen3.5-35b-a3b/b200/attune-tp1-pp1-ep8-mt16k.yaml",
+   "slug": "attune-tp1-pp1-ep8-mt16k",
+   "rank": 1,
+   "schema_version": 1,
+   "model": "Qwen3.5-35B-A3B",
+   "gpu": {
+    "type": "B200",
+    "memory_gb": 180,
+    "count": 8,
+    "per_node": 8,
+    "instance": "AWS p6-b200.48xlarge"
+   },
+   "author": {
+    "name": "ATTUNE",
+    "url": "https://github.com/amazon-science/attune",
+    "paper": "https://arxiv.org/abs/2610.17528"
+   },
+   "status": "verified",
+   "stack": {
+    "framework": "slime 0.3.0: THUDM/slime a897e1f plus 8 commits that do not change the training step",
+    "megatron_lm": "commit 1dcf0da (megatron-core 0.16.0rc0), with slime's patch to the MoE router (routing-replay registration)",
+    "transformer_engine": "2.10.0",
+    "pytorch": "2.11.0 (CUDA 12.9 build)",
+    "cuda": "12.9",
+    "nccl": "2.28.9 (CUDA 12.9 build; printed by the measured run)",
+    "deepep": "not pinned",
+    "python": "not pinned",
+    "network": "8 GPUs per node, EFA, 3.2 Tb/s RDMA per node",
+    "source": "in-pod check of the measured run's training image (same digest) on 2026-10-01: Megatron-LM git commit and installed TE and PyTorch; NCCL from the measured run's log"
+   },
+   "workload": {
+    "row_tokens": 8192,
+    "rows": "SFT conversations",
+    "global_batch": 128,
+    "precision": "bf16",
+    "dataset": {
+     "name": "Tulu 3 SFT mixture",
+     "source": "allenai/tulu-3-sft-mixture",
+     "revision": "b14afda60f1bbebe55d5d2fa1e4df5042f97f8be",
+     "license": "ODC-By 1.0",
+     "rows_sha256": "7a837641dcde9ebcac9d3ed5ed84ddd941fc9bfc173606cc701e9a3f51c307f1",
+     "build": {
+      "name": "qwen35-tulu3-fixed8192-v1",
+      "tokenizer": "Qwen3.5 (the Qwen3.5-122B-A10B tokenizer; tokenizer.json sha256 5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42)",
+      "loss_mask": "qwen3_5",
+      "rows": 6400,
+      "row_tokens": 8192,
+      "padding_tokens": 0,
+      "seed": 42,
+      "packing": "source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into consecutive 8,192-token rows; rows without supervised targets are skipped",
+      "supervised_token_ratio": 0.676,
+      "parquet_sha256": "f215bdc6aba60d6d0dff4471eaef805765cb393e40b95762190535376491ab01",
+      "parquet_bytes": 76127393,
+      "builder": "data/generate_fixed_sft.py (data/README.md)"
+     }
+    }
+   },
+   "layout": {
+    "label": "TP1 PP1 EP8 DP8",
+    "summary": "TP 1, PP 1, CP 1, EP 8, ETP 1, DP 8; two 8,192-token rows per microbatch (max 16,384 tokens per GPU); full recompute (uniform, 1 layer); alltoall dispatcher; precision-aware distributed optimizer; no offload",
+    "highlights": "max 16,384 tokens/GPU, optimizer on GPU",
+    "tp": 1,
+    "pp": 1,
+    "vpp": 1,
+    "cp": 1,
+    "ep": 8,
+    "etp": 1,
+    "dp": 8,
+    "sequence_parallel": false,
+    "layer_split": null,
+    "max_tokens_per_gpu": 16384,
+    "rows_per_microbatch": 2,
+    "recompute": {
+     "granularity": "full",
+     "method": "uniform",
+     "num_layers": 1
+    },
+    "offload": null,
+    "dispatcher": "alltoall"
+   },
+   "result": {
+    "tokens_per_s_per_gpu": 6578.92,
+    "usd_per_million_tokens": 0.6,
+    "step_time_cv_percent": 3.67,
+    "mfu": 0.0517,
+    "mfu_note": null,
+    "active_params": {
+     "count": 2946252800,
+     "source": "https://huggingface.co/Qwen/Qwen3.5-35B-A3B",
+     "revision": "59d61f3ce65a6d9863b86d2e96597125219dc754"
+    },
+    "measured": "2026-10-14",
+    "steps_per_run": 20,
+    "window": [
+     4,
+     13
+    ],
+    "window_tokens": 10485760,
+    "runs": 1,
+    "profiler": false,
+    "gpu_hours": 1.64,
+    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
+   },
+   "correctness": {
+    "result": "pass",
+    "summary": "passed; 1 component test passed",
+    "reference": "Not published.",
+    "configuration": "pass",
+    "component_tests": [
+     {
+      "test": "precision-aware Adam on GPU (TE FusedAdam, FP32 masters stored as BF16 parameter plus remainder) against an FP64 reference",
+      "shape": "one Qwen3.5-397B-A17B MoE layer: hidden 4096, 512 experts, top-10, expert FFN 1024, EP 8, ETP 1, 4,096 tokens per rank",
+      "gpu": "B200",
+      "date": "2026-10-14",
+      "result": "pass",
+      "detail": "worst tensor (update) relative L2 error 5.12e-7 against a bound of 1.0e-3 after one step, and within bound after three steps at the entry's hyperparameters; the negative controls fail",
+      "note": "run on B200 on this recipe's training image; the optimizer step is elementwise, so the result does not depend on the model"
+     }
+    ],
+    "convergence": {
+     "steps": 20,
+     "result": "pass",
+     "correlation": 0.9999978,
+     "final_loss_difference": 0.00014,
+     "pointwise_failures": 0,
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both"
+    },
+    "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
+   },
+   "env": {
+    "CUDA_DEVICE_MAX_CONNECTIONS": "1",
+    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+    "TORCHINDUCTOR_COMPILE_THREADS": "1",
+    "NCCL_NVLS_ENABLE": "$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)"
+   },
+   "patches": [],
+   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 1 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --loss-mask-type qwen3_5 \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 1 \\\n  --pipeline-model-parallel-size 1 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 8 \\\n  --expert-tensor-parallel-size 1 \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 16384 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --distributed-timeout-minutes 30 \\\n  --tensorboard-dir \"$PROFILE_DIR\"\n"
+  },
+  {
    "path": "recipes/qwen3.5-397b-a17b/h100/attune-tp2-pp16-ep8-vpp2.yaml",
    "slug": "attune-tp2-pp16-ep8-vpp2",
    "rank": 1,
@@ -4651,9 +4801,148 @@
    "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 1 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --loss-mask-type qwen3_5 \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 1 \\\n  --pipeline-model-parallel-size 2 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 4 \\\n  --expert-tensor-parallel-size 1 \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 16384 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --optimizer-cpu-offload \\\n  --overlap-cpu-optimizer-d2h-h2d \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --distributed-timeout-minutes 30 \\\n  --tensorboard-dir \"$PROFILE_DIR\"\n"
   },
   {
+   "path": "recipes/qwen3.6-35b-a3b/b200/attune-tp1-pp1-ep8-mt16k.yaml",
+   "slug": "attune-tp1-pp1-ep8-mt16k",
+   "rank": 1,
+   "schema_version": 1,
+   "model": "Qwen3.6-35B-A3B",
+   "gpu": {
+    "type": "B200",
+    "memory_gb": 180,
+    "count": 8,
+    "per_node": 8,
+    "instance": "AWS p6-b200.48xlarge"
+   },
+   "author": {
+    "name": "ATTUNE",
+    "url": "https://github.com/amazon-science/attune",
+    "paper": "https://arxiv.org/abs/2610.17528"
+   },
+   "status": "verified",
+   "stack": {
+    "framework": "slime 0.3.0: THUDM/slime a897e1f plus 8 commits that do not change the training step",
+    "megatron_lm": "commit 1dcf0da (megatron-core 0.16.0rc0), with slime's patch to the MoE router (routing-replay registration)",
+    "transformer_engine": "2.10.0",
+    "pytorch": "2.11.0 (CUDA 12.9 build)",
+    "cuda": "12.9",
+    "nccl": "2.28.9 (CUDA 12.9 build; printed by the measured run)",
+    "deepep": "not pinned",
+    "python": "not pinned",
+    "network": "8 GPUs per node, EFA, 3.2 Tb/s RDMA per node",
+    "source": "in-pod check of the measured run's training image (same digest) on 2026-10-01: Megatron-LM git commit and installed TE and PyTorch; NCCL from the measured run's log"
+   },
+   "workload": {
+    "row_tokens": 8192,
+    "rows": "SFT conversations",
+    "global_batch": 128,
+    "precision": "bf16",
+    "dataset": {
+     "name": "Tulu 3 SFT mixture",
+     "source": "allenai/tulu-3-sft-mixture",
+     "revision": "b14afda60f1bbebe55d5d2fa1e4df5042f97f8be",
+     "license": "ODC-By 1.0",
+     "rows_sha256": "7a837641dcde9ebcac9d3ed5ed84ddd941fc9bfc173606cc701e9a3f51c307f1",
+     "build": {
+      "name": "qwen35-tulu3-fixed8192-v1",
+      "tokenizer": "Qwen3.5 (the Qwen3.5-122B-A10B tokenizer; tokenizer.json sha256 5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42)",
+      "loss_mask": "qwen3_5",
+      "rows": 6400,
+      "row_tokens": 8192,
+      "padding_tokens": 0,
+      "seed": 42,
+      "packing": "source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into consecutive 8,192-token rows; rows without supervised targets are skipped",
+      "supervised_token_ratio": 0.676,
+      "parquet_sha256": "f215bdc6aba60d6d0dff4471eaef805765cb393e40b95762190535376491ab01",
+      "parquet_bytes": 76127393,
+      "builder": "data/generate_fixed_sft.py (data/README.md)"
+     }
+    }
+   },
+   "layout": {
+    "label": "TP1 PP1 EP8 DP8",
+    "summary": "TP 1, PP 1, CP 1, EP 8, ETP 1, DP 8; two 8,192-token rows per microbatch (max 16,384 tokens per GPU); full recompute (uniform, 1 layer); alltoall dispatcher; precision-aware distributed optimizer; no offload",
+    "highlights": "max 16,384 tokens/GPU, optimizer on GPU",
+    "tp": 1,
+    "pp": 1,
+    "vpp": 1,
+    "cp": 1,
+    "ep": 8,
+    "etp": 1,
+    "dp": 8,
+    "sequence_parallel": false,
+    "layer_split": null,
+    "max_tokens_per_gpu": 16384,
+    "rows_per_microbatch": 2,
+    "recompute": {
+     "granularity": "full",
+     "method": "uniform",
+     "num_layers": 1
+    },
+    "offload": null,
+    "dispatcher": "alltoall"
+   },
+   "result": {
+    "tokens_per_s_per_gpu": 6547.25,
+    "usd_per_million_tokens": 0.6,
+    "step_time_cv_percent": 4.49,
+    "mfu": 0.0514,
+    "mfu_note": null,
+    "active_params": {
+     "count": 2946252800,
+     "source": "https://huggingface.co/Qwen/Qwen3.6-35B-A3B",
+     "revision": "995ad96eacd98c81ed38be0c5b274b04031597b0"
+    },
+    "measured": "2026-10-14",
+    "steps_per_run": 20,
+    "window": [
+     4,
+     13
+    ],
+    "window_tokens": 10485760,
+    "runs": 1,
+    "profiler": false,
+    "gpu_hours": 1.64,
+    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
+   },
+   "correctness": {
+    "result": "pass",
+    "summary": "passed; 1 component test passed",
+    "reference": "Not published.",
+    "configuration": "pass",
+    "component_tests": [
+     {
+      "test": "precision-aware Adam on GPU (TE FusedAdam, FP32 masters stored as BF16 parameter plus remainder) against an FP64 reference",
+      "shape": "one Qwen3.5-397B-A17B MoE layer: hidden 4096, 512 experts, top-10, expert FFN 1024, EP 8, ETP 1, 4,096 tokens per rank",
+      "gpu": "B200",
+      "date": "2026-10-14",
+      "result": "pass",
+      "detail": "worst tensor (update) relative L2 error 5.12e-7 against a bound of 1.0e-3 after one step, and within bound after three steps at the entry's hyperparameters; the negative controls fail",
+      "note": "run on B200 on this recipe's training image; the optimizer step is elementwise, so the result does not depend on the model"
+     }
+    ],
+    "convergence": {
+     "steps": 20,
+     "result": "pass",
+     "correlation": 0.9999982,
+     "final_loss_difference": 3.3e-05,
+     "pointwise_failures": 0,
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both"
+    },
+    "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
+   },
+   "env": {
+    "CUDA_DEVICE_MAX_CONNECTIONS": "1",
+    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+    "TORCHINDUCTOR_COMPILE_THREADS": "1",
+    "NCCL_NVLS_ENABLE": "$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)"
+   },
+   "patches": [],
+   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 1 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --loss-mask-type qwen3_5 \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 1 \\\n  --pipeline-model-parallel-size 1 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 8 \\\n  --expert-tensor-parallel-size 1 \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 16384 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --distributed-timeout-minutes 30 \\\n  --tensorboard-dir \"$PROFILE_DIR\"\n"
+  },
+  {
    "path": "recipes/qwen3.6-35b-a3b/b200/attune-tp1-pp1-ep8.yaml",
    "slug": "attune-tp1-pp1-ep8",
-   "rank": 1,
+   "rank": 2,
    "schema_version": 1,
    "model": "Qwen3.6-35B-A3B",
    "gpu": {
@@ -5056,9 +5345,146 @@
    "notes": "- The learning rate is 5e-6 (minimum 5e-7), from Megatron-Bridge's gpt-oss-120b SFT recipe; ATTUNE's tuning campaign\n  ran at 3e-4.\n- Keep the uneven 9/10/10/7 split and full recompute on 80 GB GPUs: with the even 9/9/9/9 split the last stage, which\n  also holds the output layer and the loss, runs short of memory.\n"
   },
   {
+   "path": "recipes/gpt-oss-20b/h100/attune-tp1-pp2-ep4-split13-rb8.yaml",
+   "slug": "attune-tp1-pp2-ep4-split13-rb8",
+   "rank": 1,
+   "schema_version": 1,
+   "model": "gpt-oss-20b",
+   "gpu": {
+    "type": "H100",
+    "memory_gb": 80,
+    "count": 8,
+    "per_node": 8,
+    "instance": "AWS p5.48xlarge"
+   },
+   "author": {
+    "name": "ATTUNE",
+    "url": "https://github.com/amazon-science/attune",
+    "paper": "https://arxiv.org/abs/2610.17528"
+   },
+   "status": "verified",
+   "stack": {
+    "framework": "slime 0.3.0: THUDM/slime a897e1f plus 8 commits that do not change the training step",
+    "megatron_lm": "commit 1dcf0daf (megatron-core 0.16.0rc0) with the training image's local changes",
+    "transformer_engine": "2.10.0",
+    "pytorch": "2.11.0 (CUDA 12.9 build)",
+    "cuda": "12.9",
+    "nccl": "2.28.9 (CUDA 12.9 build; printed by the measured run)",
+    "deepep": "1.2.1 (installed; the alltoall dispatcher does not use it)",
+    "python": "3.12.3",
+    "network": "one node of 8 GPUs (NVLink); no inter-node traffic",
+    "source": "in-pod version dump of the measured run's training image, 2026-10-13: installed TE, PyTorch, DeepEP and megatron-core, Megatron-LM git commit, Python; NCCL from the measured run's log"
+   },
+   "workload": {
+    "row_tokens": 8192,
+    "rows": "SFT conversations",
+    "global_batch": 128,
+    "precision": "bf16",
+    "dataset": {
+     "name": "Tulu 3 SFT mixture",
+     "source": "allenai/tulu-3-sft-mixture",
+     "revision": "b14afda60f1bbebe55d5d2fa1e4df5042f97f8be",
+     "license": "ODC-By 1.0",
+     "rows_sha256": "de2b9bb0f64927fd4214b45c3718fec01d9f2579da462e7615b1154d88185963",
+     "build": {
+      "name": "gptoss-tulu3-fixed8192-v1",
+      "tokenizer": "gpt-oss (the gpt-oss-20b tokenizer, revision 6cee5e81ee83917806bbde320786a8fb61efebee, byte-identical to gpt-oss-120b's; tokenizer.json sha256 0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3)",
+      "loss_mask": "gpt_oss",
+      "rows": 6400,
+      "row_tokens": 8192,
+      "padding_tokens": 0,
+      "seed": 42,
+      "packing": "source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into consecutive 8,192-token rows; rows without supervised targets are skipped",
+      "supervised_token_ratio": 0.621,
+      "parquet_sha256": "1fc671ba1a3262edeed53f82aca81c05fc694ed40dd8674a9e4c2d96055fed90",
+      "parquet_bytes": 70055050,
+      "builder": "data/generate_fixed_sft.py with --loss-mask-type gpt_oss (patch_gptoss_mask.py; data/README.md)"
+     }
+    }
+   },
+   "layout": {
+    "label": "TP1 PP2 EP4 DP4",
+    "summary": "TP 1, PP 2 (13/11), CP 1, EP 4, ETP 1, DP 4; one 8,192-token row per microbatch (max 8,192 tokens per GPU); full recompute of the first 8 layers of each stage (block); alltoall dispatcher; distributed optimizer; native cross-entropy fusion; no offload",
+    "highlights": "13/11 layer split, block recompute of 8 layers",
+    "tp": 1,
+    "pp": 2,
+    "vpp": 1,
+    "cp": 1,
+    "ep": 4,
+    "etp": 1,
+    "dp": 4,
+    "sequence_parallel": false,
+    "layer_split": {
+     "first": 13,
+     "last": 11
+    },
+    "max_tokens_per_gpu": 8192,
+    "rows_per_microbatch": 1,
+    "recompute": {
+     "granularity": "full",
+     "method": "block",
+     "num_layers": 8
+    },
+    "offload": null,
+    "dispatcher": "alltoall"
+   },
+   "result": {
+    "tokens_per_s_per_gpu": 7481.13,
+    "usd_per_million_tokens": 0.26,
+    "step_time_cv_percent": 2.21,
+    "mfu": 0.1637,
+    "mfu_note": null,
+    "active_params": {
+     "count": 3607142400,
+     "source": "https://huggingface.co/openai/gpt-oss-20b",
+     "revision": "6cee5e81ee83917806bbde320786a8fb61efebee"
+    },
+    "measured": "2026-10-14",
+    "steps_per_run": 20,
+    "window": [
+     4,
+     13
+    ],
+    "window_tokens": 10485760,
+    "runs": 1,
+    "profiler": false,
+    "gpu_hours": 1.27,
+    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
+   },
+   "correctness": {
+    "result": "pass",
+    "summary": "passed",
+    "reference": "Megatron-Bridge's gpt-oss-20b SFT recipe for 8 x H100 (TP 1, PP 1, EP 8). Two changes are forced by 8,192-token rows and the reference arm carries them too: max 8,192 tokens per GPU (the recipe sets 2,048) and full recompute.",
+    "configuration": "pass",
+    "component_tests": [],
+    "convergence": {
+     "steps": 20,
+     "result": "pass",
+     "correlation": 0.9999974,
+     "final_loss_difference": 0.00053,
+     "pointwise_failures": 0,
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image, rows and GPU type; both with the parity probe loaded and off"
+    },
+    "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
+   },
+   "env": {
+    "NCCL_GRAPH_REGISTER": "0",
+    "NCCL_NVLS_ENABLE": "0",
+    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+    "TORCH_NCCL_AVOID_RECORD_STREAMS": "1",
+    "TORCH_NCCL_HIGH_PRIORITY": "1",
+    "AUTOTUNE_SEQ_LEN": "8192",
+    "PARITY_PROBE": "0"
+   },
+   "patches": [
+    "patches/attune_gpt_oss_yarn.py"
+   ],
+   "run": "MODEL_ARGS=(\n  --spec attune_gpt_oss_yarn get_gpt_oss_yarn_spec\n  --num-layers 24 --hidden-size 2880 --ffn-hidden-size 2880\n  --num-attention-heads 64 --group-query-attention --num-query-groups 8 --kv-channels 64\n  --padded-vocab-size 201088 --tokenizer-type HuggingFaceTokenizer\n  --normalization RMSNorm --norm-epsilon 1e-5 --untie-embeddings-and-output-weights\n  --position-embedding-type rope --rotary-percent 1.0 --rotary-base 150000 --no-rope-fusion\n  --num-experts 32 --moe-ffn-hidden-size 2880 --moe-router-topk 4 --moe-router-score-function softmax\n  --moe-grouped-gemm --quick-geglu --glu-linear-offset 1.0 --activation-func-clamp-value 7.0\n  --softmax-type learnable --window-attn-skip-freq 2 --window-size 127,0\n)\nexport NCCL_GRAPH_REGISTER=0 NCCL_NVLS_ENABLE=0 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCH_NCCL_AVOID_RECORD_STREAMS=1 TORCH_NCCL_HIGH_PRIORITY=1\nexport AUTOTUNE_SEQ_LEN=8192 PARITY_PROBE=0\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 1 --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --seq-length 8192 \\\n  --hf-checkpoint $HF_CKPT --ref-load $TORCH_DIST \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data $SFT_DATA --input-key messages --metadata-key metadata \\\n  --num-rollout 20 --rollout-batch-size 128 --global-batch-size 128 \\\n  --loss-type sft_loss --disable-compute-advantages-and-returns --debug-train-only \\\n  --tensor-model-parallel-size 1 --pipeline-model-parallel-size 2 --decoder-first-pipeline-num-layers 13 \\\n  --context-parallel-size 1 --expert-model-parallel-size 4 --expert-tensor-parallel-size 1 \\\n  --use-dynamic-batch-size --max-tokens-per-gpu 8192 \\\n  --recompute-granularity full --recompute-method block --recompute-num-layers 8 \\\n  --moe-router-load-balancing-type none --moe-aux-loss-coeff 0.0 \\\n  --moe-token-dispatcher-type alltoall --moe-permute-fusion --no-bias-dropout-fusion \\\n  --cross-entropy-loss-fusion --cross-entropy-fusion-impl native \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --optimizer adam --lr 5e-6 --min-lr 0 --lr-decay-style cosine --lr-warmup-iters 10 --lr-decay-iters 100 \\\n  --adam-beta1 0.9 --adam-beta2 0.98 --adam-eps 1e-8 --clip-grad 1.0 \\\n  --weight-decay 0.033 --weight-decay-incr-style constant \\\n  --use-distributed-optimizer --grad-reduce-in-bf16 --seed 5678\n"
+  },
+  {
    "path": "recipes/gpt-oss-20b/h100/attune-tp1-pp2-ep4.yaml",
    "slug": "attune-tp1-pp2-ep4",
-   "rank": 1,
+   "rank": 2,
    "schema_version": 1,
    "model": "gpt-oss-20b",
    "gpu": {
@@ -5189,9 +5615,139 @@
    "run": "MODEL_ARGS=(\n  --spec attune_gpt_oss_yarn get_gpt_oss_yarn_spec\n  --num-layers 24 --hidden-size 2880 --ffn-hidden-size 2880\n  --num-attention-heads 64 --group-query-attention --num-query-groups 8 --kv-channels 64\n  --padded-vocab-size 201088 --tokenizer-type HuggingFaceTokenizer\n  --normalization RMSNorm --norm-epsilon 1e-5 --untie-embeddings-and-output-weights\n  --position-embedding-type rope --rotary-percent 1.0 --rotary-base 150000 --no-rope-fusion\n  --num-experts 32 --moe-ffn-hidden-size 2880 --moe-router-topk 4 --moe-router-score-function softmax\n  --moe-grouped-gemm --quick-geglu --glu-linear-offset 1.0 --activation-func-clamp-value 7.0\n  --softmax-type learnable --window-attn-skip-freq 2 --window-size 127,0\n)\nexport NCCL_GRAPH_REGISTER=0 NCCL_NVLS_ENABLE=0 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCH_NCCL_AVOID_RECORD_STREAMS=1 TORCH_NCCL_HIGH_PRIORITY=1\nexport AUTOTUNE_SEQ_LEN=8192 PARITY_PROBE=0\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 1 --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --seq-length 8192 \\\n  --hf-checkpoint $HF_CKPT --ref-load $TORCH_DIST \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data $SFT_DATA --input-key messages --metadata-key metadata \\\n  --num-rollout 20 --rollout-batch-size 128 --global-batch-size 128 \\\n  --loss-type sft_loss --disable-compute-advantages-and-returns --debug-train-only \\\n  --tensor-model-parallel-size 1 --pipeline-model-parallel-size 2 \\\n  --context-parallel-size 1 --expert-model-parallel-size 4 --expert-tensor-parallel-size 1 \\\n  --use-dynamic-batch-size --max-tokens-per-gpu 8192 \\\n  --recompute-granularity full --recompute-method uniform --recompute-num-layers 1 \\\n  --moe-router-load-balancing-type none --moe-aux-loss-coeff 0.0 \\\n  --moe-token-dispatcher-type alltoall --moe-permute-fusion --no-bias-dropout-fusion \\\n  --cross-entropy-loss-fusion --cross-entropy-fusion-impl native \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --optimizer adam --lr 5e-6 --min-lr 0 --lr-decay-style cosine --lr-warmup-iters 10 --lr-decay-iters 100 \\\n  --adam-beta1 0.9 --adam-beta2 0.98 --adam-eps 1e-8 --clip-grad 1.0 \\\n  --weight-decay 0.033 --weight-decay-incr-style constant \\\n  --use-distributed-optimizer --grad-reduce-in-bf16 --seed 5678\n"
   },
   {
+   "path": "recipes/gpt-oss-20b/h200/attune-tp1-pp1-ep4.yaml",
+   "slug": "attune-tp1-pp1-ep4",
+   "rank": 1,
+   "schema_version": 1,
+   "model": "gpt-oss-20b",
+   "gpu": {
+    "type": "H200",
+    "memory_gb": 141,
+    "count": 8,
+    "per_node": 8,
+    "instance": "AWS p5en.48xlarge"
+   },
+   "author": {
+    "name": "ATTUNE",
+    "url": "https://github.com/amazon-science/attune",
+    "paper": "https://arxiv.org/abs/2610.17528"
+   },
+   "status": "verified",
+   "stack": {
+    "framework": "slime 0.3.0: THUDM/slime a897e1f plus 8 commits that do not change the training step",
+    "megatron_lm": "commit 1dcf0daf (megatron-core 0.16.0rc0) with the training image's local changes",
+    "transformer_engine": "2.10.0",
+    "pytorch": "2.11.0 (CUDA 12.9 build)",
+    "cuda": "12.9",
+    "nccl": "2.28.9 (CUDA 12.9 build; printed by the measured run)",
+    "deepep": "1.2.1 (installed; the alltoall dispatcher does not use it)",
+    "python": "3.12.3",
+    "network": "one node of 8 GPUs (NVLink); no inter-node traffic",
+    "source": "in-pod version dump of the measured run's training image, 2026-10-13: installed TE, PyTorch, DeepEP and megatron-core, Megatron-LM git commit, Python; NCCL from the measured run's log"
+   },
+   "workload": {
+    "row_tokens": 8192,
+    "rows": "SFT conversations",
+    "global_batch": 128,
+    "precision": "bf16",
+    "dataset": {
+     "name": "Tulu 3 SFT mixture",
+     "source": "allenai/tulu-3-sft-mixture",
+     "revision": "b14afda60f1bbebe55d5d2fa1e4df5042f97f8be",
+     "license": "ODC-By 1.0",
+     "rows_sha256": "de2b9bb0f64927fd4214b45c3718fec01d9f2579da462e7615b1154d88185963",
+     "build": {
+      "name": "gptoss-tulu3-fixed8192-v1",
+      "tokenizer": "gpt-oss (the gpt-oss-20b tokenizer, revision 6cee5e81ee83917806bbde320786a8fb61efebee, byte-identical to gpt-oss-120b's; tokenizer.json sha256 0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3)",
+      "loss_mask": "gpt_oss",
+      "rows": 6400,
+      "row_tokens": 8192,
+      "padding_tokens": 0,
+      "seed": 42,
+      "packing": "source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into consecutive 8,192-token rows; rows without supervised targets are skipped",
+      "supervised_token_ratio": 0.621,
+      "parquet_sha256": "1fc671ba1a3262edeed53f82aca81c05fc694ed40dd8674a9e4c2d96055fed90",
+      "parquet_bytes": 70055050,
+      "builder": "data/generate_fixed_sft.py with --loss-mask-type gpt_oss (patch_gptoss_mask.py; data/README.md)"
+     }
+    }
+   },
+   "layout": {
+    "label": "TP1 PP1 EP4 DP8",
+    "summary": "TP 1, PP 1, CP 1, EP 4, ETP 1, DP 8; one 8,192-token row per microbatch (max 8,192 tokens per GPU); no recompute; alltoall dispatcher; distributed optimizer; native cross-entropy fusion; no offload",
+    "highlights": "no recompute",
+    "tp": 1,
+    "pp": 1,
+    "vpp": 1,
+    "cp": 1,
+    "ep": 4,
+    "etp": 1,
+    "dp": 8,
+    "sequence_parallel": false,
+    "layer_split": null,
+    "max_tokens_per_gpu": 8192,
+    "rows_per_microbatch": 1,
+    "recompute": null,
+    "offload": null,
+    "dispatcher": "alltoall"
+   },
+   "result": {
+    "tokens_per_s_per_gpu": 10475.82,
+    "usd_per_million_tokens": 0.21,
+    "step_time_cv_percent": 1.86,
+    "mfu": 0.2292,
+    "mfu_note": null,
+    "active_params": {
+     "count": 3607142400,
+     "source": "https://huggingface.co/openai/gpt-oss-20b",
+     "revision": "6cee5e81ee83917806bbde320786a8fb61efebee"
+    },
+    "measured": "2026-10-14",
+    "steps_per_run": 20,
+    "window": [
+     4,
+     13
+    ],
+    "window_tokens": 10485760,
+    "runs": 1,
+    "profiler": false,
+    "gpu_hours": 0.94,
+    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
+   },
+   "correctness": {
+    "result": "pass",
+    "summary": "passed",
+    "reference": "Megatron-Bridge's gpt-oss-20b SFT recipe for 8 x H100 (TP 1, PP 1, EP 8) with the two changes 8,192-token rows force there (max 8,192 tokens per GPU and full recompute), run on 8 x H200.",
+    "configuration": "pass",
+    "component_tests": [],
+    "convergence": {
+     "steps": 20,
+     "result": "pass",
+     "correlation": 0.9999989,
+     "final_loss_difference": 1.3e-05,
+     "pointwise_failures": 0,
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image, rows and GPU type; both with the parity probe loaded and off"
+    },
+    "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
+   },
+   "env": {
+    "NCCL_GRAPH_REGISTER": "0",
+    "NCCL_NVLS_ENABLE": "0",
+    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+    "TORCH_NCCL_AVOID_RECORD_STREAMS": "1",
+    "TORCH_NCCL_HIGH_PRIORITY": "1",
+    "AUTOTUNE_SEQ_LEN": "8192",
+    "PARITY_PROBE": "0"
+   },
+   "patches": [
+    "patches/attune_gpt_oss_yarn.py"
+   ],
+   "run": "MODEL_ARGS=(\n  --spec attune_gpt_oss_yarn get_gpt_oss_yarn_spec\n  --num-layers 24 --hidden-size 2880 --ffn-hidden-size 2880\n  --num-attention-heads 64 --group-query-attention --num-query-groups 8 --kv-channels 64\n  --padded-vocab-size 201088 --tokenizer-type HuggingFaceTokenizer\n  --normalization RMSNorm --norm-epsilon 1e-5 --untie-embeddings-and-output-weights\n  --position-embedding-type rope --rotary-percent 1.0 --rotary-base 150000 --no-rope-fusion\n  --num-experts 32 --moe-ffn-hidden-size 2880 --moe-router-topk 4 --moe-router-score-function softmax\n  --moe-grouped-gemm --quick-geglu --glu-linear-offset 1.0 --activation-func-clamp-value 7.0\n  --softmax-type learnable --window-attn-skip-freq 2 --window-size 127,0\n)\nexport NCCL_GRAPH_REGISTER=0 NCCL_NVLS_ENABLE=0 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCH_NCCL_AVOID_RECORD_STREAMS=1 TORCH_NCCL_HIGH_PRIORITY=1\nexport AUTOTUNE_SEQ_LEN=8192 PARITY_PROBE=0\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 1 --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --seq-length 8192 \\\n  --hf-checkpoint $HF_CKPT --ref-load $TORCH_DIST \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data $SFT_DATA --input-key messages --metadata-key metadata \\\n  --num-rollout 20 --rollout-batch-size 128 --global-batch-size 128 \\\n  --loss-type sft_loss --disable-compute-advantages-and-returns --debug-train-only \\\n  --tensor-model-parallel-size 1 --pipeline-model-parallel-size 1 \\\n  --context-parallel-size 1 --expert-model-parallel-size 4 --expert-tensor-parallel-size 1 \\\n  --use-dynamic-batch-size --max-tokens-per-gpu 8192 \\\n  --moe-router-load-balancing-type none --moe-aux-loss-coeff 0.0 \\\n  --moe-token-dispatcher-type alltoall --moe-permute-fusion --no-bias-dropout-fusion \\\n  --cross-entropy-loss-fusion --cross-entropy-fusion-impl native \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --optimizer adam --lr 5e-6 --min-lr 0 --lr-decay-style cosine --lr-warmup-iters 10 --lr-decay-iters 100 \\\n  --adam-beta1 0.9 --adam-beta2 0.98 --adam-eps 1e-8 --clip-grad 1.0 \\\n  --weight-decay 0.033 --weight-decay-incr-style constant \\\n  --use-distributed-optimizer --grad-reduce-in-bf16 --seed 5678\n"
+  },
+  {
    "path": "recipes/gpt-oss-20b/h200/attune-tp1-pp2-ep4.yaml",
    "slug": "attune-tp1-pp2-ep4",
-   "rank": 1,
+   "rank": 2,
    "schema_version": 1,
    "model": "gpt-oss-20b",
    "gpu": {
@@ -5319,9 +5875,143 @@
    "notes": "The H100 recipe's layout without the recompute; it was not tuned on H200.\n"
   },
   {
+   "path": "recipes/gpt-oss-20b/b200/attune-tp1-pp1-ep8-sel-mt16k.yaml",
+   "slug": "attune-tp1-pp1-ep8-sel-mt16k",
+   "rank": 1,
+   "schema_version": 1,
+   "model": "gpt-oss-20b",
+   "gpu": {
+    "type": "B200",
+    "memory_gb": 180,
+    "count": 8,
+    "per_node": 8,
+    "instance": "AWS p6-b200.48xlarge"
+   },
+   "author": {
+    "name": "ATTUNE",
+    "url": "https://github.com/amazon-science/attune",
+    "paper": "https://arxiv.org/abs/2610.17528"
+   },
+   "status": "verified",
+   "stack": {
+    "framework": "slime 0.3.0: THUDM/slime a897e1f plus 8 commits that do not change the training step",
+    "megatron_lm": "commit 1dcf0daf (megatron-core 0.16.0rc0) with the training image's local changes",
+    "transformer_engine": "2.10.0",
+    "pytorch": "2.11.0 (CUDA 12.9 build)",
+    "cuda": "12.9",
+    "nccl": "2.28.9 (CUDA 12.9 build; printed by the measured run)",
+    "deepep": "1.2.1 (installed; the alltoall dispatcher does not use it)",
+    "python": "3.12.3",
+    "network": "one node of 8 GPUs (NVLink); no inter-node traffic",
+    "source": "in-pod version dump of the measured run's training image, 2026-10-13: installed TE, PyTorch, DeepEP and megatron-core, Megatron-LM git commit, Python; NCCL from the measured run's log"
+   },
+   "workload": {
+    "row_tokens": 8192,
+    "rows": "SFT conversations",
+    "global_batch": 128,
+    "precision": "bf16",
+    "dataset": {
+     "name": "Tulu 3 SFT mixture",
+     "source": "allenai/tulu-3-sft-mixture",
+     "revision": "b14afda60f1bbebe55d5d2fa1e4df5042f97f8be",
+     "license": "ODC-By 1.0",
+     "rows_sha256": "de2b9bb0f64927fd4214b45c3718fec01d9f2579da462e7615b1154d88185963",
+     "build": {
+      "name": "gptoss-tulu3-fixed8192-v1",
+      "tokenizer": "gpt-oss (the gpt-oss-20b tokenizer, revision 6cee5e81ee83917806bbde320786a8fb61efebee, byte-identical to gpt-oss-120b's; tokenizer.json sha256 0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3)",
+      "loss_mask": "gpt_oss",
+      "rows": 6400,
+      "row_tokens": 8192,
+      "padding_tokens": 0,
+      "seed": 42,
+      "packing": "source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into consecutive 8,192-token rows; rows without supervised targets are skipped",
+      "supervised_token_ratio": 0.621,
+      "parquet_sha256": "1fc671ba1a3262edeed53f82aca81c05fc694ed40dd8674a9e4c2d96055fed90",
+      "parquet_bytes": 70055050,
+      "builder": "data/generate_fixed_sft.py with --loss-mask-type gpt_oss (patch_gptoss_mask.py; data/README.md)"
+     }
+    }
+   },
+   "layout": {
+    "label": "TP1 PP1 EP8 DP8",
+    "summary": "TP 1, PP 1, CP 1, EP 8, ETP 1, DP 8; two 8,192-token rows per microbatch (max 16,384 tokens per GPU); selective recompute of the MoE activation (moe_act); alltoall dispatcher; distributed optimizer; native cross-entropy fusion; no offload",
+    "highlights": "max 16,384 tokens/GPU, selective moe_act recompute",
+    "tp": 1,
+    "pp": 1,
+    "vpp": 1,
+    "cp": 1,
+    "ep": 8,
+    "etp": 1,
+    "dp": 8,
+    "sequence_parallel": false,
+    "layer_split": null,
+    "max_tokens_per_gpu": 16384,
+    "rows_per_microbatch": 2,
+    "recompute": {
+     "granularity": "selective",
+     "method": null,
+     "num_layers": null
+    },
+    "offload": null,
+    "dispatcher": "alltoall"
+   },
+   "result": {
+    "tokens_per_s_per_gpu": 14392.58,
+    "usd_per_million_tokens": 0.27,
+    "step_time_cv_percent": 5.66,
+    "mfu": 0.1384,
+    "mfu_note": null,
+    "active_params": {
+     "count": 3607142400,
+     "source": "https://huggingface.co/openai/gpt-oss-20b",
+     "revision": "6cee5e81ee83917806bbde320786a8fb61efebee"
+    },
+    "measured": "2026-10-14",
+    "steps_per_run": 20,
+    "window": [
+     4,
+     13
+    ],
+    "window_tokens": 10485760,
+    "runs": 1,
+    "profiler": false,
+    "gpu_hours": 1.19,
+    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
+   },
+   "correctness": {
+    "result": "pass",
+    "summary": "passed",
+    "reference": "Megatron-Bridge's gpt-oss-20b SFT recipe for 8 x H100 (TP 1, PP 1, EP 8) with the two changes 8,192-token rows force there (max 8,192 tokens per GPU and full recompute), run on 8 x B200.",
+    "configuration": "pass",
+    "component_tests": [],
+    "convergence": {
+     "steps": 20,
+     "result": "pass",
+     "correlation": 0.999998,
+     "final_loss_difference": 0.00047,
+     "pointwise_failures": 0,
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image, rows and GPU type; both with the parity probe loaded and off"
+    },
+    "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
+   },
+   "env": {
+    "NCCL_GRAPH_REGISTER": "0",
+    "NCCL_NVLS_ENABLE": "0",
+    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+    "TORCH_NCCL_AVOID_RECORD_STREAMS": "1",
+    "TORCH_NCCL_HIGH_PRIORITY": "1",
+    "AUTOTUNE_SEQ_LEN": "8192",
+    "PARITY_PROBE": "0"
+   },
+   "patches": [
+    "patches/attune_gpt_oss_yarn.py"
+   ],
+   "run": "MODEL_ARGS=(\n  --spec attune_gpt_oss_yarn get_gpt_oss_yarn_spec\n  --num-layers 24 --hidden-size 2880 --ffn-hidden-size 2880\n  --num-attention-heads 64 --group-query-attention --num-query-groups 8 --kv-channels 64\n  --padded-vocab-size 201088 --tokenizer-type HuggingFaceTokenizer\n  --normalization RMSNorm --norm-epsilon 1e-5 --untie-embeddings-and-output-weights\n  --position-embedding-type rope --rotary-percent 1.0 --rotary-base 150000 --no-rope-fusion\n  --num-experts 32 --moe-ffn-hidden-size 2880 --moe-router-topk 4 --moe-router-score-function softmax\n  --moe-grouped-gemm --quick-geglu --glu-linear-offset 1.0 --activation-func-clamp-value 7.0\n  --softmax-type learnable --window-attn-skip-freq 2 --window-size 127,0\n)\nexport NCCL_GRAPH_REGISTER=0 NCCL_NVLS_ENABLE=0 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCH_NCCL_AVOID_RECORD_STREAMS=1 TORCH_NCCL_HIGH_PRIORITY=1\nexport AUTOTUNE_SEQ_LEN=8192 PARITY_PROBE=0\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 1 --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --seq-length 8192 \\\n  --hf-checkpoint $HF_CKPT --ref-load $TORCH_DIST \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data $SFT_DATA --input-key messages --metadata-key metadata \\\n  --num-rollout 20 --rollout-batch-size 128 --global-batch-size 128 \\\n  --loss-type sft_loss --disable-compute-advantages-and-returns --debug-train-only \\\n  --tensor-model-parallel-size 1 --pipeline-model-parallel-size 1 \\\n  --context-parallel-size 1 --expert-model-parallel-size 8 --expert-tensor-parallel-size 1 \\\n  --use-dynamic-batch-size --max-tokens-per-gpu 16384 --recompute-granularity selective --recompute-modules moe_act \\\n  --moe-router-load-balancing-type none --moe-aux-loss-coeff 0.0 \\\n  --moe-token-dispatcher-type alltoall --moe-permute-fusion --no-bias-dropout-fusion \\\n  --cross-entropy-loss-fusion --cross-entropy-fusion-impl native \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --optimizer adam --lr 5e-6 --min-lr 0 --lr-decay-style cosine --lr-warmup-iters 10 --lr-decay-iters 100 \\\n  --adam-beta1 0.9 --adam-beta2 0.98 --adam-eps 1e-8 --clip-grad 1.0 \\\n  --weight-decay 0.033 --weight-decay-incr-style constant \\\n  --use-distributed-optimizer --grad-reduce-in-bf16 --seed 5678\n"
+  },
+  {
    "path": "recipes/gpt-oss-20b/b200/attune-tp1-pp2-ep4.yaml",
    "slug": "attune-tp1-pp2-ep4",
-   "rank": 1,
+   "rank": 2,
    "schema_version": 1,
    "model": "gpt-oss-20b",
    "gpu": {

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Training gpt-oss-20b on H200 | OpenRecipes</title>
-<meta name="description" content="Verified training recipes for gpt-oss-20b on H200: best 9,399.4 tokens/s per GPU on 8 GPUs, $0.23 per million tokens.">
+<meta name="description" content="Verified training recipes for gpt-oss-20b on H200: best 10,475.8 tokens/s per GPU on 8 GPUs, $0.21 per million tokens.">
 <link rel="canonical" href="https://openrecipes.ai/gpt-oss-20b/h200/">
 <link rel="icon" href="../../favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../style.css">
@@ -16,13 +16,215 @@
 <div class="crumb"><a href="../../#models">Models</a> &middot; GPT-OSS &middot; gpt-oss-20b</div>
 <h1>Training gpt-oss-20b on H200</h1>
 <div class="sub">8,192-token SFT rows &middot; global batch 128 &middot; BF16</div>
-<div class="card qa"><b>Quick answer.</b> The verified recipe trains gpt-oss-20b at <b>9,399.4 tokens/s per GPU</b> on 8 &times; H200, or <b>$0.23 per million tokens</b>, with TP1 PP2 EP4 DP4 (one row per microbatch, no recompute).</div>
-<div class="stats"><div class="card"><div class="k">Verified recipes</div><div class="v">1</div></div><div class="card"><div class="k">Best tokens/s/GPU</div><div class="v">9,399.4</div></div><div class="card"><div class="k">Lowest $ / 1M tokens</div><div class="v">$0.23</div></div><div class="card"><div class="k">Measured</div><div class="v date"><span class="nw">2026-10-13</span></div></div></div>
-<div class="card tablewrap"><table class="stack"><thead><tr><th>#</th><th>Tokens/s per GPU</th><th>$ / 1M tokens</th><th class="hide-s">GPUs</th><th>Layout</th><th class="hide-s">Measured</th><th></th></tr></thead><tbody><tr class="best"><td data-label="#"><span class="cv">1</span></td><td class="n" data-label="Tokens/s per GPU"><span class="cv">9,399.4</span></td><td class="n" data-label="$ / 1M tokens"><span class="cv">$0.23</span></td><td class="hide-s" data-label="GPUs"><span class="cv">8</span></td><td data-label="Layout"><span class="cv">TP1 PP2 EP4 DP4<br><small>one row per microbatch, no recompute</small></span></td><td class="hide-s nw" data-label="Measured"><span class="cv">2026-10-13</span></td><td data-label=""><span class="cv"><a href="#attune-tp1-pp2-ep4">Recipe&nbsp;&rsaquo;</a></span></td></tr></tbody></table></div>
-<h2>Notes for gpt-oss-20b</h2><div class="card notes prose"><ul><li>Weights: <code>openai/gpt-oss-20b</code> (revision 6cee5e81) with its MXFP4 experts dequantized to BF16 by the training image&#x27;s <code>tools/preprocess_gpt_oss.py</code>, converted to Megatron <code>torch_dist</code> with slime&#x27;s <code>tools/convert_hf_to_torch_dist.py</code>.</li><li><code>MODEL_ARGS</code> are the architecture written out in the command, with <code>--spec attune_gpt_oss_yarn get_gpt_oss_yarn_spec</code>. The spec in <code>patches/attune_gpt_oss_yarn.py</code> sets YaRN RoPE from the checkpoint&#x27;s <code>config.json</code>, which slime&#x27;s stock gpt-oss script does not build.</li><li>The loss is the mean over each row&#x27;s supervised tokens (Megatron-Bridge&#x27;s SFT loss mode); the command does not pass <code>--calculate-per-token-loss</code>.</li><li>On 80 GB GPUs the FP32 logits of an 8,192-token microbatch (6.14 GiB) need full recompute; H200 and B200 hold them.</li></ul><p class="muted small">The steps every recipe shares: <a href="../../protocol#run">Running a recipe</a>.</p></div>
+<div class="card qa"><b>Quick answer.</b> The fastest verified recipe trains gpt-oss-20b at <b>10,475.8 tokens/s per GPU</b> on 8 &times; H200, or <b>$0.21 per million tokens</b>, with TP1 PP1 EP4 DP8 (no recompute).</div>
+<div class="stats"><div class="card"><div class="k">Verified recipes</div><div class="v">2</div></div><div class="card"><div class="k">Best tokens/s/GPU</div><div class="v">10,475.8</div></div><div class="card"><div class="k">Lowest $ / 1M tokens</div><div class="v">$0.21</div></div><div class="card"><div class="k">Measured</div><div class="v date"><span class="nw">2026-10-13</span> to <span class="nw">2026-10-14</span></div></div></div>
+<div class="card tablewrap"><table class="stack"><thead><tr><th>#</th><th>Tokens/s per GPU</th><th>$ / 1M tokens</th><th class="hide-s">GPUs</th><th>Layout</th><th class="hide-s">Measured</th><th></th></tr></thead><tbody><tr class="best"><td data-label="#"><span class="cv">1</span></td><td class="n" data-label="Tokens/s per GPU"><span class="cv">10,475.8</span></td><td class="n" data-label="$ / 1M tokens"><span class="cv">$0.21</span></td><td class="hide-s" data-label="GPUs"><span class="cv">8</span></td><td data-label="Layout"><span class="cv">TP1 PP1 EP4 DP8<br><small>no recompute</small></span></td><td class="hide-s nw" data-label="Measured"><span class="cv">2026-10-14</span></td><td data-label=""><span class="cv"><a href="#attune-tp1-pp1-ep4">Recipe&nbsp;&rsaquo;</a></span></td></tr><tr class=""><td data-label="#"><span class="cv">2</span></td><td class="n" data-label="Tokens/s per GPU"><span class="cv">9,399.4</span></td><td class="n" data-label="$ / 1M tokens"><span class="cv">$0.23</span></td><td class="hide-s" data-label="GPUs"><span class="cv">8</span></td><td data-label="Layout"><span class="cv">TP1 PP2 EP4 DP4<br><small>one row per microbatch, no recompute</small></span></td><td class="hide-s nw" data-label="Measured"><span class="cv">2026-10-13</span></td><td data-label=""><span class="cv"><a href="#attune-tp1-pp2-ep4">Recipe&nbsp;&rsaquo;</a></span></td></tr></tbody></table></div>
+<h2>Notes for gpt-oss-20b</h2><div class="card notes prose"><ul><li>Weights: <code>openai/gpt-oss-20b</code> (revision 6cee5e81) with its MXFP4 experts dequantized to BF16 by the training image&#x27;s <code>tools/preprocess_gpt_oss.py</code>, converted to Megatron <code>torch_dist</code> with slime&#x27;s <code>tools/convert_hf_to_torch_dist.py</code>.</li><li><code>MODEL_ARGS</code> are the architecture written out in the command, with <code>--spec attune_gpt_oss_yarn get_gpt_oss_yarn_spec</code>. The spec in <code>patches/attune_gpt_oss_yarn.py</code> sets YaRN RoPE from the checkpoint&#x27;s <code>config.json</code>, which slime&#x27;s stock gpt-oss script does not build.</li><li>The loss is the mean over each row&#x27;s supervised tokens (Megatron-Bridge&#x27;s SFT loss mode); the command does not pass <code>--calculate-per-token-loss</code>.</li><li>On 80 GB GPUs the FP32 logits of an 8,192-token microbatch (6.14 GiB) leave no room to keep every layer&#x27;s activations, so H100 recipes recompute layers; H200 and B200 hold them.</li></ul><p class="muted small">The steps every recipe shares: <a href="../../protocol#run">Running a recipe</a>.</p></div>
 <h2>Recipes</h2>
-<details class="card recipe" id="attune-tp1-pp2-ep4" open>
-<summary><span class="rank">#1</span><span class="slug">attune-tp1-pp2-ep4</span><span class="tps">9,399.4 tokens/s/GPU</span><span class="muted small">TP1 PP2 EP4 DP4</span><span class="hl">one row per microbatch, no recompute</span></summary>
+<details class="card recipe" id="attune-tp1-pp1-ep4" open>
+<summary><span class="rank">#1</span><span class="slug">attune-tp1-pp1-ep4</span><span class="tps">10,475.8 tokens/s/GPU</span><span class="muted small">TP1 PP1 EP4 DP8</span><span class="hl">no recompute</span></summary>
+<div class="body">
+<dl class="facts"><dt>Author</dt><dd><a href="https://github.com/amazon-science/attune">ATTUNE</a> (<a href="https://arxiv.org/abs/2610.17528">paper</a>)</dd><dt>GPUs</dt><dd>8 x H200 141 GB (AWS p5en.48xlarge, 8 per node)</dd><dt>Layout</dt><dd>TP 1, PP 1, CP 1, EP 4, ETP 1, DP 8; one 8,192-token row per microbatch (max 8,192 tokens per GPU); no recompute; alltoall dispatcher; distributed optimizer; native cross-entropy fusion; no offload</dd><dt>Tokens/s per GPU</dt><dd>10,475.82</dd><dt>$ / 1M tokens</dt><dd>$0.21</dd><dt>MFU</dt><dd>22.9% (N = 3,607,142,400 active parameters per token)</dd><dt>Step-time CV</dt><dd>1.86%</dd><dt>Convergence check</dt><dd>correlation 0.9999989, final loss difference 1.3e-05, 0 pointwise failures over 20 steps</dd><dt>Measured</dt><dd>2026-10-14</dd><dt>GPU-hours</dt><dd>0.94</dd><dt>Rows</dt><dd><code>gptoss-tulu3-fixed8192-v1</code> (rows_sha256 <code>de2b9bb0f64927fd4214b45c3718fec01d9f2579da462e7615b1154d88185963</code>)</dd></dl>
+<div class="cols"><div><h3>Stack</h3><dl class="facts"><dt>framework</dt><dd>slime 0.3.0: THUDM/slime a897e1f plus 8 commits that do not change the training step</dd><dt>megatron lm</dt><dd>commit 1dcf0daf (megatron-core 0.16.0rc0) with the training image&#x27;s local changes</dd><dt>transformer engine</dt><dd>2.10.0</dd><dt>pytorch</dt><dd>2.11.0 (CUDA 12.9 build)</dd><dt>cuda</dt><dd>12.9</dd><dt>nccl</dt><dd>2.28.9 (CUDA 12.9 build; printed by the measured run)</dd><dt>deepep</dt><dd>1.2.1 (installed; the alltoall dispatcher does not use it)</dd><dt>python</dt><dd>3.12.3</dd><dt>network</dt><dd>one node of 8 GPUs (NVLink); no inter-node traffic</dd></dl></div><div><h3>Environment</h3><ul class="env"><li><code>NCCL_GRAPH_REGISTER=0</code></li><li><code>NCCL_NVLS_ENABLE=0</code></li><li><code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code></li><li><code>TORCH_NCCL_AVOID_RECORD_STREAMS=1</code></li><li><code>TORCH_NCCL_HIGH_PRIORITY=1</code></li><li><code>AUTOTUNE_SEQ_LEN=8192</code></li><li><code>PARITY_PROBE=0</code></li></ul><h3>Patches</h3><ul><li><a href="https://github.com/Compounding-Intelligence/openrecipes/blob/main/patches/attune_gpt_oss_yarn.py"><code>patches/attune_gpt_oss_yarn.py</code></a></li></ul></div></div>
+<div class="filebar"><span class="k">Command</span><span class="acts"><a class="btn o" href="../../protocol#run">How to run</a><button type="button" class="btn o" data-copy="run-attune-tp1-pp1-ep4">Copy</button></span></div>
+<pre id="run-attune-tp1-pp1-ep4">MODEL_ARGS=(
+  --spec attune_gpt_oss_yarn get_gpt_oss_yarn_spec
+  --num-layers 24 --hidden-size 2880 --ffn-hidden-size 2880
+  --num-attention-heads 64 --group-query-attention --num-query-groups 8 --kv-channels 64
+  --padded-vocab-size 201088 --tokenizer-type HuggingFaceTokenizer
+  --normalization RMSNorm --norm-epsilon 1e-5 --untie-embeddings-and-output-weights
+  --position-embedding-type rope --rotary-percent 1.0 --rotary-base 150000 --no-rope-fusion
+  --num-experts 32 --moe-ffn-hidden-size 2880 --moe-router-topk 4 --moe-router-score-function softmax
+  --moe-grouped-gemm --quick-geglu --glu-linear-offset 1.0 --activation-func-clamp-value 7.0
+  --softmax-type learnable --window-attn-skip-freq 2 --window-size 127,0
+)
+export NCCL_GRAPH_REGISTER=0 NCCL_NVLS_ENABLE=0 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export TORCH_NCCL_AVOID_RECORD_STREAMS=1 TORCH_NCCL_HIGH_PRIORITY=1
+export AUTOTUNE_SEQ_LEN=8192 PARITY_PROBE=0
+
+python3 -m &lt;slime entry module&gt; --async \
+  --actor-num-nodes 1 --actor-num-gpus-per-node 8 \
+  ${MODEL_ARGS[@]} \
+  --seq-length 8192 \
+  --hf-checkpoint $HF_CKPT --ref-load $TORCH_DIST \
+  --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+  --prompt-data $SFT_DATA --input-key messages --metadata-key metadata \
+  --num-rollout 20 --rollout-batch-size 128 --global-batch-size 128 \
+  --loss-type sft_loss --disable-compute-advantages-and-returns --debug-train-only \
+  --tensor-model-parallel-size 1 --pipeline-model-parallel-size 1 \
+  --context-parallel-size 1 --expert-model-parallel-size 4 --expert-tensor-parallel-size 1 \
+  --use-dynamic-batch-size --max-tokens-per-gpu 8192 \
+  --moe-router-load-balancing-type none --moe-aux-loss-coeff 0.0 \
+  --moe-token-dispatcher-type alltoall --moe-permute-fusion --no-bias-dropout-fusion \
+  --cross-entropy-loss-fusion --cross-entropy-fusion-impl native \
+  --attention-dropout 0.0 --hidden-dropout 0.0 \
+  --optimizer adam --lr 5e-6 --min-lr 0 --lr-decay-style cosine --lr-warmup-iters 10 --lr-decay-iters 100 \
+  --adam-beta1 0.9 --adam-beta2 0.98 --adam-eps 1e-8 --clip-grad 1.0 \
+  --weight-decay 0.033 --weight-decay-incr-style constant \
+  --use-distributed-optimizer --grad-reduce-in-bf16 --seed 5678
+</pre>
+<div class="filebar"><span class="k">recipes/gpt-oss-20b/h200/attune-tp1-pp1-ep4.yaml</span><span class="acts"><a class="btn o" href="../../recipes/gpt-oss-20b/h200/attune-tp1-pp1-ep4.yaml" download>Download</a><a class="btn o" href="https://github.com/Compounding-Intelligence/openrecipes/blob/main/recipes/gpt-oss-20b/h200/attune-tp1-pp1-ep4.yaml">GitHub</a><button type="button" class="btn o" data-copy="file-attune-tp1-pp1-ep4">Copy</button></span></div>
+<pre class="file" id="file-attune-tp1-pp1-ep4"># recipes/gpt-oss-20b/h200/attune-tp1-pp1-ep4.yaml
+# An OpenRecipes recipe; the fields are documented in schema/recipe.schema.yaml.
+schema_version: 1
+model: gpt-oss-20b
+gpu:
+  type: H200
+  memory_gb: 141
+  count: 8
+  per_node: 8
+  instance: AWS p5en.48xlarge
+author:
+  name: ATTUNE
+  url: https://github.com/amazon-science/attune
+  paper: https://arxiv.org/abs/2610.17528
+status: verified
+stack:
+  framework: &#x27;slime 0.3.0: THUDM/slime a897e1f plus 8 commits that do not change the training step&#x27;
+  megatron_lm: commit 1dcf0daf (megatron-core 0.16.0rc0) with the training image&#x27;s local changes
+  transformer_engine: 2.10.0
+  pytorch: 2.11.0 (CUDA 12.9 build)
+  cuda: &#x27;12.9&#x27;
+  nccl: 2.28.9 (CUDA 12.9 build; printed by the measured run)
+  deepep: 1.2.1 (installed; the alltoall dispatcher does not use it)
+  python: 3.12.3
+  network: one node of 8 GPUs (NVLink); no inter-node traffic
+  source: &#x27;in-pod version dump of the measured run&#x27;&#x27;s training image, 2026-10-13: installed TE, PyTorch, DeepEP and megatron-core,
+    Megatron-LM git commit, Python; NCCL from the measured run&#x27;&#x27;s log&#x27;
+workload:
+  row_tokens: 8192
+  rows: SFT conversations
+  global_batch: 128
+  precision: bf16
+  dataset:
+    name: Tulu 3 SFT mixture
+    source: allenai/tulu-3-sft-mixture
+    revision: b14afda60f1bbebe55d5d2fa1e4df5042f97f8be
+    license: ODC-By 1.0
+    rows_sha256: de2b9bb0f64927fd4214b45c3718fec01d9f2579da462e7615b1154d88185963
+    build:
+      name: gptoss-tulu3-fixed8192-v1
+      tokenizer: gpt-oss (the gpt-oss-20b tokenizer, revision 6cee5e81ee83917806bbde320786a8fb61efebee, byte-identical to
+        gpt-oss-120b&#x27;s; tokenizer.json sha256 0614fe83cadab421296e664e1f48f4261fa8fef6e03e63bb75c20f38e37d07d3)
+      loss_mask: gpt_oss
+      rows: 6400
+      row_tokens: 8192
+      padding_tokens: 0
+      seed: 42
+      packing: source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into
+        consecutive 8,192-token rows; rows without supervised targets are skipped
+      supervised_token_ratio: 0.621
+      parquet_sha256: 1fc671ba1a3262edeed53f82aca81c05fc694ed40dd8674a9e4c2d96055fed90
+      parquet_bytes: 70055050
+      builder: data/generate_fixed_sft.py with --loss-mask-type gpt_oss (patch_gptoss_mask.py; data/README.md)
+layout:
+  label: TP1 PP1 EP4 DP8
+  summary: TP 1, PP 1, CP 1, EP 4, ETP 1, DP 8; one 8,192-token row per microbatch (max 8,192 tokens per GPU); no recompute;
+    alltoall dispatcher; distributed optimizer; native cross-entropy fusion; no offload
+  highlights: no recompute
+  tp: 1
+  pp: 1
+  vpp: 1
+  cp: 1
+  ep: 4
+  etp: 1
+  dp: 8
+  sequence_parallel: false
+  layer_split: null
+  max_tokens_per_gpu: 8192
+  rows_per_microbatch: 1
+  recompute: null
+  offload: null
+  dispatcher: alltoall
+result:
+  tokens_per_s_per_gpu: 10475.82
+  usd_per_million_tokens: 0.21
+  step_time_cv_percent: 1.86
+  mfu: 0.2292
+  mfu_note: null
+  active_params:
+    count: 3607142400
+    source: https://huggingface.co/openai/gpt-oss-20b
+    revision: 6cee5e81ee83917806bbde320786a8fb61efebee
+  measured: 2026-10-14
+  steps_per_run: 20
+  window:
+  - 4
+  - 13
+  window_tokens: 10485760
+  runs: 1
+  profiler: false
+  gpu_hours: 0.94
+  gpu_hours_note: GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence
+    check
+correctness:
+  result: pass
+  summary: passed
+  reference: Megatron-Bridge&#x27;s gpt-oss-20b SFT recipe for 8 x H100 (TP 1, PP 1, EP 8) with the two changes 8,192-token rows
+    force there (max 8,192 tokens per GPU and full recompute), run on 8 x H200.
+  configuration: pass
+  component_tests: []
+  convergence:
+    steps: 20
+    result: pass
+    correlation: 0.9999989
+    final_loss_difference: 1.3e-05
+    pointwise_failures: 0
+    note: &#x27;candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image, rows and
+      GPU type; both with the parity probe loaded and off&#x27;
+  rules: argument classes of ATTUNE&#x27;s skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge
+    validate_convergence with its pipeline thresholds
+env:
+  NCCL_GRAPH_REGISTER: &#x27;0&#x27;
+  NCCL_NVLS_ENABLE: &#x27;0&#x27;
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+  TORCH_NCCL_AVOID_RECORD_STREAMS: &#x27;1&#x27;
+  TORCH_NCCL_HIGH_PRIORITY: &#x27;1&#x27;
+  AUTOTUNE_SEQ_LEN: &#x27;8192&#x27;
+  PARITY_PROBE: &#x27;0&#x27;
+patches:
+- patches/attune_gpt_oss_yarn.py
+run: |
+  MODEL_ARGS=(
+    --spec attune_gpt_oss_yarn get_gpt_oss_yarn_spec
+    --num-layers 24 --hidden-size 2880 --ffn-hidden-size 2880
+    --num-attention-heads 64 --group-query-attention --num-query-groups 8 --kv-channels 64
+    --padded-vocab-size 201088 --tokenizer-type HuggingFaceTokenizer
+    --normalization RMSNorm --norm-epsilon 1e-5 --untie-embeddings-and-output-weights
+    --position-embedding-type rope --rotary-percent 1.0 --rotary-base 150000 --no-rope-fusion
+    --num-experts 32 --moe-ffn-hidden-size 2880 --moe-router-topk 4 --moe-router-score-function softmax
+    --moe-grouped-gemm --quick-geglu --glu-linear-offset 1.0 --activation-func-clamp-value 7.0
+    --softmax-type learnable --window-attn-skip-freq 2 --window-size 127,0
+  )
+  export NCCL_GRAPH_REGISTER=0 NCCL_NVLS_ENABLE=0 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+  export TORCH_NCCL_AVOID_RECORD_STREAMS=1 TORCH_NCCL_HIGH_PRIORITY=1
+  export AUTOTUNE_SEQ_LEN=8192 PARITY_PROBE=0
+
+  python3 -m &lt;slime entry module&gt; --async \
+    --actor-num-nodes 1 --actor-num-gpus-per-node 8 \
+    ${MODEL_ARGS[@]} \
+    --seq-length 8192 \
+    --hf-checkpoint $HF_CKPT --ref-load $TORCH_DIST \
+    --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+    --prompt-data $SFT_DATA --input-key messages --metadata-key metadata \
+    --num-rollout 20 --rollout-batch-size 128 --global-batch-size 128 \
+    --loss-type sft_loss --disable-compute-advantages-and-returns --debug-train-only \
+    --tensor-model-parallel-size 1 --pipeline-model-parallel-size 1 \
+    --context-parallel-size 1 --expert-model-parallel-size 4 --expert-tensor-parallel-size 1 \
+    --use-dynamic-batch-size --max-tokens-per-gpu 8192 \
+    --moe-router-load-balancing-type none --moe-aux-loss-coeff 0.0 \
+    --moe-token-dispatcher-type alltoall --moe-permute-fusion --no-bias-dropout-fusion \
+    --cross-entropy-loss-fusion --cross-entropy-fusion-impl native \
+    --attention-dropout 0.0 --hidden-dropout 0.0 \
+    --optimizer adam --lr 5e-6 --min-lr 0 --lr-decay-style cosine --lr-warmup-iters 10 --lr-decay-iters 100 \
+    --adam-beta1 0.9 --adam-beta2 0.98 --adam-eps 1e-8 --clip-grad 1.0 \
+    --weight-decay 0.033 --weight-decay-incr-style constant \
+    --use-distributed-optimizer --grad-reduce-in-bf16 --seed 5678
+</pre>
+</div>
+</details>
+<details class="card recipe" id="attune-tp1-pp2-ep4">
+<summary><span class="rank">#2</span><span class="slug">attune-tp1-pp2-ep4</span><span class="tps">9,399.4 tokens/s/GPU</span><span class="muted small">TP1 PP2 EP4 DP4</span><span class="hl">one row per microbatch, no recompute</span></summary>
 <div class="body">
 <div class="prose"><p>The H100 recipe&#x27;s layout without the recompute; it was not tuned on H200.</p></div><dl class="facts"><dt>Author</dt><dd><a href="https://arxiv.org/abs/2610.17528">ATTUNE</a></dd><dt>GPUs</dt><dd>8 x H200 141 GB (AWS p5en.48xlarge, 8 per node)</dd><dt>Layout</dt><dd>TP 1, PP 2 (12/12), CP 1, EP 4, ETP 1, DP 4; one 8,192-token row per microbatch (max 8,192 tokens per GPU); no recompute; alltoall dispatcher; distributed optimizer; native cross-entropy fusion; no offload</dd><dt>Tokens/s per GPU</dt><dd>9,399.41</dd><dt>$ / 1M tokens</dt><dd>$0.23</dd><dt>MFU</dt><dd>20.6% (N = 3,607,142,400 active parameters per token)</dd><dt>Step-time CV</dt><dd>4.59%</dd><dt>Convergence check</dt><dd>correlation 0.999999, final loss difference 9.5e-05, 0 pointwise failures over 20 steps</dd><dt>Measured</dt><dd>2026-10-13</dd><dt>GPU-hours</dt><dd>1.02</dd><dt>Rows</dt><dd><code>gptoss-tulu3-fixed8192-v1</code> (rows_sha256 <code>de2b9bb0f64927fd4214b45c3718fec01d9f2579da462e7615b1154d88185963</code>)</dd></dl>
 <div class="cols"><div><h3>Stack</h3><dl class="facts"><dt>framework</dt><dd>slime 0.3.0: THUDM/slime a897e1f plus 8 commits that do not change the training step</dd><dt>megatron lm</dt><dd>commit 1dcf0daf (megatron-core 0.16.0rc0) with the training image&#x27;s local changes</dd><dt>transformer engine</dt><dd>2.10.0</dd><dt>pytorch</dt><dd>2.11.0 (CUDA 12.9 build)</dd><dt>cuda</dt><dd>12.9</dd><dt>nccl</dt><dd>2.28.9 (CUDA 12.9 build; printed by the measured run)</dd><dt>deepep</dt><dd>1.2.1 (installed; the alltoall dispatcher does not use it)</dd><dt>python</dt><dd>3.12.3</dd><dt>network</dt><dd>one node of 8 GPUs (NVLink); no inter-node traffic</dd></dl></div><div><h3>Environment</h3><ul class="env"><li><code>NCCL_GRAPH_REGISTER=0</code></li><li><code>NCCL_NVLS_ENABLE=0</code></li><li><code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code></li><li><code>TORCH_NCCL_AVOID_RECORD_STREAMS=1</code></li><li><code>TORCH_NCCL_HIGH_PRIORITY=1</code></li><li><code>AUTOTUNE_SEQ_LEN=8192</code></li><li><code>PARITY_PROBE=0</code></li></ul><h3>Patches</h3><ul><li><a href="https://github.com/Compounding-Intelligence/openrecipes/blob/main/patches/attune_gpt_oss_yarn.py"><code>patches/attune_gpt_oss_yarn.py</code></a></li></ul></div></div>
@@ -225,7 +427,7 @@ notes: |
 </div>
 </details>
 <h2>gpt-oss-20b on other GPUs</h2>
-<div class="others"><a class="card gpu" href="../../gpt-oss-20b/h100/"><div class="k">H100 &middot; 8 GPUs</div><div class="v">6,744.6</div><div class="small muted">tokens/s/GPU &middot; $0.28 / 1M tokens</div></a><div class="card gpu here"><div class="k">H200 &middot; 8 GPUs &middot; this page</div><div class="v">9,399.4</div><div class="small muted">tokens/s/GPU &middot; $0.23 / 1M tokens</div></div><a class="card gpu" href="../../gpt-oss-20b/b200/"><div class="k">B200 &middot; 8 GPUs</div><div class="v">12,529.2</div><div class="small muted">tokens/s/GPU &middot; $0.32 / 1M tokens</div></a></div>
+<div class="others"><a class="card gpu" href="../../gpt-oss-20b/h100/"><div class="k">H100 &middot; 8 GPUs</div><div class="v">7,481.1</div><div class="small muted">tokens/s/GPU &middot; $0.26 / 1M tokens</div></a><div class="card gpu here"><div class="k">H200 &middot; 8 GPUs &middot; this page</div><div class="v">10,475.8</div><div class="small muted">tokens/s/GPU &middot; $0.21 / 1M tokens</div></div><a class="card gpu" href="../../gpt-oss-20b/b200/"><div class="k">B200 &middot; 8 GPUs</div><div class="v">14,392.6</div><div class="small muted">tokens/s/GPU &middot; $0.27 / 1M tokens</div></a></div>
 </main>
 <footer><div class="wrap">OpenRecipes, Copyright 2026 Compounding Intelligence, Apache-2.0. Measurements through 2026-10-14.</div></footer>
 </body>

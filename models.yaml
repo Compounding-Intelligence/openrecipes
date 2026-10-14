@@ -184,7 +184,8 @@ models:
         `config.json`, which slime's stock gpt-oss script does not build.
       - The loss is the mean over each row's supervised tokens (Megatron-Bridge's SFT loss mode); the command does not pass
         `--calculate-per-token-loss`.
-      - On 80 GB GPUs the FP32 logits of an 8,192-token microbatch (6.14 GiB) need full recompute; H200 and B200 hold them.
+      - On 80 GB GPUs the FP32 logits of an 8,192-token microbatch (6.14 GiB) leave no room to keep every layer's
+        activations, so H100 recipes recompute layers; H200 and B200 hold them.
   - family: MiniMax
     model: MiniMax-M2
     slug: minimax-m2

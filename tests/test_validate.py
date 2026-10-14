@@ -20,8 +20,8 @@ SAMPLE = "recipes/qwen3.5-122b-a10b/h200/attune-tp1-pp4-ep8-rc2.yaml"
 def test_every_recipe_in_the_repository_is_valid():
     recipes, models, gpus, rates, errs = validate.validate_all(ROOT)
     assert errs == []
-    assert len(recipes) == 37
-    assert len({(r["model"], r["gpu"]["type"]) for r in recipes.values()}) == 18
+    assert len(recipes) == 42
+    assert len({(r["model"], r["gpu"]["type"]) for r in recipes.values()}) == 19
     assert len(models) == 40 and set(gpus) == {"H100", "H200", "B200"}
 
 
