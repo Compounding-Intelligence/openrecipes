@@ -243,8 +243,8 @@
      "gpu": "H100",
      "url": "https://openrecipes.ai/glm-5.2-744b-a40b/h100/",
      "recipes": [
-      "recipes/glm-5.2-744b-a40b/h100/attune-tp4-pp8-cp1-rc2.yaml",
       "recipes/glm-5.2-744b-a40b/h100/attune-tp4-pp8-cp1.yaml",
+      "recipes/glm-5.2-744b-a40b/h100/attune-tp4-pp8-cp1-rc2.yaml",
       "recipes/glm-5.2-744b-a40b/h100/attune-tp4-pp8-cp2.yaml"
      ]
     },
@@ -260,8 +260,8 @@
      "gpu": "B200",
      "url": "https://openrecipes.ai/glm-5.2-744b-a40b/b200/",
      "recipes": [
-      "recipes/glm-5.2-744b-a40b/b200/attune-tp4-pp2-cp4-mt12k.yaml",
       "recipes/glm-5.2-744b-a40b/b200/attune-tp4-pp2-cp4-mt16k.yaml",
+      "recipes/glm-5.2-744b-a40b/b200/attune-tp4-pp2-cp4-mt12k.yaml",
       "recipes/glm-5.2-744b-a40b/b200/attune-tp4-pp2-cp8.yaml"
      ]
     }
@@ -573,10 +573,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 810.58,
-    "usd_per_million_tokens": 2.71,
-    "step_time_cv_percent": 3.21,
-    "mfu": 0.0652,
+    "tokens_per_s_per_gpu": 808.22,
+    "usd_per_million_tokens": 2.72,
+    "step_time_cv_percent": 3.25,
+    "mfu": 0.0651,
     "mfu_note": null,
     "active_params": {
      "count": 13268221952,
@@ -586,10 +586,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 12.16,
@@ -624,143 +624,9 @@
    "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TILELANG_CACHE_DIR=\"$KERNEL_CACHE/tilelang\"\nexport TRITON_CACHE_DIR=\"$KERNEL_CACHE/triton\"\nexport TORCHINDUCTOR_CACHE_DIR=\"$KERNEL_CACHE/inductor\"\nexport FI_PROVIDER=efa\nexport FI_EFA_USE_DEVICE_RDMA=1\n\nMODEL_ARGS_LINE=\"$(python3 miles/utils/external_utils/model_args_utils.py deepseek-v4-flash)\"\nread -ra MODEL_ARGS <<< \"$MODEL_ARGS_LINE\"\npython3 train.py \\\n  --actor-num-nodes 8 \\\n  --actor-num-gpus-per-node 8 \\\n  --num-gpus-per-node 8 \\\n  \"${MODEL_ARGS[@]}\" \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --model-name deepseekv4 \\\n  --qkv-format bshd \\\n  --moe-router-freeze-gate \\\n  --freeze-e-score-correction-bias \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 2 \\\n  --sequence-parallel \\\n  --pipeline-model-parallel-size 4 \\\n  --decoder-first-pipeline-num-layers 11 \\\n  --decoder-last-pipeline-num-layers 10 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 8 \\\n  --expert-tensor-parallel-size 1 \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --micro-batch-size 1 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --distributed-timeout-minutes 30\n"
   },
   {
-   "path": "recipes/glm-5.2-744b-a40b/h100/attune-tp4-pp8-cp1-rc2.yaml",
-   "slug": "attune-tp4-pp8-cp1-rc2",
-   "rank": 1,
-   "schema_version": 1,
-   "model": "GLM-5.2-744B-A40B",
-   "gpu": {
-    "type": "H100",
-    "memory_gb": 80,
-    "count": 256,
-    "per_node": 8,
-    "instance": "AWS p5.48xlarge"
-   },
-   "author": {
-    "name": "ATTUNE",
-    "url": "https://arxiv.org/abs/2610.17528"
-   },
-   "status": "verified",
-   "stack": {
-    "framework": "slime 0.3.0 with local patches; commit not recorded",
-    "megatron_lm": "commit 1dcf0daf (megatron-core 0.16.0rc0) with local patches",
-    "transformer_engine": "2.10.0",
-    "pytorch": "2.11.0 (CUDA 12.9 build)",
-    "cuda": "12.9",
-    "nccl": "2.28.9 (PyTorch's NCCL wheel; printed by the measured run)",
-    "deepep": "1.2.1",
-    "python": "3.12.3",
-    "network": "8 GPUs per node, EFA, 3.2 Tb/s RDMA per node",
-    "source": "in-pod version dump of the measured run's training image (same digest), 2026-10-11: Megatron-LM git commit and status, installed megatron-core, TE, PyTorch, NCCL, DeepEP and slime, Python"
-   },
-   "workload": {
-    "row_tokens": 8192,
-    "rows": "SFT conversations",
-    "global_batch": 128,
-    "precision": "bf16",
-    "dataset": {
-     "name": "Tulu 3 SFT mixture",
-     "source": "allenai/tulu-3-sft-mixture",
-     "revision": "b14afda60f1bbebe55d5d2fa1e4df5042f97f8be",
-     "license": "ODC-By 1.0",
-     "rows_sha256": "bb302c134974b96f3905e9c87bfc4c0bb2be674a50e6dad09121aed2a0eb3455",
-     "build": {
-      "name": "glm52-tulu3-fixed8192-v1",
-      "tokenizer": "GLM-5.2 (tokenizer.json sha256 19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d)",
-      "loss_mask": "glm5",
-      "rows": 12800,
-      "row_tokens": 8192,
-      "padding_tokens": 0,
-      "seed": 20260828,
-      "packing": "source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into consecutive 8,192-token rows; rows without supervised targets are skipped",
-      "supervised_token_ratio": 0.661,
-      "parquet_sha256": "5d951089abd622511a40e0b3a1e5e36ad56859459e4d8c3aff14538cadbd0743",
-      "parquet_bytes": 169929706,
-      "builder": "data/generate_fixed_sft.py with patch_glm5_mask.py (data/README.md)"
-     }
-    }
-   },
-   "layout": {
-    "label": "TP4 PP8 EP32 DP8",
-    "summary": "TP 4, PP 8 (first stage 14 layers, last 16), CP 1, EP 32, ETP 1, DP 8, sequence parallel; one 8,192-token row per microbatch; full recompute (uniform, 2 layers); CPU optimizer offload with overlapped copies and the precision-aware optimizer; alltoall dispatcher; --allgather-cp",
-    "highlights": "max 8,192 tokens/GPU, recompute 2 layers, CPU optimizer offload",
-    "tp": 4,
-    "pp": 8,
-    "vpp": 1,
-    "cp": 1,
-    "ep": 32,
-    "etp": 1,
-    "dp": 8,
-    "sequence_parallel": true,
-    "layer_split": {
-     "first": 14,
-     "last": 16
-    },
-    "max_tokens_per_gpu": 8192,
-    "rows_per_microbatch": 1,
-    "recompute": {
-     "granularity": "full",
-     "method": "uniform",
-     "num_layers": 2
-    },
-    "offload": {
-     "optimizer_fraction": 1.0,
-     "overlap_d2h_h2d": true
-    },
-    "dispatcher": "alltoall"
-   },
-   "result": {
-    "tokens_per_s_per_gpu": 68.43,
-    "usd_per_million_tokens": 27.93,
-    "step_time_cv_percent": 1.28,
-    "mfu": 0.0167,
-    "mfu_note": null,
-    "active_params": {
-     "count": 40297758720,
-     "source": "https://huggingface.co/zai-org/GLM-5.2",
-     "revision": "cf457fa734ab149ffef225f80893eb38c6ff5cdc"
-    },
-    "measured": "2026-10-13",
-    "steps_per_run": 20,
-    "window": [
-     4,
-     13
-    ],
-    "window_tokens": 10485760,
-    "runs": 1,
-    "profiler": false,
-    "gpu_hours": 149.62,
-    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
-   },
-   "correctness": {
-    "result": "pass",
-    "summary": "passed",
-    "reference": "Not published.",
-    "configuration": "pass",
-    "component_tests": [],
-    "convergence": {
-     "steps": 20,
-     "result": "pass",
-     "correlation": 0.999972,
-     "final_loss_difference": 0.00014,
-     "pointwise_failures": 0,
-     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both"
-    },
-    "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
-   },
-   "env": {
-    "CUDA_DEVICE_MAX_CONNECTIONS": "1",
-    "INDEXER_ROPE_NEOX_STYLE": "0",
-    "NCCL_NVLS_ENABLE": "$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)",
-    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"
-   },
-   "patches": [],
-   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport INDEXER_ROPE_NEOX_STYLE=0\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True  # set in the pod environment\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 32 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 4 \\\n  --sequence-parallel \\\n  --pipeline-model-parallel-size 8 \\\n  --decoder-first-pipeline-num-layers 14 \\\n  --decoder-last-pipeline-num-layers 16 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 32 \\\n  --expert-tensor-parallel-size 1 \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 2 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --data-pad-size-multiplier 256 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --optimizer-cpu-offload --overlap-cpu-optimizer-d2h-h2d --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --moe-token-dispatcher-type alltoall \\\n  --allgather-cp\n"
-  },
-  {
    "path": "recipes/glm-5.2-744b-a40b/h100/attune-tp4-pp8-cp1.yaml",
    "slug": "attune-tp4-pp8-cp1",
-   "rank": 2,
+   "rank": 1,
    "schema_version": 1,
    "model": "GLM-5.2-744B-A40B",
    "gpu": {
@@ -892,6 +758,140 @@
    "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport INDEXER_ROPE_NEOX_STYLE=0\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True  # set in the pod environment\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 32 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 14 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 4 \\\n  --sequence-parallel \\\n  --pipeline-model-parallel-size 8 \\\n  --decoder-first-pipeline-num-layers 14 \\\n  --decoder-last-pipeline-num-layers 16 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 32 \\\n  --expert-tensor-parallel-size 1 \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --data-pad-size-multiplier 256 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --optimizer-cpu-offload --overlap-cpu-optimizer-d2h-h2d --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --moe-token-dispatcher-type alltoall \\\n  --allgather-cp\n"
   },
   {
+   "path": "recipes/glm-5.2-744b-a40b/h100/attune-tp4-pp8-cp1-rc2.yaml",
+   "slug": "attune-tp4-pp8-cp1-rc2",
+   "rank": 2,
+   "schema_version": 1,
+   "model": "GLM-5.2-744B-A40B",
+   "gpu": {
+    "type": "H100",
+    "memory_gb": 80,
+    "count": 256,
+    "per_node": 8,
+    "instance": "AWS p5.48xlarge"
+   },
+   "author": {
+    "name": "ATTUNE",
+    "url": "https://arxiv.org/abs/2610.17528"
+   },
+   "status": "verified",
+   "stack": {
+    "framework": "slime 0.3.0 with local patches; commit not recorded",
+    "megatron_lm": "commit 1dcf0daf (megatron-core 0.16.0rc0) with local patches",
+    "transformer_engine": "2.10.0",
+    "pytorch": "2.11.0 (CUDA 12.9 build)",
+    "cuda": "12.9",
+    "nccl": "2.28.9 (PyTorch's NCCL wheel; printed by the measured run)",
+    "deepep": "1.2.1",
+    "python": "3.12.3",
+    "network": "8 GPUs per node, EFA, 3.2 Tb/s RDMA per node",
+    "source": "in-pod version dump of the measured run's training image (same digest), 2026-10-11: Megatron-LM git commit and status, installed megatron-core, TE, PyTorch, NCCL, DeepEP and slime, Python"
+   },
+   "workload": {
+    "row_tokens": 8192,
+    "rows": "SFT conversations",
+    "global_batch": 128,
+    "precision": "bf16",
+    "dataset": {
+     "name": "Tulu 3 SFT mixture",
+     "source": "allenai/tulu-3-sft-mixture",
+     "revision": "b14afda60f1bbebe55d5d2fa1e4df5042f97f8be",
+     "license": "ODC-By 1.0",
+     "rows_sha256": "bb302c134974b96f3905e9c87bfc4c0bb2be674a50e6dad09121aed2a0eb3455",
+     "build": {
+      "name": "glm52-tulu3-fixed8192-v1",
+      "tokenizer": "GLM-5.2 (tokenizer.json sha256 19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d)",
+      "loss_mask": "glm5",
+      "rows": 12800,
+      "row_tokens": 8192,
+      "padding_tokens": 0,
+      "seed": 20260828,
+      "packing": "source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into consecutive 8,192-token rows; rows without supervised targets are skipped",
+      "supervised_token_ratio": 0.661,
+      "parquet_sha256": "5d951089abd622511a40e0b3a1e5e36ad56859459e4d8c3aff14538cadbd0743",
+      "parquet_bytes": 169929706,
+      "builder": "data/generate_fixed_sft.py with patch_glm5_mask.py (data/README.md)"
+     }
+    }
+   },
+   "layout": {
+    "label": "TP4 PP8 EP32 DP8",
+    "summary": "TP 4, PP 8 (first stage 14 layers, last 16), CP 1, EP 32, ETP 1, DP 8, sequence parallel; one 8,192-token row per microbatch; full recompute (uniform, 2 layers); CPU optimizer offload with overlapped copies and the precision-aware optimizer; alltoall dispatcher; --allgather-cp",
+    "highlights": "max 8,192 tokens/GPU, recompute 2 layers, CPU optimizer offload",
+    "tp": 4,
+    "pp": 8,
+    "vpp": 1,
+    "cp": 1,
+    "ep": 32,
+    "etp": 1,
+    "dp": 8,
+    "sequence_parallel": true,
+    "layer_split": {
+     "first": 14,
+     "last": 16
+    },
+    "max_tokens_per_gpu": 8192,
+    "rows_per_microbatch": 1,
+    "recompute": {
+     "granularity": "full",
+     "method": "uniform",
+     "num_layers": 2
+    },
+    "offload": {
+     "optimizer_fraction": 1.0,
+     "overlap_d2h_h2d": true
+    },
+    "dispatcher": "alltoall"
+   },
+   "result": {
+    "tokens_per_s_per_gpu": 68.18,
+    "usd_per_million_tokens": 28.03,
+    "step_time_cv_percent": 1.37,
+    "mfu": 0.0167,
+    "mfu_note": null,
+    "active_params": {
+     "count": 40297758720,
+     "source": "https://huggingface.co/zai-org/GLM-5.2",
+     "revision": "cf457fa734ab149ffef225f80893eb38c6ff5cdc"
+    },
+    "measured": "2026-10-13",
+    "steps_per_run": 20,
+    "window": [
+     5,
+     19
+    ],
+    "window_tokens": 15728640,
+    "runs": 1,
+    "profiler": false,
+    "gpu_hours": 149.62,
+    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
+   },
+   "correctness": {
+    "result": "pass",
+    "summary": "passed",
+    "reference": "Not published.",
+    "configuration": "pass",
+    "component_tests": [],
+    "convergence": {
+     "steps": 20,
+     "result": "pass",
+     "correlation": 0.999972,
+     "final_loss_difference": 0.00014,
+     "pointwise_failures": 0,
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both"
+    },
+    "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
+   },
+   "env": {
+    "CUDA_DEVICE_MAX_CONNECTIONS": "1",
+    "INDEXER_ROPE_NEOX_STYLE": "0",
+    "NCCL_NVLS_ENABLE": "$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)",
+    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"
+   },
+   "patches": [],
+   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport INDEXER_ROPE_NEOX_STYLE=0\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True  # set in the pod environment\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 32 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 4 \\\n  --sequence-parallel \\\n  --pipeline-model-parallel-size 8 \\\n  --decoder-first-pipeline-num-layers 14 \\\n  --decoder-last-pipeline-num-layers 16 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 32 \\\n  --expert-tensor-parallel-size 1 \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 2 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --data-pad-size-multiplier 256 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --optimizer-cpu-offload --overlap-cpu-optimizer-d2h-h2d --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --moe-token-dispatcher-type alltoall \\\n  --allgather-cp\n"
+  },
+  {
    "path": "recipes/glm-5.2-744b-a40b/h100/attune-tp4-pp8-cp2.yaml",
    "slug": "attune-tp4-pp8-cp2",
    "rank": 3,
@@ -978,10 +978,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 66.52,
-    "usd_per_million_tokens": 28.73,
-    "step_time_cv_percent": 1.76,
-    "mfu": 0.0163,
+    "tokens_per_s_per_gpu": 66.24,
+    "usd_per_million_tokens": 28.85,
+    "step_time_cv_percent": 2.59,
+    "mfu": 0.0162,
     "mfu_note": null,
     "active_params": {
      "count": 40297758720,
@@ -991,10 +991,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 151.32,
@@ -1245,10 +1245,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 131.74,
-    "usd_per_million_tokens": 16.68,
-    "step_time_cv_percent": 4.84,
-    "mfu": 0.0322,
+    "tokens_per_s_per_gpu": 131.12,
+    "usd_per_million_tokens": 16.76,
+    "step_time_cv_percent": 5.17,
+    "mfu": 0.0321,
     "mfu_note": null,
     "active_params": {
      "count": 40297758720,
@@ -1258,10 +1258,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 64.6,
@@ -1292,9 +1292,152 @@
    "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport INDEXER_ROPE_NEOX_STYLE=0\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 train_async.py \\\n  --actor-num-nodes 16 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 8 \\\n  --sequence-parallel \\\n  --pipeline-model-parallel-size 4 \\\n  --decoder-first-pipeline-num-layers 18 \\\n  --decoder-last-pipeline-num-layers 20 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 32 \\\n  --expert-tensor-parallel-size 1 \\\n  --recompute-granularity selective \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --data-pad-size-multiplier 256 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --optimizer-cpu-offload --overlap-cpu-optimizer-d2h-h2d --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --moe-token-dispatcher-type alltoall \\\n  --allgather-cp\n"
   },
   {
+   "path": "recipes/glm-5.2-744b-a40b/b200/attune-tp4-pp2-cp4-mt16k.yaml",
+   "slug": "attune-tp4-pp2-cp4-mt16k",
+   "rank": 1,
+   "schema_version": 1,
+   "model": "GLM-5.2-744B-A40B",
+   "gpu": {
+    "type": "B200",
+    "memory_gb": 180,
+    "count": 64,
+    "per_node": 8,
+    "instance": "AWS p6-b200.48xlarge"
+   },
+   "author": {
+    "name": "ATTUNE",
+    "url": "https://arxiv.org/abs/2610.17528"
+   },
+   "status": "verified",
+   "stack": {
+    "framework": "slime 0.3.0 with local patches; commit not recorded",
+    "megatron_lm": "commit 1dcf0daf (megatron-core 0.16.0rc0) with local patches",
+    "transformer_engine": "2.10.0",
+    "pytorch": "2.11.0 (CUDA 12.9 build)",
+    "cuda": "12.9",
+    "nccl": "2.28.9 (PyTorch's NCCL wheel; printed by the measured run)",
+    "deepep": "1.2.1",
+    "python": "3.12.3",
+    "network": "8 GPUs per node, EFA, 3.2 Tb/s RDMA per node",
+    "source": "in-pod version dump of the measured run's training image (same digest), 2026-10-11: Megatron-LM git commit and status, installed megatron-core, TE, PyTorch, NCCL, DeepEP and slime, Python"
+   },
+   "workload": {
+    "row_tokens": 8192,
+    "rows": "SFT conversations",
+    "global_batch": 128,
+    "precision": "bf16",
+    "dataset": {
+     "name": "Tulu 3 SFT mixture",
+     "source": "allenai/tulu-3-sft-mixture",
+     "revision": "b14afda60f1bbebe55d5d2fa1e4df5042f97f8be",
+     "license": "ODC-By 1.0",
+     "rows_sha256": "bb302c134974b96f3905e9c87bfc4c0bb2be674a50e6dad09121aed2a0eb3455",
+     "build": {
+      "name": "glm52-tulu3-fixed8192-v1",
+      "tokenizer": "GLM-5.2 (tokenizer.json sha256 19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d)",
+      "loss_mask": "glm5",
+      "rows": 12800,
+      "row_tokens": 8192,
+      "padding_tokens": 0,
+      "seed": 20260828,
+      "packing": "source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into consecutive 8,192-token rows; rows without supervised targets are skipped",
+      "supervised_token_ratio": 0.661,
+      "parquet_sha256": "5d951089abd622511a40e0b3a1e5e36ad56859459e4d8c3aff14538cadbd0743",
+      "parquet_bytes": 169929706,
+      "builder": "data/generate_fixed_sft.py with patch_glm5_mask.py (data/README.md)"
+     }
+    }
+   },
+   "layout": {
+    "label": "TP4 PP2 CP4 EP32 DP2",
+    "summary": "TP 4, PP 2 (first stage 38 layers, last 40), CP 4, EP 32, ETP 1, DP 2, sequence parallel; max 16,384 tokens per GPU; full recompute (uniform, 1 layer); CPU optimizer offload (fraction 0.9) with overlapped copies and the precision-aware optimizer; alltoall dispatcher; --allgather-cp",
+    "highlights": "max 16,384 tokens/GPU, CPU optimizer offload (fraction 0.9)",
+    "tp": 4,
+    "pp": 2,
+    "vpp": 1,
+    "cp": 4,
+    "ep": 32,
+    "etp": 1,
+    "dp": 2,
+    "sequence_parallel": true,
+    "layer_split": {
+     "first": 38,
+     "last": 40
+    },
+    "max_tokens_per_gpu": 16384,
+    "rows_per_microbatch": 8,
+    "recompute": {
+     "granularity": "full",
+     "method": "uniform",
+     "num_layers": 1
+    },
+    "offload": {
+     "optimizer_fraction": 0.9,
+     "overlap_d2h_h2d": true
+    },
+    "dispatcher": "alltoall"
+   },
+   "result": {
+    "tokens_per_s_per_gpu": 146.8,
+    "usd_per_million_tokens": 26.95,
+    "step_time_cv_percent": 1.8,
+    "mfu": 0.0158,
+    "mfu_note": null,
+    "active_params": {
+     "count": 40297758720,
+     "source": "https://huggingface.co/zai-org/GLM-5.2",
+     "revision": "cf457fa734ab149ffef225f80893eb38c6ff5cdc"
+    },
+    "measured": "2026-10-13",
+    "steps_per_run": 20,
+    "window": [
+     5,
+     19
+    ],
+    "window_tokens": 15728640,
+    "runs": 1,
+    "profiler": false,
+    "gpu_hours": 48.85,
+    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
+   },
+   "correctness": {
+    "result": "pass",
+    "summary": "passed; 1 component test passed at this model's shape",
+    "reference": "Not published. No public recipe existed for this pair as of 2026-10-11.",
+    "configuration": "pass",
+    "component_tests": [
+     {
+      "test": "optimizer offload fraction 0.9 against on-GPU Adam and an FP64 reference",
+      "shape": "one GLM-5.2-744B-A40B MoE layer: hidden 6144, 256 experts, top-8, expert FFN 2048, sigmoid router with expert bias, EP 8, ETP 1",
+      "gpu": "B200",
+      "date": "2026-10-11",
+      "result": "pass",
+      "detail": "worst tensor (update) relative L2 error 8.0e-7 against a bound of 1.0e-3 after one step and 7.7e-5 against 1.10e-3 after three steps at the entry's hyperparameters; the negative controls fail"
+     }
+    ],
+    "convergence": {
+     "steps": 20,
+     "result": "pass",
+     "correlation": 0.999958,
+     "final_loss_difference": 7.4e-06,
+     "pointwise_failures": 0,
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both"
+    },
+    "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
+   },
+   "env": {
+    "CUDA_DEVICE_MAX_CONNECTIONS": "1",
+    "INDEXER_ROPE_NEOX_STYLE": "0",
+    "NCCL_NVLS_ENABLE": "$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)",
+    "PYTORCH_ALLOC_CONF": "expandable_segments:True"
+   },
+   "patches": [],
+   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport INDEXER_ROPE_NEOX_STYLE=0\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\nexport PYTORCH_ALLOC_CONF=expandable_segments:True  # set in the pod environment\n\npython3 train_async.py \\\n  --actor-num-nodes 8 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 4 \\\n  --sequence-parallel \\\n  --pipeline-model-parallel-size 2 \\\n  --decoder-first-pipeline-num-layers 38 \\\n  --decoder-last-pipeline-num-layers 40 \\\n  --context-parallel-size 4 \\\n  --expert-model-parallel-size 32 \\\n  --expert-tensor-parallel-size 1 \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 16384 \\\n  --data-pad-size-multiplier 256 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --optimizer-cpu-offload --optimizer-offload-fraction 0.9 --overlap-cpu-optimizer-d2h-h2d --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --moe-token-dispatcher-type alltoall \\\n  --allgather-cp\n"
+  },
+  {
    "path": "recipes/glm-5.2-744b-a40b/b200/attune-tp4-pp2-cp4-mt12k.yaml",
    "slug": "attune-tp4-pp2-cp4-mt12k",
-   "rank": 1,
+   "rank": 2,
    "schema_version": 1,
    "model": "GLM-5.2-744B-A40B",
    "gpu": {
@@ -1435,149 +1578,6 @@
    "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport INDEXER_ROPE_NEOX_STYLE=0\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\nexport PYTORCH_ALLOC_CONF=expandable_segments:True  # set in the pod environment\n\npython3 train_async.py \\\n  --actor-num-nodes 8 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 14 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 4 \\\n  --sequence-parallel \\\n  --pipeline-model-parallel-size 2 \\\n  --decoder-first-pipeline-num-layers 38 \\\n  --decoder-last-pipeline-num-layers 40 \\\n  --context-parallel-size 4 \\\n  --expert-model-parallel-size 32 \\\n  --expert-tensor-parallel-size 1 \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 12288 \\\n  --data-pad-size-multiplier 256 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --optimizer-cpu-offload --optimizer-offload-fraction 0.9 --overlap-cpu-optimizer-d2h-h2d --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --moe-token-dispatcher-type alltoall \\\n  --allgather-cp\n"
   },
   {
-   "path": "recipes/glm-5.2-744b-a40b/b200/attune-tp4-pp2-cp4-mt16k.yaml",
-   "slug": "attune-tp4-pp2-cp4-mt16k",
-   "rank": 2,
-   "schema_version": 1,
-   "model": "GLM-5.2-744B-A40B",
-   "gpu": {
-    "type": "B200",
-    "memory_gb": 180,
-    "count": 64,
-    "per_node": 8,
-    "instance": "AWS p6-b200.48xlarge"
-   },
-   "author": {
-    "name": "ATTUNE",
-    "url": "https://arxiv.org/abs/2610.17528"
-   },
-   "status": "verified",
-   "stack": {
-    "framework": "slime 0.3.0 with local patches; commit not recorded",
-    "megatron_lm": "commit 1dcf0daf (megatron-core 0.16.0rc0) with local patches",
-    "transformer_engine": "2.10.0",
-    "pytorch": "2.11.0 (CUDA 12.9 build)",
-    "cuda": "12.9",
-    "nccl": "2.28.9 (PyTorch's NCCL wheel; printed by the measured run)",
-    "deepep": "1.2.1",
-    "python": "3.12.3",
-    "network": "8 GPUs per node, EFA, 3.2 Tb/s RDMA per node",
-    "source": "in-pod version dump of the measured run's training image (same digest), 2026-10-11: Megatron-LM git commit and status, installed megatron-core, TE, PyTorch, NCCL, DeepEP and slime, Python"
-   },
-   "workload": {
-    "row_tokens": 8192,
-    "rows": "SFT conversations",
-    "global_batch": 128,
-    "precision": "bf16",
-    "dataset": {
-     "name": "Tulu 3 SFT mixture",
-     "source": "allenai/tulu-3-sft-mixture",
-     "revision": "b14afda60f1bbebe55d5d2fa1e4df5042f97f8be",
-     "license": "ODC-By 1.0",
-     "rows_sha256": "bb302c134974b96f3905e9c87bfc4c0bb2be674a50e6dad09121aed2a0eb3455",
-     "build": {
-      "name": "glm52-tulu3-fixed8192-v1",
-      "tokenizer": "GLM-5.2 (tokenizer.json sha256 19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d)",
-      "loss_mask": "glm5",
-      "rows": 12800,
-      "row_tokens": 8192,
-      "padding_tokens": 0,
-      "seed": 20260828,
-      "packing": "source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into consecutive 8,192-token rows; rows without supervised targets are skipped",
-      "supervised_token_ratio": 0.661,
-      "parquet_sha256": "5d951089abd622511a40e0b3a1e5e36ad56859459e4d8c3aff14538cadbd0743",
-      "parquet_bytes": 169929706,
-      "builder": "data/generate_fixed_sft.py with patch_glm5_mask.py (data/README.md)"
-     }
-    }
-   },
-   "layout": {
-    "label": "TP4 PP2 CP4 EP32 DP2",
-    "summary": "TP 4, PP 2 (first stage 38 layers, last 40), CP 4, EP 32, ETP 1, DP 2, sequence parallel; max 16,384 tokens per GPU; full recompute (uniform, 1 layer); CPU optimizer offload (fraction 0.9) with overlapped copies and the precision-aware optimizer; alltoall dispatcher; --allgather-cp",
-    "highlights": "max 16,384 tokens/GPU, CPU optimizer offload (fraction 0.9)",
-    "tp": 4,
-    "pp": 2,
-    "vpp": 1,
-    "cp": 4,
-    "ep": 32,
-    "etp": 1,
-    "dp": 2,
-    "sequence_parallel": true,
-    "layer_split": {
-     "first": 38,
-     "last": 40
-    },
-    "max_tokens_per_gpu": 16384,
-    "rows_per_microbatch": 8,
-    "recompute": {
-     "granularity": "full",
-     "method": "uniform",
-     "num_layers": 1
-    },
-    "offload": {
-     "optimizer_fraction": 0.9,
-     "overlap_d2h_h2d": true
-    },
-    "dispatcher": "alltoall"
-   },
-   "result": {
-    "tokens_per_s_per_gpu": 146.4,
-    "usd_per_million_tokens": 27.02,
-    "step_time_cv_percent": 2.1,
-    "mfu": 0.0157,
-    "mfu_note": null,
-    "active_params": {
-     "count": 40297758720,
-     "source": "https://huggingface.co/zai-org/GLM-5.2",
-     "revision": "cf457fa734ab149ffef225f80893eb38c6ff5cdc"
-    },
-    "measured": "2026-10-13",
-    "steps_per_run": 20,
-    "window": [
-     4,
-     13
-    ],
-    "window_tokens": 10485760,
-    "runs": 1,
-    "profiler": false,
-    "gpu_hours": 48.85,
-    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
-   },
-   "correctness": {
-    "result": "pass",
-    "summary": "passed; 1 component test passed at this model's shape",
-    "reference": "Not published. No public recipe existed for this pair as of 2026-10-11.",
-    "configuration": "pass",
-    "component_tests": [
-     {
-      "test": "optimizer offload fraction 0.9 against on-GPU Adam and an FP64 reference",
-      "shape": "one GLM-5.2-744B-A40B MoE layer: hidden 6144, 256 experts, top-8, expert FFN 2048, sigmoid router with expert bias, EP 8, ETP 1",
-      "gpu": "B200",
-      "date": "2026-10-11",
-      "result": "pass",
-      "detail": "worst tensor (update) relative L2 error 8.0e-7 against a bound of 1.0e-3 after one step and 7.7e-5 against 1.10e-3 after three steps at the entry's hyperparameters; the negative controls fail"
-     }
-    ],
-    "convergence": {
-     "steps": 20,
-     "result": "pass",
-     "correlation": 0.999958,
-     "final_loss_difference": 7.4e-06,
-     "pointwise_failures": 0,
-     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both"
-    },
-    "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
-   },
-   "env": {
-    "CUDA_DEVICE_MAX_CONNECTIONS": "1",
-    "INDEXER_ROPE_NEOX_STYLE": "0",
-    "NCCL_NVLS_ENABLE": "$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)",
-    "PYTORCH_ALLOC_CONF": "expandable_segments:True"
-   },
-   "patches": [],
-   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport INDEXER_ROPE_NEOX_STYLE=0\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\nexport PYTORCH_ALLOC_CONF=expandable_segments:True  # set in the pod environment\n\npython3 train_async.py \\\n  --actor-num-nodes 8 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 4 \\\n  --sequence-parallel \\\n  --pipeline-model-parallel-size 2 \\\n  --decoder-first-pipeline-num-layers 38 \\\n  --decoder-last-pipeline-num-layers 40 \\\n  --context-parallel-size 4 \\\n  --expert-model-parallel-size 32 \\\n  --expert-tensor-parallel-size 1 \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 16384 \\\n  --data-pad-size-multiplier 256 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --optimizer-cpu-offload --optimizer-offload-fraction 0.9 --overlap-cpu-optimizer-d2h-h2d --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --moe-token-dispatcher-type alltoall \\\n  --allgather-cp\n"
-  },
-  {
    "path": "recipes/glm-5.2-744b-a40b/b200/attune-tp4-pp2-cp8.yaml",
    "slug": "attune-tp4-pp2-cp8",
    "rank": 3,
@@ -1664,9 +1664,9 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 136.64,
-    "usd_per_million_tokens": 28.95,
-    "step_time_cv_percent": 2.49,
+    "tokens_per_s_per_gpu": 136.48,
+    "usd_per_million_tokens": 28.99,
+    "step_time_cv_percent": 2.47,
     "mfu": 0.0147,
     "mfu_note": null,
     "active_params": {
@@ -1677,10 +1677,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 51.68,
@@ -1936,10 +1936,10 @@
     "dispatcher": "flex"
    },
    "result": {
-    "tokens_per_s_per_gpu": 885.65,
-    "usd_per_million_tokens": 2.16,
-    "step_time_cv_percent": 1.07,
-    "mfu": 0.0484,
+    "tokens_per_s_per_gpu": 842.76,
+    "usd_per_million_tokens": 2.27,
+    "step_time_cv_percent": 8.31,
+    "mfu": 0.0461,
     "mfu_note": null,
     "active_params": {
      "count": 9008136192,
@@ -1949,10 +1949,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 23.36,
@@ -2072,10 +2072,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 810.57,
-    "usd_per_million_tokens": 2.36,
-    "step_time_cv_percent": 7.48,
-    "mfu": 0.0443,
+    "tokens_per_s_per_gpu": 822.08,
+    "usd_per_million_tokens": 2.32,
+    "step_time_cv_percent": 6.52,
+    "mfu": 0.0449,
     "mfu_note": null,
     "active_params": {
      "count": 9008136192,
@@ -2085,10 +2085,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 18.72,
@@ -2199,10 +2199,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 2453.7,
+    "tokens_per_s_per_gpu": 2451.44,
     "usd_per_million_tokens": 0.9,
-    "step_time_cv_percent": 0.5,
-    "mfu": 0.1341,
+    "step_time_cv_percent": 0.57,
+    "mfu": 0.134,
     "mfu_note": null,
     "active_params": {
      "count": 9008136192,
@@ -2212,10 +2212,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 8.96,
@@ -2456,10 +2456,10 @@
     "dispatcher": "flex"
    },
    "result": {
-    "tokens_per_s_per_gpu": 2290.98,
+    "tokens_per_s_per_gpu": 2289.65,
     "usd_per_million_tokens": 0.96,
-    "step_time_cv_percent": 0.72,
-    "mfu": 0.1252,
+    "step_time_cv_percent": 0.66,
+    "mfu": 0.1251,
     "mfu_note": null,
     "active_params": {
      "count": 9008136192,
@@ -2469,10 +2469,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 9.0,
@@ -2720,10 +2720,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 2289.98,
+    "tokens_per_s_per_gpu": 2282.82,
     "usd_per_million_tokens": 1.73,
-    "step_time_cv_percent": 2.11,
-    "mfu": 0.055,
+    "step_time_cv_percent": 2.2,
+    "mfu": 0.0548,
     "mfu_note": null,
     "active_params": {
      "count": 9008136192,
@@ -2733,10 +2733,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 4.98,
@@ -2848,10 +2848,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 1832.53,
+    "tokens_per_s_per_gpu": 1827.46,
     "usd_per_million_tokens": 2.16,
-    "step_time_cv_percent": 1.89,
-    "mfu": 0.044,
+    "step_time_cv_percent": 1.92,
+    "mfu": 0.0439,
     "mfu_note": null,
     "active_params": {
      "count": 9008136192,
@@ -2861,10 +2861,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 4.96,
@@ -2976,9 +2976,9 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 4751.4,
+    "tokens_per_s_per_gpu": 4749.03,
     "usd_per_million_tokens": 0.46,
-    "step_time_cv_percent": 4.53,
+    "step_time_cv_percent": 4.04,
     "mfu": 0.0849,
     "mfu_note": null,
     "active_params": {
@@ -2989,10 +2989,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 1.9,
@@ -3115,10 +3115,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 6578.92,
+    "tokens_per_s_per_gpu": 6597.03,
     "usd_per_million_tokens": 0.6,
-    "step_time_cv_percent": 3.67,
-    "mfu": 0.0517,
+    "step_time_cv_percent": 3.0,
+    "mfu": 0.0518,
     "mfu_note": null,
     "active_params": {
      "count": 2946252800,
@@ -3128,10 +3128,10 @@
     "measured": "2026-10-14",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 1.64,
@@ -3259,9 +3259,9 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 312.97,
-    "usd_per_million_tokens": 6.11,
-    "step_time_cv_percent": 4.33,
+    "tokens_per_s_per_gpu": 313.26,
+    "usd_per_million_tokens": 6.1,
+    "step_time_cv_percent": 3.42,
     "mfu": 0.031,
     "mfu_note": null,
     "active_params": {
@@ -3272,10 +3272,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 108.02,
@@ -3526,10 +3526,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 289.83,
-    "usd_per_million_tokens": 6.59,
-    "step_time_cv_percent": 5.96,
-    "mfu": 0.0287,
+    "tokens_per_s_per_gpu": 288.55,
+    "usd_per_million_tokens": 6.62,
+    "step_time_cv_percent": 8.56,
+    "mfu": 0.0286,
     "mfu_note": null,
     "active_params": {
      "count": 16331407360,
@@ -3539,10 +3539,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 72.04,
@@ -3790,10 +3790,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 507.37,
-    "usd_per_million_tokens": 4.33,
-    "step_time_cv_percent": 0.81,
-    "mfu": 0.0503,
+    "tokens_per_s_per_gpu": 506.73,
+    "usd_per_million_tokens": 4.34,
+    "step_time_cv_percent": 0.77,
+    "mfu": 0.0502,
     "mfu_note": null,
     "active_params": {
      "count": 16331407360,
@@ -3803,10 +3803,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 38.04,
@@ -3927,10 +3927,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 470.8,
-    "usd_per_million_tokens": 4.67,
-    "step_time_cv_percent": 1.15,
-    "mfu": 0.0466,
+    "tokens_per_s_per_gpu": 469.19,
+    "usd_per_million_tokens": 4.68,
+    "step_time_cv_percent": 1.17,
+    "mfu": 0.0465,
     "mfu_note": null,
     "active_params": {
      "count": 16331407360,
@@ -3940,10 +3940,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 31.25,
@@ -4207,10 +4207,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 1054.89,
-    "usd_per_million_tokens": 3.75,
-    "step_time_cv_percent": 2.74,
-    "mfu": 0.0459,
+    "tokens_per_s_per_gpu": 1060.85,
+    "usd_per_million_tokens": 3.73,
+    "step_time_cv_percent": 2.37,
+    "mfu": 0.0462,
     "mfu_note": null,
     "active_params": {
      "count": 16331407360,
@@ -4220,10 +4220,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 32.28,
@@ -4344,10 +4344,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 1046.67,
-    "usd_per_million_tokens": 3.78,
-    "step_time_cv_percent": 0.96,
-    "mfu": 0.0456,
+    "tokens_per_s_per_gpu": 1018.73,
+    "usd_per_million_tokens": 3.88,
+    "step_time_cv_percent": 4.94,
+    "mfu": 0.0444,
     "mfu_note": null,
     "active_params": {
      "count": 16331407360,
@@ -4357,10 +4357,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 17.77,
@@ -4481,10 +4481,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 4674.46,
+    "tokens_per_s_per_gpu": 4663.11,
     "usd_per_million_tokens": 0.47,
-    "step_time_cv_percent": 5.93,
-    "mfu": 0.0836,
+    "step_time_cv_percent": 5.55,
+    "mfu": 0.0833,
     "mfu_note": null,
     "active_params": {
      "count": 2946252800,
@@ -4494,10 +4494,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 1.9,
@@ -4622,10 +4622,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 3455.14,
-    "usd_per_million_tokens": 0.64,
-    "step_time_cv_percent": 2.08,
-    "mfu": 0.0618,
+    "tokens_per_s_per_gpu": 3466.81,
+    "usd_per_million_tokens": 0.63,
+    "step_time_cv_percent": 1.78,
+    "mfu": 0.062,
     "mfu_note": null,
     "active_params": {
      "count": 2946252800,
@@ -4635,10 +4635,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 2.5,
@@ -4753,10 +4753,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 3014.68,
-    "usd_per_million_tokens": 0.73,
-    "step_time_cv_percent": 2.65,
-    "mfu": 0.0539,
+    "tokens_per_s_per_gpu": 3076.75,
+    "usd_per_million_tokens": 0.71,
+    "step_time_cv_percent": 3.02,
+    "mfu": 0.055,
     "mfu_note": null,
     "active_params": {
      "count": 2946252800,
@@ -4766,10 +4766,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 2.9,
@@ -4881,10 +4881,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 6547.25,
+    "tokens_per_s_per_gpu": 6573.38,
     "usd_per_million_tokens": 0.6,
-    "step_time_cv_percent": 4.49,
-    "mfu": 0.0514,
+    "step_time_cv_percent": 3.67,
+    "mfu": 0.0516,
     "mfu_note": null,
     "active_params": {
      "count": 2946252800,
@@ -4894,10 +4894,10 @@
     "measured": "2026-10-14",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 1.64,
@@ -5019,9 +5019,9 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 4338.37,
+    "tokens_per_s_per_gpu": 4334.09,
     "usd_per_million_tokens": 0.91,
-    "step_time_cv_percent": 2.88,
+    "step_time_cv_percent": 2.71,
     "mfu": 0.0341,
     "mfu_note": null,
     "active_params": {
@@ -5032,10 +5032,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 2.1,
@@ -5157,9 +5157,9 @@
     "dispatcher": null
    },
    "result": {
-    "tokens_per_s_per_gpu": 1194.5,
+    "tokens_per_s_per_gpu": 1194.3,
     "usd_per_million_tokens": 1.84,
-    "step_time_cv_percent": 2.23,
+    "step_time_cv_percent": 1.89,
     "mfu": 0.1857,
     "mfu_note": null,
     "active_params": {
@@ -5170,10 +5170,10 @@
     "measured": "2026-10-14",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 5.8,
@@ -5289,10 +5289,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 2550.79,
-    "usd_per_million_tokens": 0.75,
-    "step_time_cv_percent": 1.43,
-    "mfu": 0.0794,
+    "tokens_per_s_per_gpu": 2569.39,
+    "usd_per_million_tokens": 0.74,
+    "step_time_cv_percent": 1.35,
+    "mfu": 0.08,
     "mfu_note": null,
     "active_params": {
      "count": 5131100160,
@@ -5302,10 +5302,10 @@
     "measured": "2026-10-14",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 9.19,
@@ -5427,10 +5427,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 2307.92,
-    "usd_per_million_tokens": 0.83,
-    "step_time_cv_percent": 1.54,
-    "mfu": 0.0718,
+    "tokens_per_s_per_gpu": 2326.65,
+    "usd_per_million_tokens": 0.82,
+    "step_time_cv_percent": 0.91,
+    "mfu": 0.0724,
     "mfu_note": null,
     "active_params": {
      "count": 5131100160,
@@ -5440,10 +5440,10 @@
     "measured": "2026-10-14",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 8.23,
@@ -5565,10 +5565,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 7481.13,
-    "usd_per_million_tokens": 0.26,
-    "step_time_cv_percent": 2.21,
-    "mfu": 0.1637,
+    "tokens_per_s_per_gpu": 7496.66,
+    "usd_per_million_tokens": 0.25,
+    "step_time_cv_percent": 2.16,
+    "mfu": 0.1641,
     "mfu_note": null,
     "active_params": {
      "count": 3607142400,
@@ -5578,10 +5578,10 @@
     "measured": "2026-10-14",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 1.27,
@@ -5698,10 +5698,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 6744.63,
+    "tokens_per_s_per_gpu": 6736.89,
     "usd_per_million_tokens": 0.28,
-    "step_time_cv_percent": 0.66,
-    "mfu": 0.1476,
+    "step_time_cv_percent": 1.82,
+    "mfu": 0.1474,
     "mfu_note": null,
     "active_params": {
      "count": 3607142400,
@@ -5711,10 +5711,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 1.43,
@@ -5827,10 +5827,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 10475.82,
+    "tokens_per_s_per_gpu": 10483.91,
     "usd_per_million_tokens": 0.21,
-    "step_time_cv_percent": 1.86,
-    "mfu": 0.2292,
+    "step_time_cv_percent": 1.71,
+    "mfu": 0.2294,
     "mfu_note": null,
     "active_params": {
      "count": 3607142400,
@@ -5840,10 +5840,10 @@
     "measured": "2026-10-14",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 0.94,
@@ -5956,10 +5956,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 9399.41,
+    "tokens_per_s_per_gpu": 9448.16,
     "usd_per_million_tokens": 0.23,
-    "step_time_cv_percent": 4.59,
-    "mfu": 0.2057,
+    "step_time_cv_percent": 3.99,
+    "mfu": 0.2068,
     "mfu_note": null,
     "active_params": {
      "count": 3607142400,
@@ -5969,10 +5969,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 1.02,
@@ -6090,10 +6090,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 14392.58,
+    "tokens_per_s_per_gpu": 14536.27,
     "usd_per_million_tokens": 0.27,
-    "step_time_cv_percent": 5.66,
-    "mfu": 0.1384,
+    "step_time_cv_percent": 4.78,
+    "mfu": 0.1398,
     "mfu_note": null,
     "active_params": {
      "count": 3607142400,
@@ -6103,10 +6103,10 @@
     "measured": "2026-10-14",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 1.19,
@@ -6219,10 +6219,10 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 12529.2,
-    "usd_per_million_tokens": 0.32,
-    "step_time_cv_percent": 3.88,
-    "mfu": 0.1205,
+    "tokens_per_s_per_gpu": 12566.14,
+    "usd_per_million_tokens": 0.31,
+    "step_time_cv_percent": 4.58,
+    "mfu": 0.1209,
     "mfu_note": null,
     "active_params": {
      "count": 3607142400,
@@ -6232,10 +6232,10 @@
     "measured": "2026-10-13",
     "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
     "gpu_hours": 0.94,

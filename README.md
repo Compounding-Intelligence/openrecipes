@@ -4,7 +4,7 @@ Tuned, verified LLM training recipes: <https://openrecipes.ai>
 
 OpenRecipes publishes one YAML file per training recipe for a model and GPU type: the parallel layout, the command as
 run, the measured tokens/s per GPU and cost, the framework versions and the correctness evidence. Every
-recipe is measured one way (8,192-token SFT rows, global batch 128, BF16, steps 4-13 of a 20-step
+recipe is measured one way (8,192-token SFT rows, global batch 128, BF16, steps 5-19 of a 20-step
 run) and checked against the recipe it was tuned from, so recipes for the same model and GPU type compare directly.
 The current recipes were found by ATTUNE ([paper](https://arxiv.org/abs/2610.17528)).
 

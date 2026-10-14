@@ -77,10 +77,10 @@ layout:
     overlap_d2h_h2d: true
   dispatcher: alltoall
 result:
-  tokens_per_s_per_gpu: 131.74
-  usd_per_million_tokens: 16.68
-  step_time_cv_percent: 4.84
-  mfu: 0.0322
+  tokens_per_s_per_gpu: 131.12
+  usd_per_million_tokens: 16.76
+  step_time_cv_percent: 5.17
+  mfu: 0.0321
   mfu_note: null
   active_params:
     count: 40297758720
@@ -89,9 +89,9 @@ result:
   measured: 2026-10-13
   steps_per_run: 20
   window:
-  - 4
-  - 13
-  window_tokens: 10485760
+  - 5
+  - 19
+  window_tokens: 15728640
   runs: 1
   profiler: false
   gpu_hours: 64.6

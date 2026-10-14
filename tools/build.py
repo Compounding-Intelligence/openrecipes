@@ -289,7 +289,8 @@ def recipe_details(x, root):
         mfu = "not reported: %s" % inline(res["mfu_note"] or "")
     else:
         mfu = "%s (N = %s active parameters per token)" % (pct(res["mfu"]), "{:,}".format(res["active_params"]["count"]))
-    measured = iso(res["measured"]) + ("" if res["steps_per_run"] >= 20 else ", %d-step run" % res["steps_per_run"])
+    measured = iso(res["measured"]) + ("" if res["window"] == [5, 19] else ", %d-step run scored over steps %d&ndash;%d"
+                                       % (res["steps_per_run"], res["window"][0], res["window"][1]))
     rows = [
         ("Author", author),
         ("GPUs", "%d x %s %d GB (%s, %d per node)" % (r["gpu"]["count"], esc(r["gpu"]["type"]), r["gpu"]["memory_gb"],
@@ -400,8 +401,9 @@ def protocol_page(recipes, gpus, rates, date):
     if early:
         days = sorted({iso(r["result"]["measured"]) for r in early})
         lens = sorted({r["result"]["steps_per_run"] for r in early})
-        short = ("%d recipes, measured on %s, ran %s steps, the shortest run that holds the window, and record "
-                 "<code>steps_per_run</code>; their convergence checks ran separate 20-step arms. "
+        short = ("%d recipes, measured on %s, ran %s steps under an earlier window and are scored over steps "
+                 "4&ndash;13; they record <code>steps_per_run</code> and their window, and their convergence checks ran "
+                 "separate 20-step arms. "
                  % (len(early), " and ".join(days), " or ".join(str(x) for x in lens)))
     counts = sorted(r["gpu"]["count"] for r in recipes.values())
     step_tokens = 128 * 8192
@@ -415,9 +417,9 @@ def protocol_page(recipes, gpus, rates, date):
 <p>The recipes use the Tulu 3 SFT mixture (<code>allenai/tulu-3-sft-mixture</code>, revision <code>b14afda60f1bbebe55d5d2fa1e4df5042f97f8be</code>, ODC-By 1.0), built once per tokenizer. <a href="{repo}/tree/main/data"><code>data/</code></a> rebuilds the rows, and <code>data/verify_rows.py</code> checks a build against the <code>rows_sha256</code> a recipe records. Some subsets of the mixture carry their own licenses and terms, including non-commercial ones (see the dataset card). This repository does not redistribute the data.</p>
 <p>A recipe may run on any number of GPUs of its type and records the count.</p>
 <h2 id="measurement">Measurement</h2>
-<p>A run lasts 20 optimizer steps with the profiler off. Steps 0&ndash;3 absorb startup and compilation and are discarded; steps 4&ndash;13 form the measured window <em>W</em>. The score is the aggregate throughput over the window, summed before dividing:</p>
+<p>A run lasts 20 optimizer steps (0&ndash;19) with the profiler off. Steps 0&ndash;4 absorb startup, compilation and allocator warm-up and are discarded; steps 5&ndash;19 form the measured window <em>W</em>. The score is the aggregate throughput over the window, summed before dividing:</p>
 <pre>tokens/s/GPU = (sum over W of tokens) / (number of GPUs x sum over W of step time)</pre>
-<p>A recipe is one run. It reports the score and the coefficient of variation of the step time over <em>W</em>. The same 20-step run is the recipe's arm of the convergence check below, so one run covers both. {short}</p>
+<p>A recipe is one run. It reports the score and the coefficient of variation of the step time over <em>W</em>. The same 20-step run is the recipe's arm of the convergence check below, so one run covers both. A run that also needs a profiler trace continues past step 19: step 20 warms the profiler up and step 21 (up to 23) is recorded, and those steps are never scored. {short}</p>
 <p>GPU-hours count GPUs times the time from scheduler admission to finish, including startup.</p>
 <h2 id="correctness">Correctness</h2>
 <p>A faster recipe is listed once it passes two checks against its <em>reference recipe</em>, the recipe it was tuned from. The <em>configuration check</em> diffs the recipe's resolved arguments against the reference recipe's and classes every changed argument: structural changes (<code>placement</code>, <code>packing</code>) and same-math swaps (<code>allowlisted</code>) are eligible, and every same-math swap needs a passed <em>component test</em> at the model's shape, which records what it compares, the layer shape, the bound and the worst error.</p>
@@ -491,7 +493,7 @@ layout:
   offload: null                   # or {optimizer_fraction: 0.9, overlap_d2h_h2d: true}
   dispatcher: alltoall
 result:
-  tokens_per_s_per_gpu: <score over steps 4-13>
+  tokens_per_s_per_gpu: <score over steps 5-19>
   usd_per_million_tokens: <rate in gpus.yaml / (tokens/s/GPU x 3600) x 1e6, to the cent>
   step_time_cv_percent: <CV of the step time over the window>
   mfu: <6 x N x tokens/s/GPU / peak, or null>
@@ -499,8 +501,8 @@ result:
   active_params: {count: <N from tools/active_params.py>, source: https://huggingface.co/<repo>, revision: <commit>}
   measured: 2026-10-14
   steps_per_run: 20
-  window: [4, 13]
-  window_tokens: 10485760         # 10 steps x 128 rows x 8,192 tokens
+  window: [5, 19]
+  window_tokens: 15728640         # 15 steps x 128 rows x 8,192 tokens
   runs: 1
   profiler: false
   gpu_hours: <GPUs x (admission to finish)>
@@ -554,7 +556,7 @@ def submit_page(schema, date):
 <ol class="prose">
 <li><b>Pick the pair and the reference recipe.</b> Recipes rank within a model and GPU type, on any number of GPUs. The reference recipe is the one you tune from: a public recipe, the pair's current best or one you wrote. You need not publish it. Apply the <a href="protocol.html#correctness">objective conventions</a> to both.</li>
 <li><b>Build the rows</b> with <a href="{repo}/tree/main/data"><code>data/</code></a> (its README gives the command per tokenizer) and check them with <code>python3 data/verify_rows.py &lt;rows.parquet&gt; --recipe &lt;a recipe of the same model&gt;</code>.</li>
-<li><b>Measure.</b> Run the recipe once under the <a href="protocol.html#measurement">protocol</a>: 8,192-token rows, global batch 128, BF16, 20 steps with the profiler off, scored over steps 4&ndash;13. Record the score, the step-time CV, the GPU-hours and the framework versions.</li>
+<li><b>Measure.</b> Run the recipe once under the <a href="protocol.html#measurement">protocol</a>: 8,192-token rows, global batch 128, BF16, 20 steps with the profiler off, scored over steps 5&ndash;19. Record the score, the step-time CV, the GPU-hours and the framework versions.</li>
 <li><b>Check correctness.</b> Run a 20-step arm of the reference recipe on the same image and rows, compare its per-step loss with the measured run's using Megatron-Bridge's <code>validate_convergence</code>, and class every argument that differs between the two. Each same-math swap needs a passed component test at the model's shape. OpenRecipes lists a recipe once all of them pass.</li>
 <li><b>Write the recipe</b> from the template below. Count N with <code>python3 tools/active_params.py &lt;hf-repo&gt;</code>, take the rate from <a href="{repo}/blob/main/gpus.yaml"><code>gpus.yaml</code></a>, and add notes only for what is specific to the recipe: the steps every recipe shares are under <a href="protocol.html#run">Running a recipe</a>, and those a model's recipes share go in the model's <code>notes</code> in <code>models.yaml</code>. Add the model to <code>models.yaml</code> if it is missing, and put any code beyond the stock stack under <code>patches/</code>.</li>
 <li><b>Validate and build.</b> <code>python3 tools/validate.py</code> checks the file against the schema and recomputes the cost, the MFU, the data-parallel size and the window; <code>python3 tools/build.py</code> rebuilds <code>site/</code>, and <code>python3 tools/build.py --check</code> and <code>python3 -m pytest -q tests</code> must pass. Commit the rebuilt <code>site/</code> with the recipe.</li>

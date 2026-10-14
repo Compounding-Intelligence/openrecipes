@@ -72,10 +72,10 @@ layout:
   offload: null
   dispatcher: alltoall
 result:
-  tokens_per_s_per_gpu: 1832.53
+  tokens_per_s_per_gpu: 1827.46
   usd_per_million_tokens: 2.16
-  step_time_cv_percent: 1.89
-  mfu: 0.044
+  step_time_cv_percent: 1.92
+  mfu: 0.0439
   mfu_note: null
   active_params:
     count: 9008136192
@@ -84,9 +84,9 @@ result:
   measured: 2026-10-13
   steps_per_run: 20
   window:
-  - 4
-  - 13
-  window_tokens: 10485760
+  - 5
+  - 19
+  window_tokens: 15728640
   runs: 1
   profiler: false
   gpu_hours: 4.96

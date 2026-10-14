@@ -41,7 +41,7 @@ def test_build_is_deterministic():
 def test_pair_page_follows_design_a(files):
     page = files["qwen3.5-122b-a10b/h200/index.html"]
     assert "<h1>Training Qwen3.5-122B-A10B on H200</h1>" in page
-    assert '<span class="v hi">2,453.7</span><span class="gauge"' in page and page.count('class="gauge"') == 3
+    assert '<span class="v hi">2,451.4</span><span class="gauge"' in page and page.count('class="gauge"') == 3
     assert "Correctness</th>" not in page and "<h2>Questions</h2>" not in page and 'class="back"' in page
     ranked = re.findall(r'<details class="card recipe" id="([^"]+)"( open)?>', page)
     assert ranked == [("attune-tp1-pp4-ep8-rc2", " open"), ("attune-tp1-pp4-ep8", ""), ("attune-tp1-pp4-ep8-flex", "")]
@@ -73,7 +73,7 @@ def test_protocol_and_submit(files):
     proto = files["protocol.html"]
     for anchor in ("workload", "measurement", "correctness", "cost", "mfu", "stack"):
         assert 'id="%s"' % anchor in proto
-    assert "steps 4&ndash;13" in proto and "$6.88" in proto and "$7.912" in proto and "$14.2416" in proto
+    assert "steps 5&ndash;19" in proto and "steps 0&ndash;4" in proto.lower() and "$6.88" in proto and "$7.912" in proto and "$14.2416" in proto
     assert "fetched 2026-09-18" in proto
     submit = files["submit.html"]
     assert "amazon-science/attune" not in proto + submit
@@ -153,6 +153,6 @@ def test_check_detects_stale_extra_and_invalid(repo, capsys):
     assert build.main(["--root", str(repo)]) == 0
     assert not (repo / "site" / "stray.html").exists()
     recipe = repo / "recipes/gpt-oss-20b/h100/attune-tp1-pp2-ep4.yaml"
-    recipe.write_text(recipe.read_text().replace("tokens_per_s_per_gpu: 6744.63", "tokens_per_s_per_gpu: 6000"))
+    recipe.write_text(recipe.read_text().replace("tokens_per_s_per_gpu: 6736.89", "tokens_per_s_per_gpu: 6000"))
     assert build.main(["--root", str(repo), "--check"]) == 1
     assert "usd_per_million_tokens" in capsys.readouterr().out

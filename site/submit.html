@@ -20,7 +20,7 @@
 <ol class="prose">
 <li><b>Pick the pair and the reference recipe.</b> Recipes rank within a model and GPU type, on any number of GPUs. The reference recipe is the one you tune from: a public recipe, the pair's current best or one you wrote. You need not publish it. Apply the <a href="protocol#correctness">objective conventions</a> to both.</li>
 <li><b>Build the rows</b> with <a href="https://github.com/Compounding-Intelligence/openrecipes/tree/main/data"><code>data/</code></a> (its README gives the command per tokenizer) and check them with <code>python3 data/verify_rows.py &lt;rows.parquet&gt; --recipe &lt;a recipe of the same model&gt;</code>.</li>
-<li><b>Measure.</b> Run the recipe once under the <a href="protocol#measurement">protocol</a>: 8,192-token rows, global batch 128, BF16, 20 steps with the profiler off, scored over steps 4&ndash;13. Record the score, the step-time CV, the GPU-hours and the framework versions.</li>
+<li><b>Measure.</b> Run the recipe once under the <a href="protocol#measurement">protocol</a>: 8,192-token rows, global batch 128, BF16, 20 steps with the profiler off, scored over steps 5&ndash;19. Record the score, the step-time CV, the GPU-hours and the framework versions.</li>
 <li><b>Check correctness.</b> Run a 20-step arm of the reference recipe on the same image and rows, compare its per-step loss with the measured run's using Megatron-Bridge's <code>validate_convergence</code>, and class every argument that differs between the two. Each same-math swap needs a passed component test at the model's shape. OpenRecipes lists a recipe once all of them pass.</li>
 <li><b>Write the recipe</b> from the template below. Count N with <code>python3 tools/active_params.py &lt;hf-repo&gt;</code>, take the rate from <a href="https://github.com/Compounding-Intelligence/openrecipes/blob/main/gpus.yaml"><code>gpus.yaml</code></a>, and add notes only for what is specific to the recipe: the steps every recipe shares are under <a href="protocol#run">Running a recipe</a>, and those a model's recipes share go in the model's <code>notes</code> in <code>models.yaml</code>. Add the model to <code>models.yaml</code> if it is missing, and put any code beyond the stock stack under <code>patches/</code>.</li>
 <li><b>Validate and build.</b> <code>python3 tools/validate.py</code> checks the file against the schema and recomputes the cost, the MFU, the data-parallel size and the window; <code>python3 tools/build.py</code> rebuilds <code>site/</code>, and <code>python3 tools/build.py --check</code> and <code>python3 -m pytest -q tests</code> must pass. Commit the rebuilt <code>site/</code> with the recipe.</li>
@@ -74,7 +74,7 @@ layout:
   offload: null                   # or {optimizer_fraction: 0.9, overlap_d2h_h2d: true}
   dispatcher: alltoall
 result:
-  tokens_per_s_per_gpu: &lt;score over steps 4-13&gt;
+  tokens_per_s_per_gpu: &lt;score over steps 5-19&gt;
   usd_per_million_tokens: &lt;rate in gpus.yaml / (tokens/s/GPU x 3600) x 1e6, to the cent&gt;
   step_time_cv_percent: &lt;CV of the step time over the window&gt;
   mfu: &lt;6 x N x tokens/s/GPU / peak, or null&gt;
@@ -82,8 +82,8 @@ result:
   active_params: {count: &lt;N from tools/active_params.py&gt;, source: https://huggingface.co/&lt;repo&gt;, revision: &lt;commit&gt;}
   measured: 2026-10-14
   steps_per_run: 20
-  window: [4, 13]
-  window_tokens: 10485760         # 10 steps x 128 rows x 8,192 tokens
+  window: [5, 19]
+  window_tokens: 15728640         # 15 steps x 128 rows x 8,192 tokens
   runs: 1
   profiler: false
   gpu_hours: &lt;GPUs x (admission to finish)&gt;
