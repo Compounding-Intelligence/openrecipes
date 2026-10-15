@@ -1,7 +1,9 @@
-# How to cite OpenRecipes. GitHub shows it as "Cite this repository", and tools/build.py renders the
-# preferred citation as BibTeX for the README and for the pages of the recipes whose author links the paper.
+# How to cite OpenRecipes; GitHub shows it as "Cite this repository". Recipe pages show the citation each recipe's
+# author asks for (citations.yaml).
 cff-version: 1.2.0
-message: If you use a recipe by ATTUNE, please cite the ATTUNE paper.
+message: >-
+  If you use OpenRecipes as a source, you can cite it as below. If you use a recipe, cite the work its author links on
+  the recipe's page.
 title: OpenRecipes
 type: dataset
 authors:
@@ -9,34 +11,3 @@ authors:
 url: https://openrecipes.ai
 repository-code: https://github.com/Compounding-Intelligence/openrecipes
 license: Apache-2.0
-preferred-citation:
-  type: article
-  title: "ATTUNE: Agentic Throughput Tuning for LLM Training"
-  authors:
-    - given-names: Leo
-      family-names: Fan
-    - given-names: Hongyang
-      family-names: Wang
-    - given-names: Wenbo
-      family-names: Chen
-    - given-names: Jingguo
-      family-names: Liu
-    - given-names: Xian
-      family-names: Li
-    - given-names: Xuan
-      family-names: Wang
-    - given-names: Ruochen
-      family-names: Wen
-    - given-names: Yiming
-      family-names: Yan
-    - given-names: Hao
-      family-names: Wu
-    - given-names: Zheshen
-      family-names: Wang
-    - given-names: Benoit
-      family-names: Dumoulin
-  journal: arXiv preprint arXiv:2610.17528
-  year: 2026
-  month: 10
-  doi: 10.48550/arXiv.2610.17528
-  url: https://arxiv.org/abs/2610.17528

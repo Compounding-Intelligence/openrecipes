@@ -4,7 +4,7 @@
 
     python3 tools/build.py            # validate every recipe, then write site/
     python3 tools/build.py --check    # exit 1 if a recipe is invalid or site/ differs from a fresh build
-    python3 tools/build.py --bibtex   # print the preferred citation of CITATION.cff as BibTeX
+    python3 tools/build.py --bibtex   # print the papers of citations.yaml as BibTeX
 
 Needs the Python standard library and PyYAML. The output is deterministic: the same inputs give the same bytes.
 """
@@ -102,25 +102,31 @@ def collect(recipes, models, gpus):
     return pairs
 
 
-def citation(root):
-    """CITATION.cff's preferred citation: (its url, the citation as BibTeX)."""
-    c = load_yaml(Path(root) / "CITATION.cff")["preferred-citation"]
-    kind = "article" if c["type"] == "article" else "misc"
-    key = "%s%s%s" % (c["authors"][0]["family-names"], c["year"], re.match(r"\w+", c["title"]).group(0))
-    # no-break spaces keep each name on one line when the author list wraps
-    names = " and ".join("%s\xa0%s" % (a["given-names"], a["family-names"]) for a in c["authors"])
-    fields = [("title", "{%s}" % c["title"]), ("author", names)]
-    if kind == "article":
-        fields.append(("journal", c["journal"]))
-    fields += [("year", c["year"]), ("url", c["url"])]
-    body = ",\n".join(textwrap.fill("  %-7s = {%s}" % (k, v), 100, subsequent_indent=" " * 13, break_long_words=False)
-                      for k, v in fields)
-    return c["url"], "@%s{%s,\n%s\n}\n" % (kind, key.lower(), body.replace("\xa0", " "))
+def citations(root):
+    """citations.yaml: {paper url: the paper as BibTeX}."""
+    out = {}
+    for url, c in (load_yaml(Path(root) / "citations.yaml") or {}).items():
+        missing = [k for k in ("type", "title", "authors", "year") if k not in c]
+        if missing:
+            raise ValueError("citations.yaml: %s lacks %s" % (url, ", ".join(missing)))
+        kind = "article" if c["type"] == "article" else "misc"
+        key = "%s%s%s" % (c["authors"][0]["family-names"], c["year"], re.match(r"\w+", c["title"]).group(0))
+        # no-break spaces keep each name on one line when the author list wraps
+        names = " and ".join("%s\xa0%s" % (a["given-names"], a["family-names"]) for a in c["authors"])
+        fields = [("title", "{%s}" % c["title"]), ("author", names)]
+        if kind == "article":
+            fields.append(("journal", c["journal"]))
+        fields += [("year", c["year"]), ("url", url)]
+        body = ",\n".join(textwrap.fill("  %-7s = {%s}" % (k, v), 100, subsequent_indent=" " * 13,
+                                        break_long_words=False) for k, v in fields)
+        out[url] = "@%s{%s,\n%s\n}\n" % (kind, key.lower(), body.replace("\xa0", " "))
+    return out
 
 
-def cites(recipe, cite):
-    """Whether the recipe's author is the method the preferred citation describes."""
-    return cite[0] in (recipe["author"].get("url"), recipe["author"].get("paper"))
+def cited_url(recipe, cits):
+    """The paper of citations.yaml that the recipe's author links, or None."""
+    a = recipe["author"]
+    return next((u for u in (a.get("paper"), a.get("url")) if u in cits), None)
 
 
 def pair_url(model, gpu_type):
@@ -300,12 +306,12 @@ def correctness_rows(c):
     return rows
 
 
-def recipe_details(x, root, cite):
+def recipe_details(x, root, cits):
     r, slug = x["r"], x["slug"]
     res, lay, ds = r["result"], r["layout"], r["workload"]["dataset"]
     a = r["author"]
     links = ['<a href="%s">paper</a>' % esc(a["paper"])] if a.get("paper") else []
-    if cites(r, cite):
+    if cited_url(r, cits):
         links.append('<a href="#cite">cite</a>')
     author = author_html(a) + (" (%s)" % ", ".join(links) if links else "")
     if res["mfu"] is None:
@@ -352,7 +358,7 @@ def recipe_details(x, root, cite):
                      run_text=esc(r["run"]), path=esc(x["path"]), repo=REPO_URL, raw=esc(raw))
 
 
-def pair_page(model, gpu, items, pairs, gpus, date, root, cite):
+def pair_page(model, gpu, items, pairs, gpus, date, root, cits):
     gt = gpu["type"]
     best = items[0]
     br = best["r"]
@@ -399,17 +405,25 @@ def pair_page(model, gpu, items, pairs, gpus, date, root, cite):
         notes = ('<h2>Notes for %s</h2><div class="card notes prose">%s<p class="muted small">The steps every recipe '
                  'shares: <a href="../../protocol.html#run">Running a recipe</a>.</p></div>'
                  % (esc(model["model"]), render_text(model["notes"])))
-    cited = [x["r"]["author"] for x in items if cites(x["r"], cite)]
+    works = {}   # cited paper url: the names of the recipe authors who link it, in page order
+    for x in items:
+        u = cited_url(x["r"], cits)
+        if u:
+            name = x["r"]["author"].get("name") or x["r"]["author"]["github"]
+            names = works.setdefault(u, [])
+            if name not in names:
+                names.append(name)
     citing = ""
-    if cited:
-        citing = ('<h2 id="cite">Citation</h2><div class="card notes"><p>If you use a recipe by %s, please cite '
-                  '<a href="%s">the paper</a>.</p><div class="filebar"><span class="k">BibTeX</span><span class="acts">'
-                  '<button type="button" class="btn o" data-copy="bibtex">Copy</button></span></div>'
-                  '<pre id="bibtex">%s</pre></div>' % (esc(cited[0]["name"]), esc(cite[0]), esc(cite[1])))
+    if works:
+        citing = '<h2 id="cite">Citation</h2><div class="card notes">%s</div>' % "".join(
+            '<p>If you use a recipe by %s, please cite <a href="%s">the paper</a>.</p><div class="filebar"><span '
+            'class="k">BibTeX</span><span class="acts"><button type="button" class="btn o" data-copy="bibtex-%d">Copy'
+            '</button></span></div><pre id="bibtex-%d">%s</pre>' % (esc(" or ".join(names)), esc(u), i, i, esc(cits[u]))
+            for i, (u, names) in enumerate(works.items(), 1))
     body = "\n".join([
         '<a class="back" href="../../index.html#models">&lsaquo; All models</a>', table, notes,
         "<h2>Recipes</h2>",
-        "\n".join(recipe_details(x, root, cite) for x in items), citing,
+        "\n".join(recipe_details(x, root, cits) for x in items), citing,
         "<h2>%s on other GPUs</h2>" % esc(model["model"]),
         '<div class="others">%s</div>' % "".join(others)])
     desc = "Verified training recipes for %s on %s: best %s tokens/s per GPU on %d GPUs, %s per million tokens." % (
@@ -631,7 +645,7 @@ def render(root=ROOT):
     if errs:
         return {}, errs
     pairs = collect(recipes, models, gpus)
-    cite = citation(root)
+    cits = citations(root)
     date = max(iso(r["result"]["measured"]) for r in recipes.values())
     files = {}
 
@@ -641,7 +655,7 @@ def render(root=ROOT):
     put("index.html", index_page(pairs, models, gpus, date))
     for (mname, gt), items in sorted(pairs.items(), key=lambda kv: (kv[0][0], list(gpus).index(kv[0][1]))):
         m = models[mname]
-        put(pair_url(m, gt) + "index.html", pair_page(m, gpus[gt], items, pairs, gpus, date, root, cite))
+        put(pair_url(m, gt) + "index.html", pair_page(m, gpus[gt], items, pairs, gpus, date, root, cits))
     put("protocol.html", protocol_page(recipes, gpus, rates, date))
     schema_path = Path(root) / "schema" / "recipe.schema.yaml"
     put("submit.html", submit_page(load_yaml(schema_path), date))
@@ -697,12 +711,12 @@ def write(files, out):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--check", action="store_true", help="exit 1 if a recipe is invalid or site/ is stale")
-    ap.add_argument("--bibtex", action="store_true", help="print the preferred citation of CITATION.cff as BibTeX")
+    ap.add_argument("--bibtex", action="store_true", help="print the papers of citations.yaml as BibTeX")
     ap.add_argument("--root", default=str(ROOT), help=argparse.SUPPRESS)
     a = ap.parse_args(argv)
     root = Path(a.root)
     if a.bibtex:
-        sys.stdout.write(citation(root)[1])
+        sys.stdout.write("\n".join(citations(root).values()))
         return 0
     files, errs = render(root)
     if errs:

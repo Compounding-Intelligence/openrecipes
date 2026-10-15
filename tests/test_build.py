@@ -11,6 +11,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 import build  # noqa: E402
+ATTUNE = "https://arxiv.org/abs/2610.17528"
 
 
 @pytest.fixture(scope="module")
@@ -130,25 +131,45 @@ def test_render_text():
 
 
 def test_citation(files):
-    url, bib = build.citation(ROOT)
-    assert url == "https://arxiv.org/abs/2610.17528" and bib.startswith("@article{fan2026attune,\n")
-    assert "```bibtex\n%s```" % bib in (ROOT / "README.md").read_text(encoding="utf-8")
+    cits = build.citations(ROOT)
+    assert list(cits) == ["https://arxiv.org/abs/2610.17528"] and cits[ATTUNE].startswith("@article{fan2026attune,\n")
+    cff = build.load_yaml(ROOT / "CITATION.cff")
+    assert cff["title"] == "OpenRecipes" and "preferred-citation" not in cff   # the repository cites itself, not ATTUNE
+    assert "@article" not in (ROOT / "README.md").read_text(encoding="utf-8")
     page = files["qwen3.5-122b-a10b/h200/index.html"]
-    assert page.count('<h2 id="cite">Citation</h2>') == 1 and page.count('(<a href="#cite">cite</a>)') == 3
-    assert '<pre id="bibtex">%s</pre>' % build.esc(bib) in page and 'data-copy="bibtex"' in page
-    assert all('id="cite"' in text for name, text in files.items() if name.endswith("/index.html"))
+    assert page.count('<h2 id="cite">Citation</h2>') == 1 and page.count("If you use a recipe by ATTUNE,") == 1
+    assert page.count('(<a href="#cite">cite</a>)') == page.count('<dt>Author</dt><dd><a href="%s">ATTUNE</a>' % ATTUNE)
+    assert '<pre id="bibtex-1">%s</pre>' % build.esc(cits[ATTUNE]) in page and 'data-copy="bibtex-1"' in page
 
 
 def test_citation_only_for_its_author(repo):
     recipe = repo / "recipes/deepseek-v4-flash/h200/attune-tp2-pp4-ep8.yaml"
     text = recipe.read_text()
-    assert "\n  name: ATTUNE\n  url: https://arxiv.org/abs/2610.17528\n" in text
-    recipe.write_text(text.replace("\n  name: ATTUNE\n  url: https://arxiv.org/abs/2610.17528\n", "\n  github: attune\n"))
+    assert "\n  name: ATTUNE\n  url: %s\n" % ATTUNE in text
+    recipe.write_text(text.replace("\n  name: ATTUNE\n  url: %s\n" % ATTUNE, "\n  github: attune\n"))
     out, errs = build.render(repo)
     assert errs == []
     page = out["deepseek-v4-flash/h200/index.html"].decode("utf-8")
     assert "github.com/attune" in page and 'id="cite"' not in page and 'href="#cite"' not in page
     assert b'id="cite"' in out["gpt-oss-20b/h100/index.html"]
+
+
+def test_citation_names_each_author(repo):
+    # another author linking a paper of citations.yaml is named for that paper; its own paper gets its own entry
+    recipe = repo / "recipes/deepseek-v4-flash/h200/attune-tp2-pp4-ep8.yaml"
+    other = "https://example.org/other-paper"
+    text = recipe.read_text().replace("attune-tp2-pp4-ep8", "someone-tp2-pp4-ep8")
+    recipe.unlink()
+    (recipe.parent / "someone-tp2-pp4-ep8.yaml").write_text(text.replace(
+        "\n  name: ATTUNE\n  url: %s\n" % ATTUNE, "\n  name: Someone\n  url: https://example.org\n  paper: %s\n" % other))
+    with open(repo / "citations.yaml", "a") as f:
+        f.write('%s:\n  type: misc\n  title: "Other: a method"\n  authors:\n    - given-names: A\n'
+                '      family-names: Person\n  year: 2026\n' % other)
+    out, errs = build.render(repo)
+    assert errs == []
+    page = out["deepseek-v4-flash/h200/index.html"].decode("utf-8")
+    assert "If you use a recipe by Someone, please cite" in page and "If you use a recipe by ATTUNE" not in page
+    assert "@misc{person2026other," in page and 'href="#cite"' in page
 
 
 def test_repository_site_is_up_to_date():
@@ -157,7 +178,7 @@ def test_repository_site_is_up_to_date():
 
 @pytest.fixture
 def repo(tmp_path):
-    for name in ("models.yaml", "gpus.yaml", "LICENSE", "NOTICE", "CITATION.cff"):
+    for name in ("models.yaml", "gpus.yaml", "LICENSE", "NOTICE", "CITATION.cff", "citations.yaml"):
         shutil.copy(ROOT / name, tmp_path / name)
     for d in ("schema", "patches", "recipes"):
         shutil.copytree(ROOT / d, tmp_path / d)
