@@ -5,5 +5,7 @@
   "assets": {
     "directory": "./site",
     "not_found_handling": "404-page"
-  }
+  },
+  // Required by `wrangler preview`, the PR preview builds' deploy command; production `wrangler deploy` ignores it.
+  "previews": {}
 }
