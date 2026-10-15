@@ -35,8 +35,8 @@ tools/build.py` as the build command.
 
 ## Submit a recipe
 
-Open a pull request with one recipe file and the rebuilt `site/`. <https://openrecipes.ai/submit.html> gives the
-steps, the template and the fields.
+Open a pull request with one recipe file and the rebuilt `site/`. <https://openrecipes.ai/submit> gives the steps,
+the template and the fields, and `CONTRIBUTING.md` covers other contributions.
 
 ## License
 
