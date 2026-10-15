@@ -38,6 +38,21 @@ tools/build.py` as the build command.
 Open a pull request with one recipe file and the rebuilt `site/`. <https://openrecipes.ai/submit> gives the steps,
 the template and the fields, and `CONTRIBUTING.md` covers other contributions.
 
+## Citation
+
+If you use a recipe by ATTUNE, please cite the paper (`CITATION.cff` holds the same entry):
+
+```bibtex
+@article{fan2026attune,
+  title   = {{ATTUNE: Agentic Throughput Tuning for LLM Training}},
+  author  = {Leo Fan and Hongyang Wang and Wenbo Chen and Jingguo Liu and Xian Li and Xuan Wang and
+             Ruochen Wen and Yiming Yan and Hao Wu and Zheshen Wang and Benoit Dumoulin},
+  journal = {arXiv preprint arXiv:2610.17528},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2610.17528}
+}
+```
+
 ## License
 
 Apache-2.0 (`LICENSE`); see `NOTICE` and `THIRD_PARTY_NOTICES`.
