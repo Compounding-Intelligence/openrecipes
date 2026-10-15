@@ -84,7 +84,7 @@ details.recipe[open] > summary::before { content: "\25BE"; }
 details.recipe > summary .rank { font-weight: 650; color: var(--ink); }
 details.recipe > summary .slug { font: 600 .9rem var(--mono); color: var(--ink); overflow-wrap: anywhere; }
 details.recipe > summary .tps { font-family: var(--mono); color: var(--fg); }
-details.recipe > summary .hl { color: var(--mut); font-size: .86rem; flex-basis: 100%; padding-left: 1.9em; }
+details.recipe > summary .hl { color: var(--mut); font-size: .86rem; flex-basis: 100%; padding-left: calc(1rem + 14px); }
 details.recipe .body { padding: 0 18px 18px; border-top: 1px solid var(--soft); }
 .prose { max-width: 860px; }
 .prose ul { margin: 0 0 10px; padding-left: 20px; }
@@ -202,11 +202,11 @@ footer .wrap { padding: 18px 32px; }
   background: rgba(255, 255, 255, .75); border: 1px solid #cfd9e1; padding: 7px 14px; margin-left: -1px; cursor: pointer; }
 .seg button.on { color: #fff; background: var(--a2); border-color: var(--a2); }
 
-.mb, .rank { padding: 16px 20px 6px; margin: 0 0 14px; }
+.mb, .hud.rank { padding: 16px 20px 6px; margin: 0 0 14px; }
 .mb h2 { margin: 2px 0 6px; font-size: 1.2rem; }
-.rank h1 { margin: 2px 0 2px; }
-.rank .tablewrap, .mb .tablewrap { margin-top: 6px; }
-.mb th, .rank th { font: 500 .66rem var(--mono); letter-spacing: .12em; }
+.hud.rank h1 { margin: 2px 0 2px; }
+.hud.rank .tablewrap, .mb .tablewrap { margin-top: 6px; }
+.mb th, .hud.rank th { font: 500 .66rem var(--mono); letter-spacing: .12em; }
 td.g { font-weight: 700; color: var(--ink); }
 td.rk { font: 500 1.05rem var(--mono); color: var(--a2); }
 td.tp .v { display: block; font: 500 1.22rem/1 var(--mono); color: var(--ink); margin-bottom: 6px; }

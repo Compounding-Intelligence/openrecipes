@@ -129,13 +129,35 @@ def test_render_text():
                    '<ul><li>one more</li><li>two <a href="https://example.org/x">https://example.org/x</a>.</li></ul>')
 
 
+def test_citation(files):
+    url, bib = build.citation(ROOT)
+    assert url == "https://arxiv.org/abs/2610.17528" and bib.startswith("@article{fan2026attune,\n")
+    assert "```bibtex\n%s```" % bib in (ROOT / "README.md").read_text(encoding="utf-8")
+    page = files["qwen3.5-122b-a10b/h200/index.html"]
+    assert page.count('<h2 id="cite">Citation</h2>') == 1 and page.count('(<a href="#cite">cite</a>)') == 3
+    assert '<pre id="bibtex">%s</pre>' % build.esc(bib) in page and 'data-copy="bibtex"' in page
+    assert all('id="cite"' in text for name, text in files.items() if name.endswith("/index.html"))
+
+
+def test_citation_only_for_its_author(repo):
+    recipe = repo / "recipes/deepseek-v4-flash/h200/attune-tp2-pp4-ep8.yaml"
+    text = recipe.read_text()
+    assert "\n  name: ATTUNE\n  url: https://arxiv.org/abs/2610.17528\n" in text
+    recipe.write_text(text.replace("\n  name: ATTUNE\n  url: https://arxiv.org/abs/2610.17528\n", "\n  github: attune\n"))
+    out, errs = build.render(repo)
+    assert errs == []
+    page = out["deepseek-v4-flash/h200/index.html"].decode("utf-8")
+    assert "github.com/attune" in page and 'id="cite"' not in page and 'href="#cite"' not in page
+    assert b'id="cite"' in out["gpt-oss-20b/h100/index.html"]
+
+
 def test_repository_site_is_up_to_date():
     assert build.main(["--check"]) == 0
 
 
 @pytest.fixture
 def repo(tmp_path):
-    for name in ("models.yaml", "gpus.yaml", "LICENSE", "NOTICE"):
+    for name in ("models.yaml", "gpus.yaml", "LICENSE", "NOTICE", "CITATION.cff"):
         shutil.copy(ROOT / name, tmp_path / name)
     for d in ("schema", "patches", "recipes"):
         shutil.copytree(ROOT / d, tmp_path / d)
