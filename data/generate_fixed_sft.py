@@ -5,7 +5,8 @@
 
 Needs pyarrow, transformers and a slime or miles checkout on PYTHONPATH. The tokenizer's own Python code runs only
 with --trust-remote-code; --loss-mask-type deepseek_v4 also needs it, because it runs the checkout's official encoder
-(dsv4_mask.py).
+(dsv4_mask.py). --loss-mask-type muse_spark (muse_spark_mask.py) supervises the assistant content the chat template's
+generation spans locate, its header as context.
 """
 
 import argparse
@@ -40,7 +41,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tool-key", default="tools")
     parser.add_argument("--source-key", default="source")
     parser.add_argument("--loss-mask-type", default="qwen3_5",
-                        help="a slime MultiTurnLossMaskGenerator type, or deepseek_v4 (dsv4_mask.py)")
+                        help="a slime MultiTurnLossMaskGenerator type, deepseek_v4 (dsv4_mask.py) or muse_spark "
+                             "(muse_spark_mask.py)")
     parser.add_argument("--sequence-length", type=int, default=4096)
     parser.add_argument("--rows", type=int, default=6400)
     parser.add_argument("--seed", type=int, default=42)
@@ -267,6 +269,10 @@ def main() -> None:
     temporary_manifest.unlink(missing_ok=True)
 
     started = time.time()
+    if args.loss_mask_type == "muse_spark":
+        import muse_spark_mask
+
+        muse_spark_mask.register_config()
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer, trust_remote_code=args.trust_remote_code, use_fast=True)
     if not tokenizer.is_fast:
         raise ValueError("A fast tokenizer is required for assistant-mask alignment")
@@ -277,6 +283,8 @@ def main() -> None:
         from dsv4_mask import DeepSeekV4LossMaskGenerator, load_encoder
 
         mask_generator = DeepSeekV4LossMaskGenerator(tokenizer, load_encoder(args.tokenizer))
+    elif args.loss_mask_type == "muse_spark":
+        mask_generator = muse_spark_mask.MuseSparkLossMaskGenerator(tokenizer, args.tokenizer)
     else:
         from slime.utils.mask_utils import MultiTurnLossMaskGenerator
 
@@ -552,6 +560,8 @@ def main() -> None:
         },
         "elapsed_seconds": time.time() - started,
     }
+    if hasattr(mask_generator, "manifest"):
+        manifest["tokenizer"]["loss_mask"] = mask_generator.manifest()
     with open(temporary_manifest, "w", encoding="utf-8") as manifest_file:
         json.dump(manifest, manifest_file, indent=2, sort_keys=True)
         manifest_file.write("\n")

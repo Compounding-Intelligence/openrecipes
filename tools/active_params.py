@@ -10,8 +10,9 @@ Reads only the safetensors headers (shapes and dtypes), fetched with HTTP range 
 weight with two or more dimensions that the text model applies to each token: attention, linear attention, indexer,
 dense and shared-expert MLPs, routers and the output projection; routed experts count num_experts_per_tok of
 num_experts. It leaves out the input embedding (a lookup), one-dimensional tensors and biases, position embeddings and
-64-bit integer index tables (added or looked up, not multiplied), multi-token prediction layers, vision towers and
-quantization scales, none of which an entry's text-only SFT run applies to its tokens as a matmul.
+64-bit integer index tables (added or looked up, not multiplied), multi-token prediction layers, vision and audio
+towers with their projections and quantization scales, none of which an entry's text-only SFT run applies to its tokens
+as a matmul.
 
 A quantized integer weight pairs with its scale tensor (X.weight with X.scale, X.weight_scale and the like; X_blocks
 with X_scales). It holds FP4 values packed two per byte, and counts at twice its stored size, when the scale is one byte
@@ -30,6 +31,7 @@ import time
 
 ROUTED = re.compile(r"\.experts\.")
 SKIP = (re.compile(r"(^|\.)visual\."), re.compile(r"(^|\.)vision_tower\."), re.compile(r"(^|\.)mtp\."),
+        re.compile(r"(^|\.)(audio_tower|vision_adapter|vision_projection)\."),   # Muse Spark's other modalities
         re.compile(r"scales?(_inv)?$"))   # quantization scales of FP8/FP4/INT8 checkpoints
 EMBED = re.compile(r"(^|\.)(embed|embed_tokens|wte|word_embeddings|embed_in|tok_embeddings)\.weight$")
 POSITION = re.compile(r"(^|\.)(ape|pos_embed|position_embeddings?|wpe)(\.weight)?$")   # added to activations

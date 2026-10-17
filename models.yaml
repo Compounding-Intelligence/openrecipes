@@ -1,7 +1,7 @@
 # Models the site lists, with or without recipes, in display order.
 # The text models of 20B parameters or more that miles supports (https://miles.radixark.com/docs/models,
-# read 2026-10-13), plus MiniMax-M2. `slug` names the directory under recipes/ and the page path,
-# and `notes` holds what every recipe of the model needs to run.
+# read 2026-10-13), plus MiniMax-M2 and Muse-Spark-Open-816B-A42B (miles PR #4111). `slug` names the directory under
+# recipes/ and the page path, and `notes` holds what every recipe of the model needs to run.
 # Derived from ATTUNE's benchmark/models.json (see NOTICE). Modified for OpenRecipes, 2026-10-14: converted
 # to YAML with a slug per model, and MiniMax-M2 added. Add a model by pull request.
 models:
@@ -202,3 +202,24 @@ models:
     model: JoyAI-LLM-Flash
     slug: joyai-llm-flash
     hf: jdopensource/JoyAI-LLM-Flash
+  - family: Muse
+    model: Muse-Spark-Open-816B-A42B
+    slug: muse-spark-open-816b-a42b
+    hf: meta-models/Muse-Spark-Open-816B-A42B
+    notes: |
+      - Weights: the BF16 checkpoint `meta-models/Muse-Spark-Open-816B-A42B` (revision 0fb02478), converted to Megatron
+        `torch_dist` with miles' `tools/convert_hf_to_torch_dist.py` at commit bfdcff0e. `--hf-checkpoint` is the full
+        checkout, whose `config.json` miles' Muse Spark model provider reads; the recipes train the text model only.
+      - `MODEL_ARGS` come from miles' `scripts/models/muse-spark-full.py` (radixark/miles PR #4111, commit bfdcff0e),
+        printed by `miles/utils/external_utils/model_args_utils.py muse-spark-full`; run the command from a miles checkout
+        at that commit.
+      - It trains on its own rows, built with `--loss-mask-type muse_spark` (data/README.md).
+      - Train-only runs pass `--debug-skip-weight-update`. Without it, miles' sample weight-version check
+        (`miles/utils/weight_version.py`) reads an SGLang argument that `--debug-train-only` leaves unset, and the run
+        stops before step 0.
+      - The published `radixark/miles:muse-spark-open` image ships Transformer Engine's PyTorch extension and flash-attn 2
+        compiled against an older PyTorch than its 2.14.1, and both fail to import (undefined
+        `c10_cuda_check_implementation`). Rebuild them against the installed PyTorch: TE 2.17.0 from its PyPI sdist and
+        flash-attn 2.7.4.post1 from source, with `-std=c++20` as the PyTorch 2.14 headers require.
+      - With the EFA plugin installed, set `EP_SUPPRESS_NCCL_CHECK=1`: DeepEP's import-time check counts every loaded
+        `libnccl*` file, takes the plugin's libraries for a second NCCL runtime and stops the process.

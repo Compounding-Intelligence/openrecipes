@@ -104,3 +104,18 @@ def test_tied_embed_tokens_is_the_output_projection(tmp_path, capsys):
     out = _count(src, capsys)
     assert out["parts"]["output"] == 40
     assert out["active_params"] == 56
+
+
+def test_audio_tower_and_vision_adapter_are_not_text_matmuls(tmp_path, capsys):
+    src = _checkpoint(tmp_path, {"text_config": {"num_hidden_layers": 1}}, {"model.safetensors": {
+        "model.language_model.layers.0.self_attn.q_proj.weight": ("BF16", [4, 4]),   # 16
+        "model.audio_tower.layers.0.self_attn.q_proj.weight": ("BF16", [8, 4]),
+        "model.audio_tower.proj.weight": ("BF16", [4, 8]),
+        "model.vision_tower.layers.0.mlp.fc1.weight": ("BF16", [8, 4]),
+        "model.vision_adapter.fc1.weight": ("BF16", [8, 4]),
+        "model.vision_projection.weight": ("BF16", [4, 8]),
+    }})
+    out = _count(src, capsys)
+    assert out["parts"]["other_matmul"] == 16
+    assert out["parts"]["excluded"] == 160
+    assert out["active_params"] == 16

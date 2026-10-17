@@ -32,6 +32,9 @@ validates every row, and writes the manifest with the source, tokenizer and outp
   `load_processor`. Upstream slime (<https://github.com/THUDM/slime>) has the `qwen3_5` loss mask; GLM-5.2 needs
   `patch_glm5_mask.py` and gpt-oss `patch_gptoss_mask.py`. The `deepseek_v4` mask needs no slime generator; the
   loader check then uses miles when slime is absent.
+- The `muse_spark` mask needs a miles checkout at commit `bfdcff0e` and Megatron-LM on `PYTHONPATH`: it registers
+  miles' Muse Spark config with transformers to load the checkpoint's tokenizer. That import loads Megatron and
+  Transformer Engine, so the build needs a host with a CUDA driver; one GPU is enough.
 
 ## Build
 
@@ -128,6 +131,27 @@ Run the build once per tokenizer.
      --source-batch-size 2048 --write-batch-size 64 --min-token-entropy-bits 8.0
    ```
 
+   Muse Spark renders conversations with the checkpoint's `chat_template.jinja`, which wraps each assistant message
+   in `{% generation %}`. `--loss-mask-type muse_spark` (`muse_spark_mask.py`) takes the assistant messages from those
+   spans, checks them against the rendering of growing prefixes of the conversation, and supervises each assistant
+   part's content and its end marker (`<|eot|>` or `<|eom|>`); the `<|start|>assistant to=...<|message|>` header is
+   context. It pins the template's current date to 2026-10-01 and its reasoning effort to `xhigh`, so the rows do not
+   depend on the build date. Use the checkout of `meta-models/Muse-Spark-Open-816B-A42B` (revision
+   `0fb02478b02565b2ce7fc57e6051c91172774ac9`):
+
+   ```bash
+   export PYTHONPATH=<miles checkout>:<Megatron-LM checkout>:$PYTHONPATH TOKENIZERS_PARALLELISM=false
+   python3 -u generate_fixed_sft.py \
+     --input tulu-3-sft-mixture/data \
+     --output muse-spark-tulu3-fixed8192-v1/train.parquet \
+     --tokenizer <Muse-Spark-Open-816B-A42B checkout> \
+     --source-dataset allenai/tulu-3-sft-mixture \
+     --source-revision b14afda60f1bbebe55d5d2fa1e4df5042f97f8be \
+     --input-key messages --source-key source --loss-mask-type muse_spark \
+     --sequence-length 8192 --rows 6400 --seed 42 \
+     --source-batch-size 2048 --write-batch-size 64 --min-token-entropy-bits 8.0
+   ```
+
 4. Verify against a recipe (needs PyYAML):
 
    ```bash
@@ -159,4 +183,6 @@ tokens (default 8,192); set it in the environment of every pod. The adapter refu
   `verify_rows.py` shows whether the rows match.
 - The gpt-oss set was built with transformers 5.8.1, tokenizers 0.22.2 and pyarrow 23.0.1; rebuilt on two more
   clusters from the same inputs, it matched byte for byte.
+- The Muse Spark set was built with transformers 5.12.1, tokenizers 0.22.2 and pyarrow 25.0.1, the versions of the
+  training image.
 - `row_hash` hashes the tokens as native 32-bit integers, so it assumes a little-endian host (x86-64 or ARM64).
