@@ -29,8 +29,8 @@
 <p>Leave out internal paths, image registry addresses, account or cluster names, and datasets you may not cite.</p>
 <h2 id="template">The recipe file</h2>
 <p>The full schema is <a href="schema/recipe.schema.yaml"><code>schema/recipe.schema.yaml</code></a>; every recipe in <a href="https://github.com/Compounding-Intelligence/openrecipes/tree/main/recipes"><code>recipes/</code></a> is a worked example.</p>
-<div class="filebar"><span class="k">recipes/&lt;model-slug&gt;/&lt;gpu&gt;/&lt;handle&gt;-&lt;layout&gt;.yaml</span><span class="acts"><button type="button" class="btn o" data-copy="template">Copy</button></span></div>
-<pre class="file" id="template">schema_version: 1
+<div class="filebar"><span class="k">recipes/&lt;model-slug&gt;/&lt;gpu&gt;/&lt;handle&gt;-&lt;layout&gt;.yaml</span><span class="acts"><button type="button" class="btn o" data-copy="recipe-template">Copy</button></span></div>
+<pre class="file" id="recipe-template">schema_version: 1
 model: Qwen3.5-122B-A10B          # as in models.yaml; add the model there if it is missing
 gpu: {type: H200, memory_gb: 141, count: 32, per_node: 8, instance: AWS p5en.48xlarge}
 author: {github: your-handle}     # or {name: &lt;tool&gt;, url: https://...}

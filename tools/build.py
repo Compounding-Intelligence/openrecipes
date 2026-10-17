@@ -609,8 +609,8 @@ def submit_page(schema, date):
 <p>Leave out internal paths, image registry addresses, account or cluster names, and datasets you may not cite.</p>
 <h2 id="template">The recipe file</h2>
 <p>The full schema is <a href="schema/recipe.schema.yaml"><code>schema/recipe.schema.yaml</code></a>; every recipe in <a href="{repo}/tree/main/recipes"><code>recipes/</code></a> is a worked example.</p>
-<div class="filebar"><span class="k">recipes/&lt;model-slug&gt;/&lt;gpu&gt;/&lt;handle&gt;-&lt;layout&gt;.yaml</span><span class="acts"><button type="button" class="btn o" data-copy="template">Copy</button></span></div>
-<pre class="file" id="template">{template}</pre>
+<div class="filebar"><span class="k">recipes/&lt;model-slug&gt;/&lt;gpu&gt;/&lt;handle&gt;-&lt;layout&gt;.yaml</span><span class="acts"><button type="button" class="btn o" data-copy="recipe-template">Copy</button></span></div>
+<pre class="file" id="recipe-template">{template}</pre>
 <h2 id="fields">Fields</h2>
 <p class="muted small">Generated from the schema. tools/validate.py also checks the cross-field rules listed at the top of the schema file.</p>
 <div class="card tablewrap"><table><thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Meaning</th></tr></thead><tbody>{rows}</tbody></table></div>""".format(
