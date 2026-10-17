@@ -57,6 +57,7 @@ td { padding: 12px; border-bottom: 1px solid var(--soft); font-variant-numeric: 
 tr:last-child td { border-bottom: 0; }
 td.n { font-family: var(--mono); white-space: nowrap; }
 td small { color: var(--mut); }
+.field-formula { width: max-content; margin: .35em 0; font-size: 1em; }
 tr.best td { font-weight: 650; }
 tr.best td small { font-weight: 400; }
 .pill { display: inline-block; font: 600 .72rem var(--sans); color: var(--a2); background: var(--pill);
@@ -71,6 +72,9 @@ tr.best td small { font-weight: 400; }
 pre { margin: 0; font: 12.5px/1.55 var(--mono); color: var(--ink); background: #f3f6f9; border: 1px solid var(--line);
   border-radius: 8px; padding: 14px 16px; overflow: auto; max-width: 100%; }
 pre.file { max-height: 560px; }
+.equation { margin: 14px 0; padding: 18px 20px; overflow-x: auto; max-width: 100%;
+  color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 8px; }
+.equation math { width: max-content; margin: 0 auto; font-size: 1.1em; }
 .filebar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin: 14px 0 8px; }
 .filebar .k { overflow-wrap: anywhere; }
 .filebar .acts { display: flex; gap: 8px; align-items: center; }

@@ -434,6 +434,20 @@ def pair_page(model, gpu, items, pairs, gpus, date, root, cits):
 
 # ---- protocol -----------------------------------------------------------------------------------------------------
 
+COST_EQUATION = """<div class="equation">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="Dollars per million tokens equals the per-GPU hourly rate divided by tokens per second per GPU times 3,600, multiplied by ten to the sixth power.">
+  <mrow>
+    <mtext>$ per 1M tokens</mtext><mo>=</mo>
+    <mfrac>
+      <mtext>per-GPU hourly rate</mtext>
+      <mrow><mtext>tokens/s/GPU</mtext><mo>×</mo><mn>3,600</mn></mrow>
+    </mfrac>
+    <mo>×</mo><msup><mn>10</mn><mn>6</mn></msup>
+  </mrow>
+</math>
+</div>"""
+
+
 def protocol_page(recipes, gpus, rates, date):
     rate_rows = "".join(
         '<tr><td>{t}</td><td>{name}</td><td>{inst}</td><td class="n">${rate}</td><td class="n">{peak:,}</td>'
@@ -462,7 +476,18 @@ def protocol_page(recipes, gpus, rates, date):
 <p>A recipe may run on any number of GPUs of its type and records the count.</p>
 <h2 id="measurement">Measurement</h2>
 <p>A run lasts 20 optimizer steps (0&ndash;19) with the profiler off. Steps 0&ndash;4 absorb startup, compilation and allocator warm-up and are discarded; steps 5&ndash;19 form the measured window <em>W</em>. The score is the aggregate throughput over the window, summed before dividing:</p>
-<pre>tokens/s/GPU = (sum over W of tokens) / (number of GPUs x sum over W of step time)</pre>
+<div class="equation">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="Tokens per second per GPU equals the sum of tokens over the measured window divided by the number of GPUs times the sum of step times over the window.">
+  <mrow>
+    <mtext>tokens/s/GPU</mtext><mo>=</mo>
+    <mfrac>
+      <mrow><munder><mo>∑</mo><mrow><mi>i</mi><mo>∈</mo><mi>W</mi></mrow></munder><msub><mi>T</mi><mi>i</mi></msub></mrow>
+      <mrow><msub><mi>n</mi><mtext>GPU</mtext></msub><mo>×</mo><munder><mo>∑</mo><mrow><mi>i</mi><mo>∈</mo><mi>W</mi></mrow></munder><msub><mi>t</mi><mi>i</mi></msub></mrow>
+    </mfrac>
+  </mrow>
+</math>
+</div>
+<p>For each step <em>i</em> in the measured window <em>W</em>, <em>T</em><sub>i</sub> is the number of tokens and <em>t</em><sub>i</sub> is the step time in seconds; <em>n</em><sub>GPU</sub> is the number of GPUs.</p>
 <p>A recipe is one run. It reports the score and the coefficient of variation of the step time over <em>W</em>. The same 20-step run is the recipe's arm of the convergence check below, so one run covers both. A run that also needs a profiler trace continues past step 19: step 20 sets the profiler up, step 21 warms it up and step 22 (up to 24) is recorded. Those steps are never scored, and a run that long is not a convergence arm, because the run length can change the learning-rate schedule. {short}</p>
 <p>GPU-hours count GPUs times the time from scheduler admission to finish, including startup.</p>
 <h2 id="correctness">Correctness</h2>
@@ -471,10 +496,22 @@ def protocol_page(recipes, gpus, rates, date):
 <p>The measured run serves as the recipe's arm when nothing in it adds work to the step. A reference arm serves every recipe of its pair that runs on the same image and rows. Publishing the reference recipe is optional; a recipe states it when it is public.</p>
 <p><b>Objective conventions.</b> Qwen3.5 and Qwen3.6 recipes train with the load-balancing loss off (<code>--moe-aux-loss-coeff 0</code>), in the reference recipe and the recipe alike. Megatron computes that loss per microbatch, so with the loss on, the number of rows per microbatch would be part of the objective.</p>
 <h2 id="cost">Cost</h2>
-<p><code>$ / 1M tokens = per-GPU hourly rate / (tokens/s/GPU x 3,600) x 10^6</code>. The rates are {basis}, fetched {fetched}, from <a href="{repo}/blob/main/gpus.yaml"><code>gpus.yaml</code></a>. Prices change; recompute for your region and commitment. Within a pair every recipe uses the same rate, so the fastest recipe is also the cheapest; each model's pages compare its GPU types on both.</p>
+{cost_equation}
+<p>The rates are {basis}, fetched {fetched}, from <a href="{repo}/blob/main/gpus.yaml"><code>gpus.yaml</code></a>. Prices change; recompute for your region and commitment. Within a pair every recipe uses the same rate, so the fastest recipe is also the cheapest; each model's pages compare its GPU types on both.</p>
 <div class="card tablewrap"><table><thead><tr><th>Type</th><th>GPU</th><th>Instance</th><th>$ / GPU-hour</th><th>Dense BF16 peak, TFLOP/s</th><th></th></tr></thead><tbody>{rates}</tbody></table></div>
 <h2 id="mfu">MFU</h2>
-<p>MFU = 6 x N x tokens/s/GPU / peak. <em>N</em> is the model's active parameters per token: every weight the text model applies to each token in a matrix multiplication (attention, linear attention, sparse-attention indexer, dense and shared-expert MLPs, routers and the output projection), with routed experts counted at top-k of the expert count. N leaves out the input embedding (a lookup), norms and biases, position embeddings and integer index tables, multi-token prediction layers and vision towers; FP4 weights stored two per byte count at their unpacked size. <a href="{repo}/blob/main/tools/active_params.py"><code>tools/active_params.py</code></a> counts N from the checkpoint's safetensors headers, and a recipe records N with the checkpoint and its revision. The peak is the GPU's dense BF16 peak in the table above. Attention-score FLOPs and recomputation are not counted, so MFU compares models with softmax, linear and sparse attention on one basis and sits below the hardware's actual FLOP rate.</p>
+<div class="equation">
+<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="MFU equals six times the active parameters per token times tokens per second per GPU, divided by the GPU's peak FLOPs per second.">
+  <mrow>
+    <mtext>MFU</mtext><mo>=</mo>
+    <mfrac>
+      <mrow><mn>6</mn><mo>×</mo><mi>N</mi><mo>×</mo><mtext>tokens/s/GPU</mtext></mrow>
+      <mtext>peak FLOPs/s</mtext>
+    </mfrac>
+  </mrow>
+</math>
+</div>
+<p><em>N</em> is the model's active parameters per token: every weight the text model applies to each token in a matrix multiplication (attention, linear attention, sparse-attention indexer, dense and shared-expert MLPs, routers and the output projection), with routed experts counted at top-k of the expert count. N leaves out the input embedding (a lookup), norms and biases, position embeddings and integer index tables, multi-token prediction layers and vision towers; FP4 weights stored two per byte count at their unpacked size. <a href="{repo}/blob/main/tools/active_params.py"><code>tools/active_params.py</code></a> counts N from the checkpoint's safetensors headers, and a recipe records N with the checkpoint and its revision. The peak is the GPU's dense BF16 peak in the table above, converted from TFLOP/s to FLOP/s. Attention-score FLOPs and recomputation are not counted, so MFU compares models with softmax, linear and sparse attention on one basis and sits below the hardware's actual FLOP rate.</p>
 <p>MFU on this workload is low for large mixture-of-experts models, and it reflects the workload more than the recipe. A step of 128 rows of 8,192 tokens is about 1.05 million tokens. {spread}, so pipeline bubbles, the expert all-to-all and, where memory forces it, the CPU optimizer step take a large share of every step. Compare MFU between recipes of one pair, not with large-batch pretraining.</p>
 <h2 id="stack">Stack</h2>
 <p>A recipe records the versions it ran on: the framework (slime or miles, with its commit), Megatron-LM, Transformer Engine, PyTorch, CUDA and NCCL, plus any communication library it uses (for example DeepEP), the GPUs per node and the inter-node network. A version the run's evidence does not show reads <code>not pinned</code>.</p>
@@ -485,7 +522,7 @@ def protocol_page(recipes, gpus, rates, date):
 <h2 id="status">Status and authors</h2>
 <p>A <em>verified</em> recipe was measured as above and passed both checks; OpenRecipes lists verified recipes only. Each recipe names its author: the GitHub handle of the person or team that submitted it, or a name and a link for a tool.</p>""".format(
         repo=REPO_URL, basis=esc(rates["basis"]), fetched=esc(iso(rates["fetched"])),
-        rates=rate_rows, short=short, spread=spread)
+        rates=rate_rows, short=short, spread=spread, cost_equation=COST_EQUATION)
     return shell("protocol.html", "Protocol | OpenRecipes",
                  "How OpenRecipes measures training throughput, checks correctness, and computes cost and MFU.",
                  body, "protocol", date)
@@ -589,9 +626,34 @@ def schema_rows(schema, prefix="", required=()):
     return out
 
 
+def schema_meaning(description):
+    """Render the schema's existing formulas as MathML within the field table."""
+    formulas = {
+        "floor(max_tokens_per_gpu x cp / row_tokens)": (
+            '<math class="field-formula" xmlns="http://www.w3.org/1998/Math/MathML" display="block" '
+            'aria-label="Floor of max tokens per GPU times CP divided by row tokens.">'
+            '<mrow><mo>⌊</mo><mfrac>'
+            '<mrow><mtext>max_tokens_per_gpu</mtext><mo>×</mo><mtext>cp</mtext></mrow>'
+            '<mtext>row_tokens</mtext>'
+            '</mfrac><mo>⌋</mo></mrow></math>'),
+        "Sum of tokens over the window / (GPUs x sum of step times over the window).": (
+            '<math class="field-formula" xmlns="http://www.w3.org/1998/Math/MathML" display="block" '
+            'aria-label="Sum of tokens over the window divided by GPUs times the sum of step times over the window.">'
+            '<mfrac>'
+            '<mrow><munder><mo>∑</mo><mtext>window</mtext></munder><mtext>tokens</mtext></mrow>'
+            '<mrow><mtext>GPUs</mtext><mo>×</mo><munder><mo>∑</mo><mtext>window</mtext></munder>'
+            '<mtext>step time</mtext></mrow>'
+            '</mfrac></math>'),
+    }
+    rendered = inline(description)
+    for text, formula in formulas.items():
+        rendered = rendered.replace(text, formula)
+    return rendered
+
+
 def submit_page(schema, date):
     rows = "".join('<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td>%s</td></tr>'
-                   % (esc(p), esc(t), "yes" if req else "", inline(d)) for p, t, req, d in
+                   % (esc(p), esc(t), "yes" if req else "", schema_meaning(d)) for p, t, req, d in
                    schema_rows(schema, "", schema.get("required", ())))
     body = """<h1>Submit a recipe</h1>
 <p class="lede">OpenRecipes takes two kinds of contribution: a faster recipe for a model and GPU type, including a pair the catalog does not list yet, and a search procedure that finds recipes, such as a tuner, an agent or a set of rules. Submit a procedure through the recipes it finds; each is one recipe file, and its notes describe or link the procedure.</p>
