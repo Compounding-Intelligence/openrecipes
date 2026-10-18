@@ -492,13 +492,20 @@
    "model": "Muse-Spark-Open-816B-A42B",
    "slug": "muse-spark-open-816b-a42b",
    "hf": "meta-models/Muse-Spark-Open-816B-A42B",
-   "notes": "- Weights: the BF16 checkpoint `meta-models/Muse-Spark-Open-816B-A42B` (revision 0fb02478), converted to Megatron\n  `torch_dist` with miles' `tools/convert_hf_to_torch_dist.py` at commit bfdcff0e. `--hf-checkpoint` is the full\n  checkout, whose `config.json` miles' Muse Spark model provider reads; the recipes train the text model only.\n- `MODEL_ARGS` come from miles' `scripts/models/muse-spark-full.py` (radixark/miles PR #4111, commit bfdcff0e),\n  printed by `miles/utils/external_utils/model_args_utils.py muse-spark-full`; run the command from a miles checkout\n  at that commit.\n- It trains on its own rows, built with `--loss-mask-type muse_spark` (data/README.md).\n- Train-only runs pass `--debug-skip-weight-update`. Without it, miles' sample weight-version check\n  (`miles/utils/weight_version.py`) reads an SGLang argument that `--debug-train-only` leaves unset, and the run\n  stops before step 0.\n- The published `radixark/miles:muse-spark-open` image ships Transformer Engine's PyTorch extension and flash-attn 2\n  compiled against an older PyTorch than its 2.14.1, and both fail to import (undefined\n  `c10_cuda_check_implementation`). Rebuild them against the installed PyTorch: TE 2.17.0 from its PyPI sdist and\n  flash-attn 2.7.4.post1 from source, with `-std=c++20` as the PyTorch 2.14 headers require.\n- With the EFA plugin installed, set `EP_SUPPRESS_NCCL_CHECK=1`: DeepEP's import-time check counts every loaded\n  `libnccl*` file, takes the plugin's libraries for a second NCCL runtime and stops the process.\n",
+   "notes": "- Weights: the BF16 checkpoint `meta-models/Muse-Spark-Open-816B-A42B` (revision 0fb02478), converted to Megatron\n  `torch_dist` with miles' `tools/convert_hf_to_torch_dist.py` at commit bfdcff0e. `--hf-checkpoint` is the full\n  checkout, whose `config.json` miles' Muse Spark model provider reads; the recipes train the text model only.\n- `MODEL_ARGS` come from miles' `scripts/models/muse-spark-full.py` (radixark/miles PR #4111, commit bfdcff0e),\n  printed by `miles/utils/external_utils/model_args_utils.py muse-spark-full`; run the command from a miles checkout\n  at that commit.\n- It trains on its own rows, built with `--loss-mask-type muse_spark` (data/README.md).\n- Train-only runs pass `--debug-skip-weight-update`. Without it, miles' sample weight-version check\n  (`miles/utils/weight_version.py`) reads an SGLang argument that `--debug-train-only` leaves unset, and the run\n  stops before step 0.\n- The published `radixark/miles:muse-spark-open` image ships Transformer Engine's PyTorch extension and flash-attn 2\n  compiled against an older PyTorch than its 2.14.1, and both fail to import (undefined\n  `c10_cuda_check_implementation`). Rebuild them against the installed PyTorch for the GPUs you train on (sm90 for\n  H200, sm100 for B200): TE 2.17.0 from its PyPI sdist and flash-attn 2.7.4.post1 from source, with `-std=c++20`\n  as the PyTorch 2.14 headers require.\n- On B200, use `--attention-backend fused` (cuDNN fused attention). With `flash`, TE 2.17 selects FlashAttention 4\n  (flash-attn-4 4.0.0b19 in the image; FlashAttention 3 is Hopper-only), whose sm100 forward calls\n  `quack.activation.sub_packed_f32x2`; the image's quack-kernels 0.6.5 lacks it, and the run stops at step 0.\n  `auto` reaches FlashAttention 4 too wherever TE prefers it.\n- With the EFA plugin installed, set `EP_SUPPRESS_NCCL_CHECK=1`: DeepEP's import-time check counts every loaded\n  `libnccl*` file, takes the plugin's libraries for a second NCCL runtime and stops the process.\n",
    "pairs": [
     {
      "gpu": "H200",
      "url": "https://openrecipes.ai/muse-spark-open-816b-a42b/h200/",
      "recipes": [
       "recipes/muse-spark-open-816b-a42b/h200/attune-tp4-pp16-ep8.yaml"
+     ]
+    },
+    {
+     "gpu": "B200",
+     "url": "https://openrecipes.ai/muse-spark-open-816b-a42b/b200/",
+     "recipes": [
+      "recipes/muse-spark-open-816b-a42b/b200/attune-tp2-pp16-ep8.yaml"
      ]
     }
    ]
@@ -1889,6 +1896,147 @@
    "patches": [],
    "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:False\nexport NVTE_ALLOW_NONDETERMINISTIC_ALGO=1\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport OMP_NUM_THREADS=12\nexport EP_SUPPRESS_NCCL_CHECK=1\nexport TILELANG_CACHE_DIR=\"$KERNEL_CACHE/tilelang\"\nexport TRITON_CACHE_DIR=\"$KERNEL_CACHE/triton\"\nexport TORCHINDUCTOR_CACHE_DIR=\"$KERNEL_CACHE/inductor\"\nexport FI_PROVIDER=efa\nexport FI_EFA_USE_DEVICE_RDMA=1\n\nMODEL_ARGS_LINE=\"$(python3 miles/utils/external_utils/model_args_utils.py muse-spark-full)\"\nread -ra MODEL_ARGS <<< \"$MODEL_ARGS_LINE\"\npython3 train.py \\\n  --actor-num-nodes 16 \\\n  --actor-num-gpus-per-node 8 \\\n  --num-gpus-per-node 8 \\\n  \"${MODEL_ARGS[@]}\" \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --debug-skip-weight-update \\\n  --tensor-model-parallel-size 4 \\\n  --sequence-parallel \\\n  --pipeline-model-parallel-size 16 \\\n  --decoder-first-pipeline-num-layers 3 \\\n  --decoder-last-pipeline-num-layers 3 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 8 \\\n  --expert-tensor-parallel-size 1 \\\n  --qkv-format thd \\\n  --seq-length 8192 \\\n  --attention-backend flash \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --optimizer-cpu-offload \\\n  --optimizer-offload-fraction 0.3 \\\n  --overlap-cpu-optimizer-d2h-h2d \\\n  --distributed-timeout-minutes 60\n",
    "notes": "- `OMP_NUM_THREADS=12` gives each training process 12 threads for its part of the CPU Adam step, the node's 96\n  physical cores over 8 ranks; Ray otherwise starts each training actor with one thread.\n- Keep the full recompute: a tuning run at PP 16 with recompute off ran out of memory at step 0 with the whole\n  optimizer on the CPU, and this recipe keeps 70% of the optimizer state on the GPU.\n"
+  },
+  {
+   "path": "recipes/muse-spark-open-816b-a42b/b200/attune-tp2-pp16-ep8.yaml",
+   "slug": "attune-tp2-pp16-ep8",
+   "rank": 1,
+   "schema_version": 1,
+   "model": "Muse-Spark-Open-816B-A42B",
+   "gpu": {
+    "type": "B200",
+    "memory_gb": 180,
+    "count": 128,
+    "per_node": 8,
+    "instance": "AWS p6-b200.48xlarge"
+   },
+   "author": {
+    "name": "ATTUNE",
+    "url": "https://arxiv.org/abs/2610.17528"
+   },
+   "status": "verified",
+   "stack": {
+    "framework": "miles commit bfdcff0e (radixark/miles PR #4111, the commit of the published radixark/miles:muse-spark-open image), no local changes",
+    "megatron_lm": "radixark/Megatron-LM commit 6530834a (branch muse-spark-open; megatron-core 0.19.0), no local changes",
+    "transformer_engine": "2.17.0 (PyTorch extension rebuilt against the installed PyTorch for sm90 and sm100)",
+    "pytorch": "2.14.1 (CUDA 13.0 build)",
+    "cuda": "13.0",
+    "nccl": "2.30.7 (CUDA 13.3 build; printed by the measured run)",
+    "cudnn": "9.22.0.52 (runs the attention, `--attention-backend fused`)",
+    "flash_attn": "2.7.4.post1 (rebuilt against the installed PyTorch for sm90 and sm100; the recipe does not use it)",
+    "deepep": "sgl-deep-ep 0.1.2.post1 (installed; the alltoall dispatcher does not use it)",
+    "python": "3.12.3",
+    "network": "8 GPUs per node, EFA 1.49 (aws-ofi-nccl 1.20), 3.2 Tb/s RDMA per node",
+    "source": "version check of the measured run's training image (same digest) at its build, 2026-10-17: miles and Megatron-LM git commits, installed TE, flash-attn, PyTorch and megatron-core; package listing and git status of the same image, 2026-10-18: Python, cuDNN, DeepEP, flash-attn-4, quack-kernels, clean miles and Megatron-LM checkouts; NCCL from the measured run's log. The image is radixark/miles:muse-spark-open (amd64 digest sha256:2b46ca326003e347c600145bd60935b42af8032ed6f0a75e7fdc7bf5a8700b15) with EFA 1.49 added, TE's PyTorch extension and flash-attn 2 rebuilt against its PyTorch for sm90 and sm100, and Ubuntu security updates"
+   },
+   "workload": {
+    "row_tokens": 8192,
+    "rows": "SFT conversations",
+    "global_batch": 128,
+    "precision": "bf16",
+    "dataset": {
+     "name": "Tulu 3 SFT mixture",
+     "source": "allenai/tulu-3-sft-mixture",
+     "revision": "b14afda60f1bbebe55d5d2fa1e4df5042f97f8be",
+     "license": "ODC-By 1.0",
+     "rows_sha256": "4003478c605da1a2a351a0ba38adba24bcef54355394cedf4a1d425ec049128f",
+     "build": {
+      "name": "muse-spark-tulu3-fixed8192-v1",
+      "tokenizer": "Muse-Spark-Open-816B-A42B (revision 0fb02478b02565b2ce7fc57e6051c91172774ac9; tokenizer.json sha256 ac2f41ef2444dec82fdc90e334f80543f298535005fe78aec7e8311ef86f84d0; chat_template.jinja sha256 2341a2d3b1f1b0ac92b6237d46e2fff495109bd3305cacdea54726f5e98411db)",
+      "loss_mask": "muse_spark",
+      "rows": 6400,
+      "row_tokens": 8192,
+      "padding_tokens": 0,
+      "seed": 42,
+      "packing": "source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into consecutive 8,192-token rows; rows without supervised targets are skipped",
+      "template_kwargs": "current_date 2026-10-01, reasoning_effort xhigh",
+      "supervised_token_ratio": 0.56,
+      "parquet_sha256": "19d690622257686f709057f8e665126b8847a18eb6f303e6e9d0d77bdeb1f576",
+      "parquet_bytes": 68772137,
+      "builder": "data/generate_fixed_sft.py with --loss-mask-type muse_spark (muse_spark_mask.py; data/README.md)"
+     }
+    }
+   },
+   "layout": {
+    "label": "TP2 PP16 EP8 DP4",
+    "summary": "TP 2, PP 16 (first and last stage 3 layers, the 14 middle stages 4 each), CP 1, EP 8, ETP 1, DP 4, sequence parallel; one 8,192-token row per microbatch (THD, max 8,192 tokens/GPU); full recompute (uniform, 1 layer); distributed optimizer, no offload; cuDNN fused attention; alltoall dispatcher",
+    "highlights": "max 8,192 tokens/GPU, full recompute, Adam on the GPU, cuDNN fused attention",
+    "tp": 2,
+    "pp": 16,
+    "vpp": 1,
+    "cp": 1,
+    "ep": 8,
+    "etp": 1,
+    "dp": 4,
+    "sequence_parallel": true,
+    "layer_split": {
+     "first": 3,
+     "last": 3
+    },
+    "max_tokens_per_gpu": 8192,
+    "rows_per_microbatch": 1,
+    "recompute": {
+     "granularity": "full",
+     "method": "uniform",
+     "num_layers": 1
+    },
+    "offload": null,
+    "dispatcher": "alltoall"
+   },
+   "result": {
+    "tokens_per_s_per_gpu": 505.22,
+    "usd_per_million_tokens": 7.83,
+    "step_time_cv_percent": 1.51,
+    "mfu": 0.0599,
+    "mfu_note": null,
+    "active_params": {
+     "count": 44432883712,
+     "source": "https://huggingface.co/meta-models/Muse-Spark-Open-816B-A42B",
+     "revision": "0fb02478b02565b2ce7fc57e6051c91172774ac9"
+    },
+    "measured": "2026-10-17",
+    "steps_per_run": 20,
+    "window": [
+     5,
+     19
+    ],
+    "window_tokens": 15728640,
+    "runs": 1,
+    "profiler": false,
+    "gpu_hours": 48.85,
+    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
+   },
+   "correctness": {
+    "result": "pass",
+    "summary": "passed",
+    "reference": "miles' validated 64-GPU H200 layout for Muse Spark Open (radixark/miles PR #4111): TP 8 with sequence parallel, PP 8 (first and last stage 7 layers), full recompute, here on 128 B200 GPUs with EP 16 and DP 2 and Adam on the GPU in place of the PR's disk-streamed optimizer state, which crashed at its first optimizer step on this image, and with cuDNN fused attention. Model arguments, rows and schedule are the same in both recipes.",
+    "configuration": "pass",
+    "component_tests": [],
+    "convergence": {
+     "steps": 20,
+     "result": "pass",
+     "correlation": 0.99713,
+     "final_loss_difference": 0.0013,
+     "pointwise_failures": 0,
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both"
+    },
+    "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml (amazon-science/attune f2cb450), with miles' per-run run_uuid, newer than that list, ignored; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
+   },
+   "env": {
+    "CUDA_DEVICE_MAX_CONNECTIONS": "1",
+    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:False",
+    "NVTE_ALLOW_NONDETERMINISTIC_ALGO": "1",
+    "TORCHINDUCTOR_COMPILE_THREADS": "1",
+    "EP_SUPPRESS_NCCL_CHECK": "1",
+    "TILELANG_CACHE_DIR": "$KERNEL_CACHE/tilelang",
+    "TRITON_CACHE_DIR": "$KERNEL_CACHE/triton",
+    "TORCHINDUCTOR_CACHE_DIR": "$KERNEL_CACHE/inductor",
+    "FI_PROVIDER": "efa",
+    "FI_EFA_USE_DEVICE_RDMA": "1"
+   },
+   "patches": [],
+   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:False\nexport NVTE_ALLOW_NONDETERMINISTIC_ALGO=1\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport EP_SUPPRESS_NCCL_CHECK=1\nexport TILELANG_CACHE_DIR=\"$KERNEL_CACHE/tilelang\"\nexport TRITON_CACHE_DIR=\"$KERNEL_CACHE/triton\"\nexport TORCHINDUCTOR_CACHE_DIR=\"$KERNEL_CACHE/inductor\"\nexport FI_PROVIDER=efa\nexport FI_EFA_USE_DEVICE_RDMA=1\n\nMODEL_ARGS_LINE=\"$(python3 miles/utils/external_utils/model_args_utils.py muse-spark-full)\"\nread -ra MODEL_ARGS <<< \"$MODEL_ARGS_LINE\"\npython3 train.py \\\n  --actor-num-nodes 16 \\\n  --actor-num-gpus-per-node 8 \\\n  --num-gpus-per-node 8 \\\n  \"${MODEL_ARGS[@]}\" \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --debug-skip-weight-update \\\n  --tensor-model-parallel-size 2 \\\n  --sequence-parallel \\\n  --pipeline-model-parallel-size 16 \\\n  --decoder-first-pipeline-num-layers 3 \\\n  --decoder-last-pipeline-num-layers 3 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 8 \\\n  --expert-tensor-parallel-size 1 \\\n  --qkv-format thd \\\n  --seq-length 8192 \\\n  --attention-backend fused \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --distributed-timeout-minutes 60\n",
+   "notes": "- Adam stays on the GPU: the measured run peaked at 157.8 GiB used per GPU of 178.35 GiB. EP 8 is the smallest EP\n  that fits at PP 16: a tuning run at EP 4 ran out of memory at step 0.\n"
   },
   {
    "path": "recipes/qwen3.5-122b-a10b/h100/attune-tp4-pp6-ep8-flex-mt16k.yaml",

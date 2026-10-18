@@ -219,7 +219,12 @@ models:
         stops before step 0.
       - The published `radixark/miles:muse-spark-open` image ships Transformer Engine's PyTorch extension and flash-attn 2
         compiled against an older PyTorch than its 2.14.1, and both fail to import (undefined
-        `c10_cuda_check_implementation`). Rebuild them against the installed PyTorch: TE 2.17.0 from its PyPI sdist and
-        flash-attn 2.7.4.post1 from source, with `-std=c++20` as the PyTorch 2.14 headers require.
+        `c10_cuda_check_implementation`). Rebuild them against the installed PyTorch for the GPUs you train on (sm90 for
+        H200, sm100 for B200): TE 2.17.0 from its PyPI sdist and flash-attn 2.7.4.post1 from source, with `-std=c++20`
+        as the PyTorch 2.14 headers require.
+      - On B200, use `--attention-backend fused` (cuDNN fused attention). With `flash`, TE 2.17 selects FlashAttention 4
+        (flash-attn-4 4.0.0b19 in the image; FlashAttention 3 is Hopper-only), whose sm100 forward calls
+        `quack.activation.sub_packed_f32x2`; the image's quack-kernels 0.6.5 lacks it, and the run stops at step 0.
+        `auto` reaches FlashAttention 4 too wherever TE prefers it.
       - With the EFA plugin installed, set `EP_SUPPRESS_NCCL_CHECK=1`: DeepEP's import-time check counts every loaded
         `libnccl*` file, takes the plugin's libraries for a second NCCL runtime and stops the process.
