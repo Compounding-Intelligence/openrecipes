@@ -21,10 +21,12 @@
   <url><loc>https://openrecipes.ai/qwen3.5-397b-a17b/h200/</loc></url>
   <url><loc>https://openrecipes.ai/qwen3.5-397b-a17b/b200/</loc></url>
   <url><loc>https://openrecipes.ai/qwen3.6-27b/h200/</loc></url>
+  <url><loc>https://openrecipes.ai/qwen3.6-27b/b200/</loc></url>
   <url><loc>https://openrecipes.ai/qwen3.6-35b-a3b/h200/</loc></url>
   <url><loc>https://openrecipes.ai/qwen3.6-35b-a3b/b200/</loc></url>
   <url><loc>https://openrecipes.ai/qwen3.8-27b/h100/</loc></url>
   <url><loc>https://openrecipes.ai/qwen3.8-27b/h200/</loc></url>
+  <url><loc>https://openrecipes.ai/qwen3.8-27b/b200/</loc></url>
   <url><loc>https://openrecipes.ai/gpt-oss-120b/h100/</loc></url>
   <url><loc>https://openrecipes.ai/gpt-oss-20b/h100/</loc></url>
   <url><loc>https://openrecipes.ai/gpt-oss-20b/h200/</loc></url>

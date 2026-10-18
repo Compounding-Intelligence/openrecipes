@@ -78,6 +78,14 @@
      "recipes": [
       "recipes/qwen3.8-27b/h200/attune-tp4-pp2.yaml"
      ]
+    },
+    {
+     "gpu": "B200",
+     "url": "https://openrecipes.ai/qwen3.8-27b/b200/",
+     "recipes": [
+      "recipes/qwen3.8-27b/b200/attune-tp1-pp4-split17-rb14.yaml",
+      "recipes/qwen3.8-27b/b200/attune-tp1-pp2.yaml"
+     ]
     }
    ]
   },
@@ -100,6 +108,13 @@
      "url": "https://openrecipes.ai/qwen3.6-27b/h200/",
      "recipes": [
       "recipes/qwen3.6-27b/h200/attune-tp1-pp4-split16-rb12.yaml"
+     ]
+    },
+    {
+     "gpu": "B200",
+     "url": "https://openrecipes.ai/qwen3.6-27b/b200/",
+     "recipes": [
+      "recipes/qwen3.6-27b/b200/attune-tp1-pp8-split7-rb2.yaml"
      ]
     }
    ]
@@ -5215,6 +5230,153 @@
    "notes": "- Starting point: slime's Qwen3.5-27B script, `scripts/run-qwen3.5-27B.sh` with `scripts/models/qwen3.5-27B.sh` at\n  slime 0.3.0. slime ships it as a 4-node GRPO script and publishes no tokens/s figure for it. Ported to this\n  workload on one 8-GPU node with its layout (TP 4 with sequence parallel, PP 2 with 34/30 layers, CP 1 in place of\n  its CP 4, full recompute, Adam on the CPU), it measured 948.7 tokens/s/GPU on 8 H200; ATTUNE tuned it to 2,499.5\n  (+163%).\n- The first stage is at its memory limit: the tuning run with block recompute of 10 layers ran out of memory there.\n  PP 2 at TP 1 ran out of memory on the last stage, which holds the FP32 logits of the 248,320-token vocabulary.\n"
   },
   {
+   "path": "recipes/qwen3.6-27b/b200/attune-tp1-pp8-split7-rb2.yaml",
+   "slug": "attune-tp1-pp8-split7-rb2",
+   "rank": 1,
+   "schema_version": 1,
+   "model": "Qwen3.6-27B",
+   "gpu": {
+    "type": "B200",
+    "memory_gb": 180,
+    "count": 8,
+    "per_node": 8,
+    "instance": "AWS p6-b200.48xlarge"
+   },
+   "author": {
+    "name": "ATTUNE",
+    "url": "https://arxiv.org/abs/2610.17528"
+   },
+   "status": "verified",
+   "stack": {
+    "framework": "slime 0.3.0: THUDM/slime a897e1f plus 8 commits that do not change the training step",
+    "megatron_lm": "commit 1dcf0daf (megatron-core 0.16.0rc0), with a backported upstream fix for the Qwen3.5 attention output gate at TP above the query-group count",
+    "transformer_engine": "2.10.0",
+    "pytorch": "2.11.0 (CUDA 12.9 build)",
+    "cuda": "12.9",
+    "nccl": "2.28.9 (CUDA 12.9 build; printed by the measured run)",
+    "deepep": "1.2.1",
+    "python": "3.12.3",
+    "fla": "0.4.1 (flash-linear-attention)",
+    "triton": "3.6.0",
+    "network": "8 GPUs per node, EFA, 3.2 Tb/s RDMA per node",
+    "runtime_fixes": "patches/fla_blackwell_guard.py, imported in every training process before FLA",
+    "source": "in-pod version check of the measured run's training image (same digest) on 2026-10-18: installed TE, PyTorch, DeepEP, megatron-core, FLA and Triton, Megatron-LM git commit, Python; NCCL from the measured run's log"
+   },
+   "workload": {
+    "row_tokens": 8192,
+    "rows": "SFT conversations",
+    "global_batch": 128,
+    "precision": "bf16",
+    "dataset": {
+     "name": "Tulu 3 SFT mixture",
+     "source": "allenai/tulu-3-sft-mixture",
+     "revision": "b14afda60f1bbebe55d5d2fa1e4df5042f97f8be",
+     "license": "ODC-By 1.0",
+     "rows_sha256": "7a837641dcde9ebcac9d3ed5ed84ddd941fc9bfc173606cc701e9a3f51c307f1",
+     "build": {
+      "name": "qwen35-tulu3-fixed8192-v1",
+      "tokenizer": "Qwen3.5 (the Qwen3.5-122B-A10B tokenizer; tokenizer.json sha256 5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42)",
+      "loss_mask": "qwen3_5",
+      "rows": 6400,
+      "row_tokens": 8192,
+      "padding_tokens": 0,
+      "seed": 42,
+      "packing": "source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into consecutive 8,192-token rows; rows without supervised targets are skipped",
+      "supervised_token_ratio": 0.676,
+      "parquet_sha256": "f215bdc6aba60d6d0dff4471eaef805765cb393e40b95762190535376491ab01",
+      "parquet_bytes": 76127393,
+      "builder": "data/generate_fixed_sft.py (data/README.md)"
+     }
+    }
+   },
+   "layout": {
+    "label": "TP1 PP8",
+    "summary": "TP 1, PP 8 (7 layers on the first stage, 9 on each of the six middle stages, 3 on the last), CP 1, DP 1; one 8,192-token row per microbatch; full recompute of the first 2 layers of each stage (block); precision-aware distributed optimizer; no offload; dense model, no experts",
+    "highlights": "7/9/9/9/9/9/9/3 layer split, block recompute of 2 layers, no offload",
+    "tp": 1,
+    "pp": 8,
+    "vpp": 1,
+    "cp": 1,
+    "ep": 1,
+    "etp": 1,
+    "dp": 1,
+    "sequence_parallel": false,
+    "layer_split": {
+     "first": 7,
+     "last": 3
+    },
+    "max_tokens_per_gpu": 8192,
+    "rows_per_microbatch": 1,
+    "recompute": {
+     "granularity": "full",
+     "method": "block",
+     "num_layers": 2
+    },
+    "offload": null,
+    "dispatcher": null
+   },
+   "result": {
+    "tokens_per_s_per_gpu": 4330.87,
+    "usd_per_million_tokens": 0.91,
+    "step_time_cv_percent": 1.08,
+    "mfu": 0.2959,
+    "mfu_note": null,
+    "active_params": {
+     "count": 25623920640,
+     "source": "https://huggingface.co/Qwen/Qwen3.6-27B",
+     "revision": "6a9e13bd6fc8f0983b9b99948120bc37f49c13e9"
+    },
+    "measured": "2026-10-18",
+    "steps_per_run": 20,
+    "window": [
+     5,
+     19
+    ],
+    "window_tokens": 15728640,
+    "runs": 1,
+    "profiler": false,
+    "gpu_hours": 3.13,
+    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
+   },
+   "correctness": {
+    "result": "pass",
+    "summary": "passed; 1 component test passed on this image",
+    "reference": "The layout of slime's `scripts/run-qwen3.5-27B.sh` on one 8-GPU node: TP 4 with sequence parallelism, PP 2 (first stage 34 layers, last 30), CP 1 in place of its CP 4, full recompute and CPU optimizer offload, with this recipe's optimizer settings.",
+    "configuration": "pass",
+    "component_tests": [
+     {
+      "test": "precision-aware Adam on the GPU and CPU optimizer offload (fraction 1.0, overlapped copies), each against an FP64 reference",
+      "shape": "one Qwen3.5-397B-A17B MoE layer: hidden 4096, 512 experts, top-10, expert FFN 1024, EP 8, ETP 1, 4,096 tokens per rank",
+      "gpu": "B200",
+      "date": "2026-10-14",
+      "result": "pass",
+      "detail": "worst tensor (update) relative L2 error 5.12e-7 on the GPU and 7.99e-7 offloaded against a bound of 1.0e-3 after one step, and 4.99e-5 and 7.73e-5 against 1.1e-3 after three steps at the recipe's hyperparameters (bound 2 x the default GPU optimizer's error + 1e-3); reconstructed FP32 masters bitwise identical to an arm with explicit FP32 masters, the TE remainder self-test passes and the negative controls fail",
+      "note": "run on B200 on this recipe's training image; the optimizer step is elementwise, so the result holds for every model on the image"
+     }
+    ],
+    "convergence": {
+     "steps": 20,
+     "result": "pass",
+     "correlation": 0.9999729,
+     "final_loss_difference": 0.00077,
+     "pointwise_failures": 0,
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both; both with patches/fla_blackwell_guard.py"
+    },
+    "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml (amazon-science/attune f2cb450), with CPU optimizer offload admitted by the B200 component test above; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
+   },
+   "env": {
+    "CUDA_DEVICE_MAX_CONNECTIONS": "1",
+    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+    "TORCHINDUCTOR_COMPILE_THREADS": "1",
+    "NCCL_NVLS_ENABLE": "$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)"
+   },
+   "patches": [
+    "patches/fla_blackwell_guard.py"
+   ],
+   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 1 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --loss-mask-type qwen3_5 \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 1 \\\n  --pipeline-model-parallel-size 8 \\\n  --decoder-first-pipeline-num-layers 7 \\\n  --decoder-last-pipeline-num-layers 3 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 1 \\\n  --expert-tensor-parallel-size 1 \\\n  --sequence-parallel \\\n  --recompute-granularity full \\\n  --recompute-method block \\\n  --recompute-num-layers 2 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --distributed-timeout-minutes 30 \\\n  --tensorboard-dir \"$PROFILE_DIR\"\n",
+   "notes": "- Starting point: slime's Qwen3.5-27B script, `scripts/run-qwen3.5-27B.sh` with `scripts/models/qwen3.5-27B.sh` at\n  slime 0.3.0. slime ships it as a 4-node GRPO script and publishes no tokens/s figure for it. Ported to this\n  workload on one 8-GPU node with its layout (TP 4 with sequence parallel, PP 2 with 34/30 layers, CP 1 in place of\n  its CP 4, full recompute, Adam on the CPU), it measured 1,434.4 tokens/s/GPU on 8 B200; ATTUNE tuned it to 4,330.9\n  (+202%).\n- Recompute is at the memory limit: the tuning run with block recompute of 1 layer ran out of memory on the second\n  stage (164.1 GiB allocated of 178 GiB).\n- Step 0 of the measured run took 718 s, against about 30 s for each later step.\n- B200 runs of this model need `patches/fla_blackwell_guard.py`: with the image's Triton 3.6, FLA 0.4.1's autotuner\n  picks gated-delta-net kernel configs that race on Blackwell and give a different, wrong result on every call, and\n  the patch keeps those kernels on the configs FLA main uses there. Every training process imports it before FLA\n  (patches/README.md) and prints a `[fla-guard]` line.\n"
+  },
+  {
    "path": "recipes/qwen3.6-35b-a3b/h200/attune-tp1-pp1-ep8.yaml",
    "slug": "attune-tp1-pp1-ep8",
    "rank": 1,
@@ -6153,6 +6315,300 @@
    "patches": [],
    "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 1 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --loss-mask-type qwen3_5 \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 4 \\\n  --pipeline-model-parallel-size 2 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 1 \\\n  --expert-tensor-parallel-size 1 \\\n  --sequence-parallel \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --optimizer-cpu-offload \\\n  --overlap-cpu-optimizer-d2h-h2d \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --distributed-timeout-minutes 30 \\\n  --tensorboard-dir \"$PROFILE_DIR\"\n",
    "notes": "- Recompute off and the optimizer on the GPU each speed this model up, but together they do not fit in 141 GB: the\n  tuning run with both changes ran out of memory. This recipe keeps the optimizer on the CPU.\n- No layer is recomputed, so activation memory grows with the tokens per GPU: the tuning run at max 16,384 tokens per\n  GPU ran out of memory. Check the memory before raising `--max-tokens-per-gpu`.\n"
+  },
+  {
+   "path": "recipes/qwen3.8-27b/b200/attune-tp1-pp4-split17-rb14.yaml",
+   "slug": "attune-tp1-pp4-split17-rb14",
+   "rank": 1,
+   "schema_version": 1,
+   "model": "Qwen3.8-27B",
+   "gpu": {
+    "type": "B200",
+    "memory_gb": 180,
+    "count": 8,
+    "per_node": 8,
+    "instance": "AWS p6-b200.48xlarge"
+   },
+   "author": {
+    "name": "ATTUNE",
+    "url": "https://arxiv.org/abs/2610.17528"
+   },
+   "status": "verified",
+   "stack": {
+    "framework": "slime 0.3.0: THUDM/slime a897e1f plus 8 commits that do not change the training step",
+    "megatron_lm": "commit 1dcf0daf (megatron-core 0.16.0rc0), with a backported upstream fix for the Qwen3.5 attention output gate at TP above the query-group count",
+    "transformer_engine": "2.10.0",
+    "pytorch": "2.11.0 (CUDA 12.9 build)",
+    "cuda": "12.9",
+    "nccl": "2.28.9 (CUDA 12.9 build; printed by the measured run)",
+    "deepep": "1.2.1",
+    "python": "3.12.3",
+    "fla": "0.4.1 (flash-linear-attention)",
+    "triton": "3.6.0",
+    "network": "8 GPUs per node, EFA, 3.2 Tb/s RDMA per node",
+    "runtime_fixes": "patches/fla_blackwell_guard.py, imported in every training process before FLA",
+    "source": "in-pod version check of the measured run's training image (same digest) on 2026-10-18: installed TE, PyTorch, DeepEP, megatron-core, FLA and Triton, Megatron-LM git commit, Python; NCCL from the measured run's log"
+   },
+   "workload": {
+    "row_tokens": 8192,
+    "rows": "SFT conversations",
+    "global_batch": 128,
+    "precision": "bf16",
+    "dataset": {
+     "name": "Tulu 3 SFT mixture",
+     "source": "allenai/tulu-3-sft-mixture",
+     "revision": "b14afda60f1bbebe55d5d2fa1e4df5042f97f8be",
+     "license": "ODC-By 1.0",
+     "rows_sha256": "ee1486b28ce21df721ad61c2d3765c64a29eed0eb5680ede005bd6a321dc1a1e",
+     "build": {
+      "name": "qwen38-tulu3-fixed8192-v1",
+      "tokenizer": "Qwen3.8 (the Qwen3.8-27B tokenizer; tokenizer.json sha256 0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3)",
+      "loss_mask": "qwen3_5",
+      "rows": 6400,
+      "row_tokens": 8192,
+      "padding_tokens": 0,
+      "seed": 42,
+      "packing": "source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into consecutive 8,192-token rows; rows without supervised targets are skipped",
+      "supervised_token_ratio": 0.642,
+      "parquet_sha256": "a7b7b4db98e95152604a77bcf09b51502d2266ba04de98409cef6b97afd039c8",
+      "parquet_bytes": 76722714,
+      "builder": "data/generate_fixed_sft.py (data/README.md)"
+     }
+    }
+   },
+   "layout": {
+    "label": "TP1 PP4 DP2",
+    "summary": "TP 1, PP 4 (17/17/17/13 layers), CP 1, DP 2; one 8,192-token row per microbatch; full recompute of the first 14 layers of each stage (block); precision-aware distributed optimizer; no offload; dense model, no experts",
+    "highlights": "17/17/17/13 layer split, block recompute of 14 layers, no offload",
+    "tp": 1,
+    "pp": 4,
+    "vpp": 1,
+    "cp": 1,
+    "ep": 1,
+    "etp": 1,
+    "dp": 2,
+    "sequence_parallel": false,
+    "layer_split": {
+     "first": 17,
+     "last": 13
+    },
+    "max_tokens_per_gpu": 8192,
+    "rows_per_microbatch": 1,
+    "recompute": {
+     "granularity": "full",
+     "method": "block",
+     "num_layers": 14
+    },
+    "offload": null,
+    "dispatcher": null
+   },
+   "result": {
+    "tokens_per_s_per_gpu": 4011.42,
+    "usd_per_million_tokens": 0.99,
+    "step_time_cv_percent": 0.09,
+    "mfu": 0.2741,
+    "mfu_note": null,
+    "active_params": {
+     "count": 25623920640,
+     "source": "https://huggingface.co/Qwen/Qwen3.8-27B",
+     "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
+    },
+    "measured": "2026-10-18",
+    "steps_per_run": 20,
+    "window": [
+     5,
+     19
+    ],
+    "window_tokens": 15728640,
+    "runs": 1,
+    "profiler": false,
+    "gpu_hours": 2.59,
+    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
+   },
+   "correctness": {
+    "result": "pass",
+    "summary": "passed; 1 component test passed on this image",
+    "reference": "The layout of slime's `scripts/run-qwen3.5-27B.sh` on one 8-GPU node: TP 4 with sequence parallelism, PP 2 (first stage 34 layers, last 30), CP 1 in place of its CP 4, full recompute and CPU optimizer offload, with this recipe's optimizer settings.",
+    "configuration": "pass",
+    "component_tests": [
+     {
+      "test": "precision-aware Adam on the GPU and CPU optimizer offload (fraction 1.0, overlapped copies), each against an FP64 reference",
+      "shape": "one Qwen3.5-397B-A17B MoE layer: hidden 4096, 512 experts, top-10, expert FFN 1024, EP 8, ETP 1, 4,096 tokens per rank",
+      "gpu": "B200",
+      "date": "2026-10-14",
+      "result": "pass",
+      "detail": "worst tensor (update) relative L2 error 5.12e-7 on the GPU and 7.99e-7 offloaded against a bound of 1.0e-3 after one step, and 4.99e-5 and 7.73e-5 against 1.1e-3 after three steps at the recipe's hyperparameters (bound 2 x the default GPU optimizer's error + 1e-3); reconstructed FP32 masters bitwise identical to an arm with explicit FP32 masters, the TE remainder self-test passes and the negative controls fail",
+      "note": "run on B200 on this recipe's training image; the optimizer step is elementwise, so the result holds for every model on the image"
+     }
+    ],
+    "convergence": {
+     "steps": 20,
+     "result": "pass",
+     "correlation": 0.9999988,
+     "final_loss_difference": 0.00014,
+     "pointwise_failures": 0,
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both; both with patches/fla_blackwell_guard.py"
+    },
+    "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml (amazon-science/attune f2cb450), with CPU optimizer offload admitted by the B200 component test above; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
+   },
+   "env": {
+    "CUDA_DEVICE_MAX_CONNECTIONS": "1",
+    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+    "TORCHINDUCTOR_COMPILE_THREADS": "1",
+    "NCCL_NVLS_ENABLE": "$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)"
+   },
+   "patches": [
+    "patches/fla_blackwell_guard.py"
+   ],
+   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 1 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --loss-mask-type qwen3_5 \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 1 \\\n  --pipeline-model-parallel-size 4 \\\n  --decoder-first-pipeline-num-layers 17 \\\n  --decoder-last-pipeline-num-layers 13 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 1 \\\n  --expert-tensor-parallel-size 1 \\\n  --sequence-parallel \\\n  --recompute-granularity full \\\n  --recompute-method block \\\n  --recompute-num-layers 14 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --distributed-timeout-minutes 30 \\\n  --tensorboard-dir \"$PROFILE_DIR\"\n",
+   "notes": "- Starting point: slime's Qwen3.5-27B script, `scripts/run-qwen3.5-27B.sh` with `scripts/models/qwen3.5-27B.sh` at\n  slime 0.3.0. slime ships it as a 4-node GRPO script and publishes no tokens/s figure for it. Ported to this\n  workload on one 8-GPU node with its layout (TP 4 with sequence parallel, PP 2 with 34/30 layers, CP 1 in place of\n  its CP 4, full recompute, Adam on the CPU), it measured 1,411.1 tokens/s/GPU on 8 B200; ATTUNE tuned it to 4,011.4\n  (+184%).\n- Recompute stays on: the tuning runs without it ran out of memory on the first stage at TP 4 and TP 2 with PP 2\n  (162.7 and 165.8 GiB allocated of 178 GiB).\n- B200 runs of this model need `patches/fla_blackwell_guard.py`: with the image's Triton 3.6, FLA 0.4.1's autotuner\n  picks gated-delta-net kernel configs that race on Blackwell and give a different, wrong result on every call, and\n  the patch keeps those kernels on the configs FLA main uses there. Every training process imports it before FLA\n  (patches/README.md) and prints a `[fla-guard]` line.\n"
+  },
+  {
+   "path": "recipes/qwen3.8-27b/b200/attune-tp1-pp2.yaml",
+   "slug": "attune-tp1-pp2",
+   "rank": 2,
+   "schema_version": 1,
+   "model": "Qwen3.8-27B",
+   "gpu": {
+    "type": "B200",
+    "memory_gb": 180,
+    "count": 8,
+    "per_node": 8,
+    "instance": "AWS p6-b200.48xlarge"
+   },
+   "author": {
+    "name": "ATTUNE",
+    "url": "https://arxiv.org/abs/2610.17528"
+   },
+   "status": "verified",
+   "stack": {
+    "framework": "slime 0.3.0: THUDM/slime a897e1f plus 8 commits that do not change the training step",
+    "megatron_lm": "commit 1dcf0daf (megatron-core 0.16.0rc0), with a backported upstream fix for the Qwen3.5 attention output gate at TP above the query-group count",
+    "transformer_engine": "2.10.0",
+    "pytorch": "2.11.0 (CUDA 12.9 build)",
+    "cuda": "12.9",
+    "nccl": "2.28.9 (CUDA 12.9 build; printed by the measured run)",
+    "deepep": "1.2.1",
+    "python": "3.12.3",
+    "fla": "0.4.1 (flash-linear-attention)",
+    "triton": "3.6.0",
+    "network": "8 GPUs per node, EFA, 3.2 Tb/s RDMA per node",
+    "runtime_fixes": "patches/fla_blackwell_guard.py, imported in every training process before FLA",
+    "source": "in-pod version check of the measured run's training image (same digest) on 2026-10-18: installed TE, PyTorch, DeepEP, megatron-core, FLA and Triton, Megatron-LM git commit, Python; NCCL from the measured run's log"
+   },
+   "workload": {
+    "row_tokens": 8192,
+    "rows": "SFT conversations",
+    "global_batch": 128,
+    "precision": "bf16",
+    "dataset": {
+     "name": "Tulu 3 SFT mixture",
+     "source": "allenai/tulu-3-sft-mixture",
+     "revision": "b14afda60f1bbebe55d5d2fa1e4df5042f97f8be",
+     "license": "ODC-By 1.0",
+     "rows_sha256": "ee1486b28ce21df721ad61c2d3765c64a29eed0eb5680ede005bd6a321dc1a1e",
+     "build": {
+      "name": "qwen38-tulu3-fixed8192-v1",
+      "tokenizer": "Qwen3.8 (the Qwen3.8-27B tokenizer; tokenizer.json sha256 0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3)",
+      "loss_mask": "qwen3_5",
+      "rows": 6400,
+      "row_tokens": 8192,
+      "padding_tokens": 0,
+      "seed": 42,
+      "packing": "source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into consecutive 8,192-token rows; rows without supervised targets are skipped",
+      "supervised_token_ratio": 0.642,
+      "parquet_sha256": "a7b7b4db98e95152604a77bcf09b51502d2266ba04de98409cef6b97afd039c8",
+      "parquet_bytes": 76722714,
+      "builder": "data/generate_fixed_sft.py (data/README.md)"
+     }
+    }
+   },
+   "layout": {
+    "label": "TP1 PP2 DP4",
+    "summary": "TP 1, PP 2 (34/30 layers), CP 1, DP 4; one 8,192-token row per microbatch; full recompute (uniform, 1 layer); precision-aware distributed optimizer; no offload; dense model, no experts",
+    "highlights": "34/30 layer split, no offload",
+    "tp": 1,
+    "pp": 2,
+    "vpp": 1,
+    "cp": 1,
+    "ep": 1,
+    "etp": 1,
+    "dp": 4,
+    "sequence_parallel": false,
+    "layer_split": {
+     "first": 34,
+     "last": 30
+    },
+    "max_tokens_per_gpu": 8192,
+    "rows_per_microbatch": 1,
+    "recompute": {
+     "granularity": "full",
+     "method": "uniform",
+     "num_layers": 1
+    },
+    "offload": null,
+    "dispatcher": null
+   },
+   "result": {
+    "tokens_per_s_per_gpu": 3858.51,
+    "usd_per_million_tokens": 1.03,
+    "step_time_cv_percent": 0.3,
+    "mfu": 0.2637,
+    "mfu_note": null,
+    "active_params": {
+     "count": 25623920640,
+     "source": "https://huggingface.co/Qwen/Qwen3.8-27B",
+     "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
+    },
+    "measured": "2026-10-18",
+    "steps_per_run": 20,
+    "window": [
+     5,
+     19
+    ],
+    "window_tokens": 15728640,
+    "runs": 1,
+    "profiler": false,
+    "gpu_hours": 2.29,
+    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
+   },
+   "correctness": {
+    "result": "pass",
+    "summary": "passed; 1 component test passed on this image",
+    "reference": "The layout of slime's `scripts/run-qwen3.5-27B.sh` on one 8-GPU node: TP 4 with sequence parallelism, PP 2 (first stage 34 layers, last 30), CP 1 in place of its CP 4, full recompute and CPU optimizer offload, with this recipe's optimizer settings.",
+    "configuration": "pass",
+    "component_tests": [
+     {
+      "test": "precision-aware Adam on the GPU and CPU optimizer offload (fraction 1.0, overlapped copies), each against an FP64 reference",
+      "shape": "one Qwen3.5-397B-A17B MoE layer: hidden 4096, 512 experts, top-10, expert FFN 1024, EP 8, ETP 1, 4,096 tokens per rank",
+      "gpu": "B200",
+      "date": "2026-10-14",
+      "result": "pass",
+      "detail": "worst tensor (update) relative L2 error 5.12e-7 on the GPU and 7.99e-7 offloaded against a bound of 1.0e-3 after one step, and 4.99e-5 and 7.73e-5 against 1.1e-3 after three steps at the recipe's hyperparameters (bound 2 x the default GPU optimizer's error + 1e-3); reconstructed FP32 masters bitwise identical to an arm with explicit FP32 masters, the TE remainder self-test passes and the negative controls fail",
+      "note": "run on B200 on this recipe's training image; the optimizer step is elementwise, so the result holds for every model on the image"
+     }
+    ],
+    "convergence": {
+     "steps": 20,
+     "result": "pass",
+     "correlation": 0.9999987,
+     "final_loss_difference": 2.9e-05,
+     "pointwise_failures": 0,
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both; both with patches/fla_blackwell_guard.py"
+    },
+    "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml (amazon-science/attune f2cb450), with CPU optimizer offload admitted by the B200 component test above; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
+   },
+   "env": {
+    "CUDA_DEVICE_MAX_CONNECTIONS": "1",
+    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+    "TORCHINDUCTOR_COMPILE_THREADS": "1",
+    "NCCL_NVLS_ENABLE": "$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)"
+   },
+   "patches": [
+    "patches/fla_blackwell_guard.py"
+   ],
+   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 1 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --loss-mask-type qwen3_5 \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 1 \\\n  --pipeline-model-parallel-size 2 \\\n  --decoder-last-pipeline-num-layers 30 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 1 \\\n  --expert-tensor-parallel-size 1 \\\n  --sequence-parallel \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --distributed-timeout-minutes 30 \\\n  --tensorboard-dir \"$PROFILE_DIR\"\n",
+   "notes": "- Starting point: slime's Qwen3.5-27B script, `scripts/run-qwen3.5-27B.sh` with `scripts/models/qwen3.5-27B.sh` at\n  slime 0.3.0. slime ships it as a 4-node GRPO script and publishes no tokens/s figure for it. Ported to this\n  workload on one 8-GPU node with its layout (TP 4 with sequence parallel, PP 2 with 34/30 layers, CP 1 in place of\n  its CP 4, full recompute, Adam on the CPU), it measured 1,411.1 tokens/s/GPU on 8 B200; ATTUNE tuned it to 3,858.5\n  (+173%).\n- Recompute stays on: the tuning runs without it ran out of memory on the first stage at TP 4 and TP 2 with PP 2\n  (162.7 and 165.8 GiB allocated of 178 GiB).\n- B200 runs of this model need `patches/fla_blackwell_guard.py`: with the image's Triton 3.6, FLA 0.4.1's autotuner\n  picks gated-delta-net kernel configs that race on Blackwell and give a different, wrong result on every call, and\n  the patch keeps those kernels on the configs FLA main uses there. Every training process imports it before FLA\n  (patches/README.md) and prints a `[fla-guard]` line.\n"
   },
   {
    "path": "recipes/gpt-oss-120b/h100/attune-tp1-pp8-ep8.yaml",
