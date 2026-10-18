@@ -30,7 +30,7 @@ def test_pages(files):
                  "robots.txt", "data.json", "style.css", "app.js", "favicon.svg", "_headers", "LICENSE.txt", "NOTICE.txt",
                  "schema/recipe.schema.yaml"):
         assert page in files, page
-    assert len([k for k in files if k.startswith("recipes/")]) == 50
+    assert len([k for k in files if k.startswith("recipes/")]) == 49
 
 
 def test_build_is_deterministic():
@@ -110,7 +110,7 @@ def test_index_cards(files, catalog):
     for url in re.findall(r'<a class="gr" href="([^"]+)"', index):
         assert url + "index.html" in files
     card = dict(cards)["qwen3.5-122b-a10b"]
-    assert '<span class="t hi">2,451.4</span><span class="c">&times;32</span><span class="u">$0.90</span>' in card
+    assert '<span class="t hi">2,475.8</span><span class="c">&times;16</span><span class="u">$1.60</span>' in card
     assert '122B parameters &middot; <abbr' in card and "N</abbr> 9.0B active" in card
 
 
@@ -221,7 +221,7 @@ def test_internal_links_use_clean_urls(files):
 
 def test_data_json_and_sitemap(files):
     data = json.loads(files["data.json"])
-    assert len(data["recipes"]) == 50 and len(data["models"]) == 41
+    assert len(data["recipes"]) == 49 and len(data["models"]) == 41
     best = [r for r in data["recipes"] if r["model"] == "Qwen3.5-122B-A10B" and r["gpu"]["type"] == "H200"]
     assert [r["rank"] for r in best] == [1, 2, 3] and best[0]["result"]["measured"] == "2026-10-13"
     assert files["sitemap.xml"].count("<url>") == 3 + 26

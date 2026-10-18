@@ -21,9 +21,13 @@ stack:
   nccl: 2.28.9 (CUDA 12.9 build; printed by the measured run)
   deepep: not pinned
   python: not pinned
+  fla: 0.4.1 (flash-linear-attention)
+  triton: 3.6.0
   network: 8 GPUs per node, EFA, 3.2 Tb/s RDMA per node
+  runtime_fixes: patches/fla_blackwell_guard.py, imported in every training process before FLA
   source: 'in-pod check of the measured run''s training image (same digest) on 2026-10-01: Megatron-LM git commit and
-    installed TE and PyTorch; NCCL from the measured run''s log'
+    installed TE and PyTorch; NCCL from the measured run''s log; FLA and Triton from an in-pod check of the same digest
+    on 2026-10-18'
 workload:
   row_tokens: 8192
   rows: SFT conversations
@@ -72,16 +76,16 @@ layout:
   offload: null
   dispatcher: alltoall
 result:
-  tokens_per_s_per_gpu: 2282.82
-  usd_per_million_tokens: 1.73
-  step_time_cv_percent: 2.2
-  mfu: 0.0548
+  tokens_per_s_per_gpu: 2447.95
+  usd_per_million_tokens: 1.62
+  step_time_cv_percent: 3.16
+  mfu: 0.0588
   mfu_note: null
   active_params:
     count: 9008136192
     source: https://huggingface.co/Qwen/Qwen3.5-122B-A10B
     revision: dc4d348443bc740c68e2d77492492c11606384d5
-  measured: 2026-10-13
+  measured: 2026-10-18
   steps_per_run: 20
   window:
   - 5
@@ -89,7 +93,7 @@ result:
   window_tokens: 15728640
   runs: 1
   profiler: false
-  gpu_hours: 4.98
+  gpu_hours: 4.20
   gpu_hours_note: GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the
     convergence check
 correctness:
@@ -101,11 +105,11 @@ correctness:
   convergence:
     steps: 20
     result: pass
-    correlation: 0.999995
-    final_loss_difference: 0.00015
+    correlation: 0.999999
+    final_loss_difference: 0.00017
     pointwise_failures: 0
     note: 'candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and
-      rows; the parity probe off in both'
+      rows; the parity probe off in both; both with patches/fla_blackwell_guard.py'
   rules: argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge
     validate_convergence with its pipeline thresholds
 env:
@@ -113,7 +117,8 @@ env:
   PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
   TORCHINDUCTOR_COMPILE_THREADS: '1'
   NCCL_NVLS_ENABLE: $([ "$NVLINK_COUNT" -gt 0 ] && echo 1 || echo 0)
-patches: []
+patches:
+- patches/fla_blackwell_guard.py
 run: |
   export CUDA_DEVICE_MAX_CONNECTIONS=1
   export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
@@ -158,3 +163,8 @@ run: |
     --attention-backend flash \
     --cross-entropy-loss-fusion --cross-entropy-fusion-impl te \
     --distributed-timeout-minutes 30
+notes: |
+  B200 runs of this model need `patches/fla_blackwell_guard.py`: with the image's Triton 3.6, FLA 0.4.1's autotuner
+  picks gated-delta-net kernel configs that race on Blackwell and give a different, wrong result on every call, and
+  the patch keeps those kernels on the configs FLA main uses there. Every training process on every node imports it
+  before FLA (patches/README.md) and prints a `[fla-guard]` line.

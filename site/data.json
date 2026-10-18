@@ -188,8 +188,7 @@
      "url": "https://openrecipes.ai/qwen3.5-122b-a10b/b200/",
      "recipes": [
       "recipes/qwen3.5-122b-a10b/b200/attune-tp1-pp4-ep4.yaml",
-      "recipes/qwen3.5-122b-a10b/b200/attune-tp1-pp8-ep2.yaml",
-      "recipes/qwen3.5-122b-a10b/b200/attune-tp2-pp4-ep4.yaml"
+      "recipes/qwen3.5-122b-a10b/b200/attune-tp1-pp8-ep2.yaml"
      ]
     }
    ]
@@ -3309,8 +3308,11 @@
     "nccl": "2.28.9 (CUDA 12.9 build; printed by the measured run)",
     "deepep": "not pinned",
     "python": "not pinned",
+    "fla": "0.4.1 (flash-linear-attention)",
+    "triton": "3.6.0",
     "network": "8 GPUs per node, EFA, 3.2 Tb/s RDMA per node",
-    "source": "in-pod check of the measured run's training image (same digest) on 2026-10-01: Megatron-LM git commit and installed TE and PyTorch; NCCL from the measured run's log"
+    "runtime_fixes": "patches/fla_blackwell_guard.py, imported in every training process before FLA",
+    "source": "in-pod check of the measured run's training image (same digest) on 2026-10-01: Megatron-LM git commit and installed TE and PyTorch; NCCL from the measured run's log; FLA and Triton from an in-pod check of the same digest on 2026-10-18"
    },
    "workload": {
     "row_tokens": 8192,
@@ -3363,27 +3365,27 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 2445.19,
-    "usd_per_million_tokens": 1.62,
-    "step_time_cv_percent": 1.26,
-    "mfu": 0.0587,
+    "tokens_per_s_per_gpu": 2475.79,
+    "usd_per_million_tokens": 1.6,
+    "step_time_cv_percent": 4.47,
+    "mfu": 0.0595,
     "mfu_note": null,
     "active_params": {
      "count": 9008136192,
      "source": "https://huggingface.co/Qwen/Qwen3.5-122B-A10B",
      "revision": "dc4d348443bc740c68e2d77492492c11606384d5"
     },
-    "measured": "2026-10-11",
-    "steps_per_run": 14,
+    "measured": "2026-10-18",
+    "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
-    "gpu_hours": 3.7,
-    "gpu_hours_note": "GPUs x (job start to end), including startup"
+    "gpu_hours": 7.03,
+    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
    },
    "correctness": {
     "result": "pass",
@@ -3394,9 +3396,10 @@
     "convergence": {
      "steps": 20,
      "result": "pass",
-     "correlation": 0.99987,
-     "final_loss_difference": 8.3e-05,
-     "pointwise_failures": 0
+     "correlation": 0.9999993,
+     "final_loss_difference": 8.2e-05,
+     "pointwise_failures": 0,
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both; both with patches/fla_blackwell_guard.py"
     },
     "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
    },
@@ -3406,8 +3409,11 @@
     "TORCHINDUCTOR_COMPILE_THREADS": "1",
     "NCCL_NVLS_ENABLE": "$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)"
    },
-   "patches": [],
-   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 2 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 14 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --loss-mask-type qwen3_5 \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 1 \\\n  --pipeline-model-parallel-size 4 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 4 \\\n  --expert-tensor-parallel-size 1 \\\n  --sequence-parallel \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --cross-entropy-loss-fusion --cross-entropy-fusion-impl te \\\n  --distributed-timeout-minutes 30\n"
+   "patches": [
+    "patches/fla_blackwell_guard.py"
+   ],
+   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 2 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --loss-mask-type qwen3_5 \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 1 \\\n  --pipeline-model-parallel-size 4 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 4 \\\n  --expert-tensor-parallel-size 1 \\\n  --sequence-parallel \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --cross-entropy-loss-fusion --cross-entropy-fusion-impl te \\\n  --distributed-timeout-minutes 30\n",
+   "notes": "B200 runs of this model need `patches/fla_blackwell_guard.py`: with the image's Triton 3.6, FLA 0.4.1's autotuner\npicks gated-delta-net kernel configs that race on Blackwell and give a different, wrong result on every call, and\nthe patch keeps those kernels on the configs FLA main uses there. Every training process on every node imports it\nbefore FLA (patches/README.md) and prints a `[fla-guard]` line.\n"
   },
   {
    "path": "recipes/qwen3.5-122b-a10b/b200/attune-tp1-pp8-ep2.yaml",
@@ -3436,8 +3442,11 @@
     "nccl": "2.28.9 (CUDA 12.9 build; printed by the measured run)",
     "deepep": "not pinned",
     "python": "not pinned",
+    "fla": "0.4.1 (flash-linear-attention)",
+    "triton": "3.6.0",
     "network": "8 GPUs per node, EFA, 3.2 Tb/s RDMA per node",
-    "source": "in-pod check of the measured run's training image (same digest) on 2026-10-01: Megatron-LM git commit and installed TE and PyTorch; NCCL from the measured run's log"
+    "runtime_fixes": "patches/fla_blackwell_guard.py, imported in every training process before FLA",
+    "source": "in-pod check of the measured run's training image (same digest) on 2026-10-01: Megatron-LM git commit and installed TE and PyTorch; NCCL from the measured run's log; FLA and Triton from an in-pod check of the same digest on 2026-10-18"
    },
    "workload": {
     "row_tokens": 8192,
@@ -3490,17 +3499,17 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 2282.82,
-    "usd_per_million_tokens": 1.73,
-    "step_time_cv_percent": 2.2,
-    "mfu": 0.0548,
+    "tokens_per_s_per_gpu": 2447.95,
+    "usd_per_million_tokens": 1.62,
+    "step_time_cv_percent": 3.16,
+    "mfu": 0.0588,
     "mfu_note": null,
     "active_params": {
      "count": 9008136192,
      "source": "https://huggingface.co/Qwen/Qwen3.5-122B-A10B",
      "revision": "dc4d348443bc740c68e2d77492492c11606384d5"
     },
-    "measured": "2026-10-13",
+    "measured": "2026-10-18",
     "steps_per_run": 20,
     "window": [
      5,
@@ -3509,7 +3518,7 @@
     "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
-    "gpu_hours": 4.98,
+    "gpu_hours": 4.2,
     "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
    },
    "correctness": {
@@ -3521,10 +3530,10 @@
     "convergence": {
      "steps": 20,
      "result": "pass",
-     "correlation": 0.999995,
-     "final_loss_difference": 0.00015,
+     "correlation": 0.999999,
+     "final_loss_difference": 0.00017,
      "pointwise_failures": 0,
-     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both"
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both; both with patches/fla_blackwell_guard.py"
     },
     "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
    },
@@ -3534,136 +3543,11 @@
     "TORCHINDUCTOR_COMPILE_THREADS": "1",
     "NCCL_NVLS_ENABLE": "$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)"
    },
-   "patches": [],
-   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 2 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --loss-mask-type qwen3_5 \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 1 \\\n  --pipeline-model-parallel-size 8 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 2 \\\n  --expert-tensor-parallel-size 1 \\\n  --sequence-parallel \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --cross-entropy-loss-fusion --cross-entropy-fusion-impl te \\\n  --distributed-timeout-minutes 30\n"
-  },
-  {
-   "path": "recipes/qwen3.5-122b-a10b/b200/attune-tp2-pp4-ep4.yaml",
-   "slug": "attune-tp2-pp4-ep4",
-   "rank": 3,
-   "schema_version": 1,
-   "model": "Qwen3.5-122B-A10B",
-   "gpu": {
-    "type": "B200",
-    "memory_gb": 180,
-    "count": 16,
-    "per_node": 8,
-    "instance": "AWS p6-b200.48xlarge"
-   },
-   "author": {
-    "name": "ATTUNE",
-    "url": "https://arxiv.org/abs/2610.17528"
-   },
-   "status": "verified",
-   "stack": {
-    "framework": "slime 0.3.0: THUDM/slime a897e1f plus 8 commits that do not change the training step",
-    "megatron_lm": "commit 1dcf0da (megatron-core 0.16.0rc0), with slime's patch to the MoE router (routing-replay registration)",
-    "transformer_engine": "2.10.0",
-    "pytorch": "2.11.0 (CUDA 12.9 build)",
-    "cuda": "12.9",
-    "nccl": "2.28.9 (CUDA 12.9 build; printed by the measured run)",
-    "deepep": "not pinned",
-    "python": "not pinned",
-    "network": "8 GPUs per node, EFA, 3.2 Tb/s RDMA per node",
-    "source": "in-pod check of the measured run's training image (same digest) on 2026-10-01: Megatron-LM git commit and installed TE and PyTorch; NCCL from the measured run's log"
-   },
-   "workload": {
-    "row_tokens": 8192,
-    "rows": "SFT conversations",
-    "global_batch": 128,
-    "precision": "bf16",
-    "dataset": {
-     "name": "Tulu 3 SFT mixture",
-     "source": "allenai/tulu-3-sft-mixture",
-     "revision": "b14afda60f1bbebe55d5d2fa1e4df5042f97f8be",
-     "license": "ODC-By 1.0",
-     "rows_sha256": "7a837641dcde9ebcac9d3ed5ed84ddd941fc9bfc173606cc701e9a3f51c307f1",
-     "build": {
-      "name": "qwen35-tulu3-fixed8192-v1",
-      "tokenizer": "Qwen3.5 (the Qwen3.5-122B-A10B tokenizer; tokenizer.json sha256 5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42)",
-      "loss_mask": "qwen3_5",
-      "rows": 6400,
-      "row_tokens": 8192,
-      "padding_tokens": 0,
-      "seed": 42,
-      "packing": "source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into consecutive 8,192-token rows; rows without supervised targets are skipped",
-      "supervised_token_ratio": 0.676,
-      "parquet_sha256": "f215bdc6aba60d6d0dff4471eaef805765cb393e40b95762190535376491ab01",
-      "parquet_bytes": 76127393,
-      "builder": "data/generate_fixed_sft.py (data/README.md)"
-     }
-    }
-   },
-   "layout": {
-    "label": "TP2 PP4 EP4 DP2",
-    "summary": "TP 2, PP 4, CP 1, EP 4, ETP 1, DP 2, sequence parallel; one 8,192-token row per microbatch; full recompute (uniform, 1 layer); precision-aware distributed optimizer; alltoall dispatcher; TE cross-entropy fusion; no offload",
-    "highlights": "max 8,192 tokens/GPU",
-    "tp": 2,
-    "pp": 4,
-    "vpp": 1,
-    "cp": 1,
-    "ep": 4,
-    "etp": 1,
-    "dp": 2,
-    "sequence_parallel": true,
-    "layer_split": null,
-    "max_tokens_per_gpu": 8192,
-    "rows_per_microbatch": 1,
-    "recompute": {
-     "granularity": "full",
-     "method": "uniform",
-     "num_layers": 1
-    },
-    "offload": null,
-    "dispatcher": "alltoall"
-   },
-   "result": {
-    "tokens_per_s_per_gpu": 1827.46,
-    "usd_per_million_tokens": 2.16,
-    "step_time_cv_percent": 1.92,
-    "mfu": 0.0439,
-    "mfu_note": null,
-    "active_params": {
-     "count": 9008136192,
-     "source": "https://huggingface.co/Qwen/Qwen3.5-122B-A10B",
-     "revision": "dc4d348443bc740c68e2d77492492c11606384d5"
-    },
-    "measured": "2026-10-13",
-    "steps_per_run": 20,
-    "window": [
-     5,
-     19
-    ],
-    "window_tokens": 15728640,
-    "runs": 1,
-    "profiler": false,
-    "gpu_hours": 4.96,
-    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
-   },
-   "correctness": {
-    "result": "pass",
-    "summary": "passed",
-    "reference": "Not published.",
-    "configuration": "pass",
-    "component_tests": [],
-    "convergence": {
-     "steps": 20,
-     "result": "pass",
-     "correlation": 0.999998,
-     "final_loss_difference": 8.4e-05,
-     "pointwise_failures": 0,
-     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both"
-    },
-    "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
-   },
-   "env": {
-    "CUDA_DEVICE_MAX_CONNECTIONS": "1",
-    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
-    "TORCHINDUCTOR_COMPILE_THREADS": "1",
-    "NCCL_NVLS_ENABLE": "$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)"
-   },
-   "patches": [],
-   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 2 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --loss-mask-type qwen3_5 \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 2 \\\n  --pipeline-model-parallel-size 4 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 4 \\\n  --expert-tensor-parallel-size 1 \\\n  --sequence-parallel \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --cross-entropy-loss-fusion --cross-entropy-fusion-impl te \\\n  --distributed-timeout-minutes 30\n"
+   "patches": [
+    "patches/fla_blackwell_guard.py"
+   ],
+   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 2 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --loss-mask-type qwen3_5 \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 1 \\\n  --pipeline-model-parallel-size 8 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 2 \\\n  --expert-tensor-parallel-size 1 \\\n  --sequence-parallel \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --cross-entropy-loss-fusion --cross-entropy-fusion-impl te \\\n  --distributed-timeout-minutes 30\n",
+   "notes": "B200 runs of this model need `patches/fla_blackwell_guard.py`: with the image's Triton 3.6, FLA 0.4.1's autotuner\npicks gated-delta-net kernel configs that race on Blackwell and give a different, wrong result on every call, and\nthe patch keeps those kernels on the configs FLA main uses there. Every training process on every node imports it\nbefore FLA (patches/README.md) and prints a `[fla-guard]` line.\n"
   },
   {
    "path": "recipes/qwen3.5-35b-a3b/h200/attune-tp1-pp1-ep8.yaml",
@@ -4780,8 +4664,11 @@
     "nccl": "2.28.9 (CUDA 12.9 build; printed by the measured run)",
     "deepep": "1.2.1",
     "python": "3.12",
+    "fla": "0.4.1 (flash-linear-attention)",
+    "triton": "3.6.0",
     "network": "8 GPUs per node, EFA, 3.2 Tb/s RDMA per node",
-    "source": "in-pod environment dump of the measured run's training image (same digest), taken by the component tests on 2026-10-11: installed TE, PyTorch and DeepEP, Megatron-LM git commit; NCCL from the measured run's log"
+    "runtime_fixes": "patches/fla_blackwell_guard.py, imported in every training process before FLA",
+    "source": "in-pod environment dump of the measured run's training image (same digest), taken by the component tests on 2026-10-11: installed TE, PyTorch and DeepEP, Megatron-LM git commit; NCCL from the measured run's log; FLA and Triton from an in-pod check of the same digest on 2026-10-18"
    },
    "workload": {
     "row_tokens": 8192,
@@ -4837,27 +4724,27 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 1176.14,
-    "usd_per_million_tokens": 3.36,
-    "step_time_cv_percent": 5.43,
-    "mfu": 0.0512,
+    "tokens_per_s_per_gpu": 1232.53,
+    "usd_per_million_tokens": 3.21,
+    "step_time_cv_percent": 2.72,
+    "mfu": 0.0537,
     "mfu_note": null,
     "active_params": {
      "count": 16331407360,
      "source": "https://huggingface.co/Qwen/Qwen3.5-397B-A17B",
      "revision": "8472618112abcbd45acbcdc58436aff4233c23f7"
     },
-    "measured": "2026-10-11",
-    "steps_per_run": 14,
+    "measured": "2026-10-18",
+    "steps_per_run": 20,
     "window": [
-     4,
-     13
+     5,
+     19
     ],
-    "window_tokens": 10485760,
+    "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
-    "gpu_hours": 22.6,
-    "gpu_hours_note": "GPUs x (job start to end), including startup"
+    "gpu_hours": 22.49,
+    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
    },
    "correctness": {
     "result": "pass",
@@ -4877,10 +4764,10 @@
     "convergence": {
      "steps": 20,
      "result": "pass",
-     "correlation": 0.999996,
-     "final_loss_difference": 6.5e-05,
+     "correlation": 0.9999986,
+     "final_loss_difference": 8.6e-05,
      "pointwise_failures": 0,
-     "note": "on the measured run's training image"
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both; both with patches/fla_blackwell_guard.py"
     },
     "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
    },
@@ -4890,8 +4777,11 @@
     "TORCHINDUCTOR_COMPILE_THREADS": "1",
     "NCCL_NVLS_ENABLE": "$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)"
    },
-   "patches": [],
-   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 8 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 14 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 2 \\\n  --pipeline-model-parallel-size 8 \\\n  --decoder-first-pipeline-num-layers 6 \\\n  --decoder-last-pipeline-num-layers 6 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 8 \\\n  --expert-tensor-parallel-size 1 \\\n  --sequence-parallel \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 16384 \\\n  --data-pad-size-multiplier 256 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --distributed-timeout-minutes 30 \\\n  --num-virtual-stages-per-pipeline-rank 2\n"
+   "patches": [
+    "patches/fla_blackwell_guard.py"
+   ],
+   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 8 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 2 \\\n  --pipeline-model-parallel-size 8 \\\n  --decoder-first-pipeline-num-layers 6 \\\n  --decoder-last-pipeline-num-layers 6 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 8 \\\n  --expert-tensor-parallel-size 1 \\\n  --sequence-parallel \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 16384 \\\n  --data-pad-size-multiplier 256 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --distributed-timeout-minutes 30 \\\n  --num-virtual-stages-per-pipeline-rank 2\n",
+   "notes": "B200 runs of this model need `patches/fla_blackwell_guard.py`: with the image's Triton 3.6, FLA 0.4.1's autotuner\npicks gated-delta-net kernel configs that race on Blackwell and give a different, wrong result on every call, and\nthe patch keeps those kernels on the configs FLA main uses there. Every training process on every node imports it\nbefore FLA (patches/README.md) and prints a `[fla-guard]` line.\n"
   },
   {
    "path": "recipes/qwen3.5-397b-a17b/b200/attune-tp2-pp8-ep8-vpp2-mt8k.yaml",
@@ -4920,8 +4810,11 @@
     "nccl": "2.28.9 (CUDA 12.9 build; printed by the measured run)",
     "deepep": "1.2.1",
     "python": "3.12",
+    "fla": "0.4.1 (flash-linear-attention)",
+    "triton": "3.6.0",
     "network": "8 GPUs per node, EFA, 3.2 Tb/s RDMA per node",
-    "source": "in-pod environment dump of the measured run's training image (same digest), taken by the component tests on 2026-10-11: installed TE, PyTorch and DeepEP, Megatron-LM git commit; NCCL from the measured run's log"
+    "runtime_fixes": "patches/fla_blackwell_guard.py, imported in every training process before FLA",
+    "source": "in-pod environment dump of the measured run's training image (same digest), taken by the component tests on 2026-10-11: installed TE, PyTorch and DeepEP, Megatron-LM git commit; NCCL from the measured run's log; FLA and Triton from an in-pod check of the same digest on 2026-10-18"
    },
    "workload": {
     "row_tokens": 8192,
@@ -4977,17 +4870,17 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 1060.85,
-    "usd_per_million_tokens": 3.73,
-    "step_time_cv_percent": 2.37,
-    "mfu": 0.0462,
+    "tokens_per_s_per_gpu": 1130.65,
+    "usd_per_million_tokens": 3.5,
+    "step_time_cv_percent": 0.58,
+    "mfu": 0.0492,
     "mfu_note": null,
     "active_params": {
      "count": 16331407360,
      "source": "https://huggingface.co/Qwen/Qwen3.5-397B-A17B",
      "revision": "8472618112abcbd45acbcdc58436aff4233c23f7"
     },
-    "measured": "2026-10-13",
+    "measured": "2026-10-18",
     "steps_per_run": 20,
     "window": [
      5,
@@ -4996,7 +4889,7 @@
     "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
-    "gpu_hours": 32.28,
+    "gpu_hours": 28.94,
     "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
    },
    "correctness": {
@@ -5017,10 +4910,10 @@
     "convergence": {
      "steps": 20,
      "result": "pass",
-     "correlation": 0.999998,
-     "final_loss_difference": 0.00018,
+     "correlation": 0.9999967,
+     "final_loss_difference": 0.0002,
      "pointwise_failures": 0,
-     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both"
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both; both with patches/fla_blackwell_guard.py"
     },
     "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
    },
@@ -5030,8 +4923,11 @@
     "TORCHINDUCTOR_COMPILE_THREADS": "1",
     "NCCL_NVLS_ENABLE": "$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)"
    },
-   "patches": [],
-   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 8 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 2 \\\n  --pipeline-model-parallel-size 8 \\\n  --decoder-first-pipeline-num-layers 6 \\\n  --decoder-last-pipeline-num-layers 6 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 8 \\\n  --expert-tensor-parallel-size 1 \\\n  --sequence-parallel \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --data-pad-size-multiplier 256 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --distributed-timeout-minutes 30 \\\n  --num-virtual-stages-per-pipeline-rank 2\n"
+   "patches": [
+    "patches/fla_blackwell_guard.py"
+   ],
+   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 8 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 2 \\\n  --pipeline-model-parallel-size 8 \\\n  --decoder-first-pipeline-num-layers 6 \\\n  --decoder-last-pipeline-num-layers 6 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 8 \\\n  --expert-tensor-parallel-size 1 \\\n  --sequence-parallel \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --data-pad-size-multiplier 256 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --distributed-timeout-minutes 30 \\\n  --num-virtual-stages-per-pipeline-rank 2\n",
+   "notes": "B200 runs of this model need `patches/fla_blackwell_guard.py`: with the image's Triton 3.6, FLA 0.4.1's autotuner\npicks gated-delta-net kernel configs that race on Blackwell and give a different, wrong result on every call, and\nthe patch keeps those kernels on the configs FLA main uses there. Every training process on every node imports it\nbefore FLA (patches/README.md) and prints a `[fla-guard]` line.\n"
   },
   {
    "path": "recipes/qwen3.5-397b-a17b/b200/attune-48gpu-tp2-pp6-ep8.yaml",
@@ -5060,8 +4956,11 @@
     "nccl": "2.28.9 (CUDA 12.9 build; printed by the measured run)",
     "deepep": "1.2.1",
     "python": "3.12",
+    "fla": "0.4.1 (flash-linear-attention)",
+    "triton": "3.6.0",
     "network": "8 GPUs per node, EFA, 3.2 Tb/s RDMA per node",
-    "source": "in-pod environment dump of the measured run's training image (same digest), taken by the component tests on 2026-10-11: installed TE, PyTorch and DeepEP, Megatron-LM git commit; NCCL from the measured run's log"
+    "runtime_fixes": "patches/fla_blackwell_guard.py, imported in every training process before FLA",
+    "source": "in-pod environment dump of the measured run's training image (same digest), taken by the component tests on 2026-10-11: installed TE, PyTorch and DeepEP, Megatron-LM git commit; NCCL from the measured run's log; FLA and Triton from an in-pod check of the same digest on 2026-10-18"
    },
    "workload": {
     "row_tokens": 8192,
@@ -5114,17 +5013,17 @@
     "dispatcher": "alltoall"
    },
    "result": {
-    "tokens_per_s_per_gpu": 1018.73,
-    "usd_per_million_tokens": 3.88,
-    "step_time_cv_percent": 4.94,
-    "mfu": 0.0444,
+    "tokens_per_s_per_gpu": 1075.5,
+    "usd_per_million_tokens": 3.68,
+    "step_time_cv_percent": 7.39,
+    "mfu": 0.0468,
     "mfu_note": null,
     "active_params": {
      "count": 16331407360,
      "source": "https://huggingface.co/Qwen/Qwen3.5-397B-A17B",
      "revision": "8472618112abcbd45acbcdc58436aff4233c23f7"
     },
-    "measured": "2026-10-13",
+    "measured": "2026-10-18",
     "steps_per_run": 20,
     "window": [
      5,
@@ -5133,7 +5032,7 @@
     "window_tokens": 15728640,
     "runs": 1,
     "profiler": false,
-    "gpu_hours": 17.77,
+    "gpu_hours": 19.73,
     "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
    },
    "correctness": {
@@ -5154,10 +5053,10 @@
     "convergence": {
      "steps": 20,
      "result": "pass",
-     "correlation": 0.999999,
-     "final_loss_difference": 0.0001,
+     "correlation": 0.9999971,
+     "final_loss_difference": 2.6e-05,
      "pointwise_failures": 0,
-     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both"
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both; both with patches/fla_blackwell_guard.py"
     },
     "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml; 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
    },
@@ -5167,8 +5066,11 @@
     "TORCHINDUCTOR_COMPILE_THREADS": "1",
     "NCCL_NVLS_ENABLE": "$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)"
    },
-   "patches": [],
-   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 6 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 2 \\\n  --pipeline-model-parallel-size 6 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 8 \\\n  --expert-tensor-parallel-size 1 \\\n  --sequence-parallel \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --data-pad-size-multiplier 256 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --distributed-timeout-minutes 30\n"
+   "patches": [
+    "patches/fla_blackwell_guard.py"
+   ],
+   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 6 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 2 \\\n  --pipeline-model-parallel-size 6 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 8 \\\n  --expert-tensor-parallel-size 1 \\\n  --sequence-parallel \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --data-pad-size-multiplier 256 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --distributed-timeout-minutes 30\n",
+   "notes": "B200 runs of this model need `patches/fla_blackwell_guard.py`: with the image's Triton 3.6, FLA 0.4.1's autotuner\npicks gated-delta-net kernel configs that race on Blackwell and give a different, wrong result on every call, and\nthe patch keeps those kernels on the configs FLA main uses there. Every training process on every node imports it\nbefore FLA (patches/README.md) and prints a `[fla-guard]` line.\n"
   },
   {
    "path": "recipes/qwen3.6-27b/h200/attune-tp1-pp4-split16-rb12.yaml",
