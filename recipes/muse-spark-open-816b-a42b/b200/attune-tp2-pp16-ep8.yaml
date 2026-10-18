@@ -191,5 +191,10 @@ run: |
     --use-distributed-optimizer \
     --distributed-timeout-minutes 60
 notes: |
+  - Starting point: the layout of miles' Muse Spark launcher for 64 H200, `scripts/run_muse_spark_64xh200.py`
+    (https://github.com/radixark/miles/pull/4111; model page https://miles.radixark.com/docs/models/muse-spark/muse-spark-open),
+    which miles lists as untested on B200 and publishes with step times and no tokens/s figure. Ported to this workload
+    on 128 B200 with that layout (TP 8, PP 8 with 7 layers on the first and last stages), EP 16 and Adam on the GPU, it
+    measured 343.3 tokens/s/GPU; ATTUNE tuned it to 505.2 (+47%).
   - Adam stays on the GPU: the measured run peaked at 157.8 GiB used per GPU of 178.35 GiB. EP 8 is the smallest EP
     that fits at PP 16: a tuning run at EP 4 ran out of memory at step 0.

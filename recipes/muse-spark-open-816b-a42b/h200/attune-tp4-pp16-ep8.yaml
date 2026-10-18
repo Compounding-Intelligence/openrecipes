@@ -214,6 +214,11 @@ run: |
     --overlap-cpu-optimizer-d2h-h2d \
     --distributed-timeout-minutes 60
 notes: |
+  - Starting point: miles' Muse Spark launcher for 64 H200, `scripts/run_muse_spark_64xh200.py`
+    (https://github.com/radixark/miles/pull/4111; model page https://miles.radixark.com/docs/models/muse-spark/muse-spark-open).
+    miles publishes it as a GRPO recipe with step times and no tokens/s figure. Ported to this workload with its layout
+    (TP 8, PP 8 with 7 layers on the first and last stages, EP 8) on 128 H200, with Adam on the CPU in place of its
+    NVMe-streamed optimizer state, it measured 224.4 tokens/s/GPU; ATTUNE tuned it to 333.1 (+48%).
   - `OMP_NUM_THREADS=12` gives each training process 12 threads for its part of the CPU Adam step, the node's 96
     physical cores over 8 ranks; Ray otherwise starts each training actor with one thread.
   - Keep the full recompute: a tuning run at PP 16 with recompute off ran out of memory at step 0 with the whole
