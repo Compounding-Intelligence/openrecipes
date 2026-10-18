@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
@@ -56,17 +57,120 @@ def test_notes_appear_once(files):
     assert page.count("<h2>Notes for gpt-oss-20b</h2>") == 1 and page.count("patches/attune_gpt_oss_yarn.py</code>") >= 1
     assert "it was not tuned on B200" in page
     assert "<h2>Notes for" not in files["qwen3.5-122b-a10b/h200/index.html"]
-    index = files["index.html"].split('id="models">')[1].split("</section>")[0]
-    assert "gauge" not in index and "$" not in index   # the index lists GPU types only; numbers sit in the blocks
-    assert files["index.html"].count('class="irow has"') == 14 and "models have recipes" not in files["index.html"]
-    assert 'class="tg" aria-pressed="false" hidden>With recipes only</button>' in files["index.html"]
-    assert files["index.html"].count('<section class="hud mb"') == 14 and 'data-gpu="H100"' in files["index.html"]
 
 
 def test_missing_gpu_types_are_grey(files):
     page = files["deepseek-v4-flash/h200/index.html"]
     assert page.count('class="card gpu off"') == 2
-    assert files["index.html"].count('<span class="off">') == 3 * 41 - 26
+    assert files["index.html"].count('<span class="none">No recipe yet</span>') == 3 * 14 - 26   # open slots on the cards
+
+
+@pytest.fixture(scope="module")
+def catalog():
+    recipes, models, gpus, _, errs = build.validate_all(ROOT)
+    assert errs == []
+    pairs = build.collect(recipes, models, gpus)
+    tuned = [m for m in models.values() if any((m["model"], gt) in pairs for gt in gpus)]
+    return {"recipes": recipes, "models": models, "gpus": list(gpus), "pairs": pairs, "tuned": tuned}
+
+
+def section(page, start):
+    return page.split(start, 1)[1].split("</section>", 1)[0]
+
+
+def test_index_hero_counts_what_has_recipes(files, catalog):
+    index = files["index.html"]
+    hero = index.split('<div class="big">', 1)[1].split("</header>", 1)[0]
+    assert re.findall(r'<div class="ml">([^<]+)</div><span class="num">(\d+)</span>', hero) == [
+        ("Recipes", str(len(catalog["recipes"]))), ("Models", str(len(catalog["tuned"]))),
+        ("Model&ndash;GPU pairs", str(len(catalog["pairs"])))]
+    # no catalog denominator and no count of the models or GPU types still without a recipe
+    text = " ".join(re.sub(r"<[^>]+>", " ", index.split("<main", 1)[1]).split())
+    assert "catalog" not in text and not re.search(r"\bof %d\b" % len(catalog["models"]), text)
+    assert not re.search(r"\d+ (?:\w+ )?(?:models?|GPU types?) (?:have|has|are|is) (?:no|still)", text)
+    assert "With recipes only" not in index and 'class="hud idx"' not in index and 'class="seg"' not in index
+
+
+def test_index_cards(files, catalog):
+    index, pairs, gpus = files["index.html"], catalog["pairs"], catalog["gpus"]
+    cards = re.findall(r'<article class="hud mc" id="m-([^"]+)">(.*?)</article>', index, re.S)
+    assert [slug for slug, _ in cards] == [m["slug"] for m in catalog["tuned"]]   # catalog order, models with recipes
+    for (_, card), m in zip(cards, catalog["tuned"]):
+        mine = {gt: pairs[(m["model"], gt)] for gt in gpus if (m["model"], gt) in pairs}
+        n = sum(len(v) for v in mine.values())
+        assert '<span class="cnt">%d recipe%s</span>' % (n, "" if n == 1 else "s") in card
+        rows = re.findall(r'<a class="gr" href="([^"]+)"[^>]*><span class="g">(\w+)</span><span class="gauge sm[^"]*"'
+                          r'.*?<span class="t( hi)?">([\d,.]+)</span>', card)
+        assert [(u, gt, t) for u, gt, _, t in rows] == [
+            (build.pair_url(m, gt), gt, build.tps(v[0]["r"]["result"]["tokens_per_s_per_gpu"])) for gt, v in mine.items()]
+        assert [hi for *_, hi, _ in rows].count(" hi") >= 1
+        assert card.count("No recipe yet") == len(gpus) - len(mine)
+        newest = max(build.iso(x["r"]["result"]["measured"]) for v in mine.values() for x in v)
+        assert "Newest <b>%s</b>" % newest in card
+    for url in re.findall(r'<a class="gr" href="([^"]+)"', index):
+        assert url + "index.html" in files
+    card = dict(cards)["qwen3.5-122b-a10b"]
+    assert '<span class="t hi">2,451.4</span><span class="c">&times;32</span><span class="u">$0.90</span>' in card
+    assert '122B parameters &middot; <abbr' in card and "N</abbr> 9.0B active" in card
+
+
+def test_index_starting_point_gains(files, catalog):
+    cards = dict(re.findall(r'<article class="hud mc" id="m-([^"]+)">(.*?)</article>', files["index.html"], re.S))
+    assert ('<span class="ml">Starting point</span><span class="nw">3,142.9 &rarr; 6,178.5 <b>+97%</b></span>'
+            in cards["glm-4.7-flash"])
+    best = [v[0]["r"] for v in catalog["pairs"].values()]
+    assert files["index.html"].count('<div class="gl"') == sum(1 for r in best if build.starting_gain(r)) > 0
+
+
+def test_starting_gain_checks_the_numbers():
+    r = {"gpu": {"type": "H200", "count": 8}, "result": {"tokens_per_s_per_gpu": 6178.46}}
+    note = ("- First item.\n- Starting point: miles' launcher, `x.py`. Ported to this workload, it measured 3,142.9\n"
+            "  tokens/s/GPU; ATTUNE tuned it to 6,178.5 (+97%).\n- Last item.\n")
+    gain = {"source": "miles' launcher", "measured": 3142.9, "tuned": 6178.5, "percent": 97}
+    assert build.starting_gain(dict(r, notes=note)) == gain
+    assert build.starting_gain(dict(r, notes=note.replace("GPU;", "GPU on 8 H200;"))) == gain
+    assert build.starting_gain(dict(r, notes=note.replace("GPU;", "GPU on 8 H100;"))) is None    # another GPU type
+    assert build.starting_gain(dict(r, notes=note.replace("(+97%)", "(+90%)"))) is None          # percent disagrees
+    assert build.starting_gain(dict(r, notes=note.replace("6,178.5", "6,200.0"))) is None        # not the recipe's result
+    assert build.starting_gain(dict(r, notes=note.replace("Starting point:", "Before:"))) is None
+    assert build.starting_gain(dict(r, notes=None)) is None
+
+
+def test_index_latest_recipes(files, catalog):
+    sec = section(files["index.html"], '<section class="hud latest" id="latest">')
+    n = len(catalog["recipes"])
+    rows = re.findall(r'<tr( class="x")?>(.*?)</tr>', sec.split("<tbody>", 1)[1], re.S)
+    assert len(rows) == n and not re.search(r"<tr[^>]*hidden", sec)   # every row renders, so it works without JS
+    assert [bool(x) for x, _ in rows] == [i >= build.LATEST for i in range(n)]
+    dates = re.findall(r'data-label="Measured"><span class="cv">([\d-]+)</span>', sec)
+    assert len(dates) == n and dates == sorted(dates, reverse=True)
+    assert dates[0] == max(build.iso(r["result"]["measured"]) for r in catalog["recipes"].values())
+    for url, slug in re.findall(r'<a href="([^"#]+)#([^"]+)">', sec):
+        assert 'id="%s"' % slug in files[url + "index.html"]
+    assert ('<button type="button" class="tg" aria-pressed="false" data-more="Show all %d recipes" data-less="Show the '
+            'newest %d" hidden>Show all %d recipes</button>' % (n, build.LATEST, n)) in sec
+    assert '".latest tr.x"' in files["app.js"] and "more.hidden = false;" in files["app.js"]
+
+
+def test_index_wanted_strip(files, catalog):
+    sec = section(files["index.html"], '<section class="hud wanted" id="wanted">')
+    tuned = {m["model"] for m in catalog["tuned"]}
+    assert re.findall(r'<span class="(?:end )?wp">([^<]+)</span>', sec) == [
+        build.esc(m) for m in catalog["models"] if m not in tuned]
+    head = sec.split("</div>", 1)[0]
+    assert "<h2>Wanted: recipes for these models</h2>" in head and 'href="submit"' in head
+    assert not re.search(r"\d", re.sub(r"<[^>]+>", "", head))   # an invitation, not a count
+
+
+def test_index_without_open_models(repo):
+    data = build.load_yaml(repo / "models.yaml")
+    have = {p.parts[-3] for p in (repo / "recipes").glob("*/*/*.yaml")}
+    data["models"] = [m for m in data["models"] if m["slug"] in have]
+    (repo / "models.yaml").write_text(yaml.safe_dump(data, sort_keys=False))
+    out, errs = build.render(repo)
+    assert errs == []
+    index = out["index.html"].decode("utf-8")
+    assert 'id="wanted"' not in index and index.count('<article class="hud mc"') == len(data["models"])
 
 
 def test_protocol_and_submit(files):

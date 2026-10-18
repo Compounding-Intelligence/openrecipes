@@ -212,12 +212,18 @@ def shell(rel, title, description, body, current=None, data_date=None, absolute=
 # ---- index --------------------------------------------------------------------------------------------------------
 
 SEGS = 24   # segments in a throughput gauge
+LATEST = 12   # rows the latest-recipes list shows before "Show all"
+TAGLINE = ("Tuned, verified LLM training recipes on one fixed SFT workload, each with its cost per million tokens and a "
+           "passed convergence check.")
+GAIN = re.compile(r"it measured ([\d,.]+) tokens/s/GPU(?: on \d+ (\w+))?; \S+ tuned it to ([\d,.]+) \(([+-]\d+)%\)")
+SOURCE = re.compile(r"Starting point: ([^,(`]+)")
+SIZE = re.compile(r"-(\d+(?:\.\d+)?)[Bb](?:-A\d+(?:\.\d+)?B)?$")   # the total size a model name ends with
 
 
-def gauge(share):
-    k = max(1, round(share * SEGS))
-    return '<span class="gauge" title="%d%% of the best">%s</span>' % (
-        round(share * 100), "".join('<b class="on"></b>' if i < k else "<b></b>" for i in range(SEGS)))
+def gauge(share, segs=SEGS, cls="gauge", of="the best"):
+    k = max(1, round(share * segs))
+    return '<span class="%s" title="%d%% of %s">%s</span>' % (
+        cls, round(share * 100), esc(of), "".join('<b class="on"></b>' if i < k else "<b></b>" for i in range(segs)))
 
 
 def author_html(a):
@@ -226,64 +232,143 @@ def author_html(a):
     return '<a href="%s">%s</a>' % (esc(a["url"]), esc(a["name"]))
 
 
-def index_page(pairs, models, gpus, date):
-    groups = list(families(models).items())
-    total, left, count = len(models), [], 0
-    for fam, ms in groups:
-        if count < total / 2:
-            left.append((fam, ms))
-            count += len(ms)
-    columns = []
-    for col in (left, groups[len(left):]):
-        fams = []
-        for fam, ms in col:
-            rows = []
-            for m in ms:
-                ours = [gt for gt in gpus if (m["model"], gt) in pairs]
-                name = ('<a href="#m-%s">%s</a>' % (esc(m["slug"]), esc(m["model"])) if ours else esc(m["model"]))
-                chips = "".join('<a href="%s">%s</a>' % (pair_url(m, gt), gt) if gt in ours else '<span class="off">%s</span>' % gt
-                                for gt in gpus)
-                rows.append('<div class="irow%s"><span class="mname">%s</span><span class="lbs">%s</span></div>'
-                            % (" has" if ours else "", name, chips))
-            has = any((m["model"], gt) in pairs for m in ms for gt in gpus)
-            fams.append('<div class="fam%s"><div class="fname">%s</div><div>%s</div></div>'
-                        % (" has" if has else "", esc(fam), "".join(rows)))
-        columns.append('<div><div class="ihead ml"><span>Family</span><span>Model</span><span>GPU</span></div>%s</div>' % "".join(fams))
-    n_recipes = sum(len(v) for v in pairs.values())
-    hero = ('<header class="hud hero"><h1>OpenRecipes</h1>'
-            '<p class="tag">Tuned, verified LLM training recipes on one fixed SFT workload, each with its cost per million '
-            'tokens and a passed convergence check.</p>'
-            '<p class="spec"><span>8,192-token SFT rows</span> &middot; <span>global batch 128</span> &middot; <span>BF16</span>'
-            ' &middot; <span>%d recipes on %d model and GPU pairs</span></p>'
-            '<div class="acts"><a class="btn pri" href="submit.html">Submit a recipe</a><a class="btn" href="protocol.html">Protocol</a>'
-            '<a class="btn" href="%s">GitHub</a></div></header>') % (n_recipes, len(pairs), REPO_URL)
-    seg = ('<div class="seg" role="group" aria-label="GPU"><span class="ml">GPU</span><button type="button" class="on" '
-           'data-gpu="" aria-pressed="true">All</button>%s</div>' % "".join(
-               '<button type="button" data-gpu="%s" aria-pressed="false">%s</button>' % (gt, gt) for gt in gpus))
-    blocks = []
-    for m in models.values():
-        rows = [(gt, pairs[(m["model"], gt)]) for gt in gpus if (m["model"], gt) in pairs]
-        if not rows:
+def note_items(text):
+    """The paragraphs and "- " list items of a notes text, each joined onto one line (as render_text splits them)."""
+    out = []
+    for block in re.split(r"\n\s*\n", text.strip()):
+        lines = block.splitlines()
+        if lines and lines[0].startswith("- "):
+            for line in lines:
+                if line.startswith("- "):
+                    out.append(line[2:].strip())
+                elif out:
+                    out[-1] += " " + line.strip()
+        elif lines:
+            out.append(" ".join(x.strip() for x in lines))
+    return out
+
+
+def starting_gain(r):
+    """{"source", "measured", "tuned", "percent"} from the "Starting point" item of a recipe's notes, or None when the
+    tuned value is not the recipe's tokens/s per GPU as shown, the percentage disagrees or the start ran on another GPU."""
+    for item in note_items(r.get("notes") or ""):
+        if not item.startswith("Starting point:"):
             continue
-        top = max(items[0]["r"]["result"]["tokens_per_s_per_gpu"] for _, items in rows)
-        low = min(items[0]["r"]["result"]["usd_per_million_tokens"] for _, items in rows)
-        trs = []
-        for gt, items in rows:
-            r = items[0]["r"]
-            t_, u = r["result"]["tokens_per_s_per_gpu"], r["result"]["usd_per_million_tokens"]
-            trs.append('<tr data-gpu="{gt}"><td class="g">{gt}</td><td class="n">{count}</td><td class="tp"><span class="v{hi}">{tps}'
-                       '</span>{gauge}</td><td class="n{lo}">{usd}</td><td>{label}<br><small>{hl}</small></td>'
-                       '<td class="nw">{date}</td><td>{author}</td><td class="go"><a href="{url}">{more}&nbsp;&rsaquo;</a></td></tr>'.format(
-                           gt=esc(gt), count=r["gpu"]["count"], hi=" hi" if t_ == top else "", tps=tps(t_), gauge=gauge(t_ / top),
-                           lo=" hi" if u == low else "", usd=usd(u), label=esc(r["layout"]["label"]),
-                           hl=esc(r["layout"]["highlights"]), date=esc(iso(r["result"]["measured"])), author=author_html(r["author"]),
-                           url=pair_url(m, gt), more="All recipes" if len(items) > 1 else "Recipe"))
-        blocks.append('<section class="hud mb" id="m-{slug}"><div class="ml">{fam}</div><h2>{model}</h2><div class="tablewrap">'
-                      '<table><thead><tr><th>GPU</th><th>GPUs</th><th>Tokens/s per GPU</th><th>$ / 1M tokens</th><th>Layout</th>'
-                      '<th>Measured</th><th>Author</th><th></th></tr></thead><tbody>{rows}</tbody></table></div></section>'.format(
-                          slug=esc(m["slug"]), fam=esc(m["family"]), model=esc(m["model"]), rows="".join(trs)))
-    bar = '<div class="ibar"><button type="button" class="tg" aria-pressed="false" hidden>With recipes only</button></div>'
-    body = "\n".join([hero, '<section class="hud idx" id="models">%s%s</section>' % (bar, "".join(columns)), seg] + blocks)
+        m, s = GAIN.search(item), SOURCE.match(item)
+        if not (m and s):
+            return None
+        a, b, p = float(m.group(1).replace(",", "")), float(m.group(3).replace(",", "")), int(m.group(4))
+        ok = (a > 0 and m.group(3) == tps(r["result"]["tokens_per_s_per_gpu"]) and abs((b / a - 1) * 100 - p) <= 0.5
+              and m.group(2) in (None, r["gpu"]["type"]))
+        return {"source": s.group(1).strip(), "measured": a, "tuned": b, "percent": p} if ok else None
+    return None
+
+
+def billions(n):
+    return "{:.1f}B".format(n / 1e9)
+
+
+def model_card(m, pairs, gpus):
+    """One model's card: per GPU type its fastest recipe, or an open slot."""
+    rows = {gt: pairs[(m["model"], gt)] for gt in gpus if (m["model"], gt) in pairs}
+    mine = [x["r"] for items in rows.values() for x in items]
+    top = max(items[0]["r"]["result"]["tokens_per_s_per_gpu"] for items in rows.values())
+    best = max(rows, key=lambda gt: rows[gt][0]["r"]["result"]["tokens_per_s_per_gpu"])
+    size = SIZE.search(m["model"])
+    par = ["%sB parameters" % size.group(1)] if size else []
+    active = {r["result"]["active_params"]["count"] for r in mine}
+    if len(active) == 1 and None not in active:
+        par.append('<abbr title="Active parameters per token, as the protocol counts them for MFU">N</abbr> %s active'
+                   % billions(active.pop()))
+    grs = ['<div class="gr h"><span class="hd">GPU</span><span class="hd">vs. fastest</span><span class="hd">Tok/s/GPU'
+           '</span><span class="hd">GPUs</span><span class="hd">$/1M</span></div>']
+    for gt in gpus:
+        if gt not in rows:
+            grs.append('<div class="gr off"><span class="g">%s</span><span class="none">No recipe yet</span></div>' % esc(gt))
+            continue
+        items = rows[gt]
+        r = items[0]["r"]
+        t_ = r["result"]["tokens_per_s_per_gpu"]
+        hi = " hi" if t_ == top else ""
+        grs.append('<a class="gr" href="{url}" title="{n} recipe{s} on {gt}"><span class="g">{gt}</span>{gauge}'
+                   '<span class="t{hi}">{tps}</span><span class="c">&times;{count}</span><span class="u">{usd}</span></a>'
+                   .format(url=pair_url(m, gt), n=len(items), s="" if len(items) == 1 else "s", gt=esc(gt),
+                           gauge=gauge(t_ / top, 12, "gauge sm" + hi, "the model's fastest recipe"), hi=hi, tps=tps(t_),
+                           count=r["gpu"]["count"], usd=usd(r["result"]["usd_per_million_tokens"])))
+        g = starting_gain(r)
+        if g:
+            grs.append('<div class="gl" title="Starting point: %s"><span class="ml">Starting point</span><span class="nw">%s '
+                       '&rarr; %s <b>%+d%%</b></span></div>' % (esc(g["source"]), tps(g["measured"]), tps(g["tuned"]),
+                                                               g["percent"]))
+    n = len(mine)
+    return ('<article class="hud mc" id="m-{slug}"><div class="top"><span class="ml">{fam}</span><span class="cnt">{n} '
+            'recipe{s}</span></div><h3><a href="{url}">{model}</a></h3>{par}<div class="grs">{rows}</div>'
+            '<div class="foot"><span>Newest <b>{date}</b></span></div></article>').format(
+        slug=esc(m["slug"]), fam=esc(m["family"]), n=n, s="" if n == 1 else "s", url=pair_url(m, best),
+        model=esc(m["model"]), par='<p class="par">%s</p>' % " &middot; ".join(par) if par else "", rows="".join(grs),
+        date=esc(max(iso(r["result"]["measured"]) for r in mine)))
+
+
+def latest_list(pairs, models, gpus):
+    """Every recipe, newest first; rows past the first LATEST are class x, which app.js folds behind a button."""
+    order, gorder = {name: i for i, name in enumerate(models)}, {gt: i for i, gt in enumerate(gpus)}
+    recs = sorted(((k, x) for k, items in pairs.items() for x in items),
+                  key=lambda kx: (order[kx[0][0]], gorder[kx[0][1]], kx[1]["rank"]))
+    recs.sort(key=lambda kx: iso(kx[1]["r"]["result"]["measured"]), reverse=True)   # stable: ties keep catalog order
+    trs = []
+    for i, ((mname, gt), x) in enumerate(recs):
+        r, m = x["r"], models[mname]
+        trs.append('<tr{cls}><td class="nw">{date}</td><td class="nw"><a href="{url}#{slug}">{model}</a></td>'
+                   '<td class="g">{gt}</td><td class="n">{count}</td><td class="tp"><span class="v">{tps}</span></td>'
+                   '<td class="n">{usd}</td><td class="lay">{label}<small>{hl}</small></td><td class="n">#{rank}<small> '
+                   'of {of}</small></td><td>{author}</td></tr>'.format(
+                       cls=' class="x"' if i >= LATEST else "", date=esc(iso(r["result"]["measured"])),
+                       url=pair_url(m, gt), slug=esc(x["slug"]), model=esc(mname), gt=esc(gt), count=r["gpu"]["count"],
+                       tps=tps(r["result"]["tokens_per_s_per_gpu"]),
+                       usd=usd(r["result"]["usd_per_million_tokens"]), label=esc(r["layout"]["label"]),
+                       hl=esc(r["layout"]["highlights"]), rank=x["rank"], of=len(pairs[(mname, gt)]),
+                       author=author_html(r["author"])))
+    more = ""
+    if len(recs) > LATEST:
+        more = ('<div class="more"><button type="button" class="tg" aria-pressed="false" data-more="Show all {n} recipes" '
+                'data-less="Show the newest {k}" hidden>Show all {n} recipes</button></div>').format(n=len(recs), k=LATEST)
+    return ('<section class="hud latest" id="latest"><div class="shead"><h2>Latest recipes</h2><span class="wt">Newest '
+            'first; rank is within the model and GPU pair.</span></div><div class="tablewrap"><table><thead><tr>'
+            '<th>Measured</th><th>Model</th><th>GPU</th><th>GPUs</th><th>Tok/s/GPU</th><th>$ / 1M</th>'
+            '<th>Layout</th><th>Rank</th><th>Author</th></tr></thead><tbody>%s</tbody></table></div>%s</section>'
+            % ("".join(trs), more))
+
+
+def wanted_strip(open_models):
+    """The catalog models without a recipe, by family, as an invitation to submit."""
+    parts = []
+    for fam, ms in families({m["model"]: m for m in open_models}).items():
+        pills = ['<span class="wp">%s</span>' % esc(m["model"]) for m in ms]
+        group = ['<span class="wg"><span class="wf">%s</span>%s</span>' % (esc(fam), pills[0])] + pills[1:]
+        group[-1] = group[-1].replace('class="', 'class="end ', 1)
+        parts += group
+    return ('<section class="hud wanted" id="wanted"><div class="wh"><h2>Wanted: recipes for these models</h2>'
+            '<a class="go" href="submit.html">Submit a recipe&nbsp;&rsaquo;</a></div>%s</section>' % "".join(parts))
+
+
+def index_page(pairs, models, gpus, date):
+    tuned = [m for m in models.values() if any((m["model"], gt) in pairs for gt in gpus)]
+    n_recipes = sum(len(v) for v in pairs.values())
+    on = [gt for gt in gpus if any(k[1] == gt for k in pairs)]
+    stats = [("Recipes", n_recipes, "verified"),
+             ("Models", len(tuned), "in %d families" % len({m["family"] for m in tuned})),
+             ("Model&ndash;GPU pairs", len(pairs), "on " + ", ".join(esc(gt) for gt in on))]
+    hero = ('<header class="hud hero split"><div><h1>OpenRecipes</h1><p class="tag">{tag}</p>'
+            '<p class="spec"><span>8,192-token SFT rows</span> &middot; <span>global batch 128</span> &middot; <span>BF16'
+            '</span></p><div class="acts"><a class="btn pri" href="submit.html">Submit a recipe</a><a class="btn" '
+            'href="protocol.html">Protocol</a><a class="btn" href="{repo}">GitHub</a></div></div><div class="big">{stats}'
+            '</div></header>').format(tag=TAGLINE, repo=REPO_URL, stats="".join(
+                '<div><div class="ml">%s</div><span class="num">%d</span><div class="det">%s</div></div>' % s for s in stats))
+    cards = ('<div class="shead" id="models"><h2>Models with recipes</h2><span class="wt">Each GPU row shows its fastest '
+             "recipe; the bar compares it with the model's fastest.</span></div><div class=\"cards\">%s</div>"
+             % "".join(model_card(m, pairs, gpus) for m in tuned))
+    open_models = [m for m in models.values() if not any((m["model"], gt) in pairs for gt in gpus)]
+    body = "\n".join([hero, cards, latest_list(pairs, models, gpus)] + ([wanted_strip(open_models)] if open_models else []))
     return shell("index.html", "OpenRecipes: tuned, verified LLM training recipes",
                  "Training recipes for LLMs on H100, H200 and B200, each measured one way and checked for correctness.",
                  body, "models", date)
