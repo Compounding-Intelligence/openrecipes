@@ -37,11 +37,14 @@
   }
   var toggle = document.querySelector(".idx .tg");
   if (toggle) {
-    toggle.hidden = false;
-    toggle.addEventListener("click", function () {
-      var on = toggle.getAttribute("aria-pressed") !== "true";
+    var setOnly = function (on) {
       toggle.setAttribute("aria-pressed", on ? "true" : "false");
       toggle.closest(".idx").classList.toggle("only", on);
+    };
+    toggle.hidden = false;
+    setOnly(true);   // models with recipes by default; the toggle shows the full catalog
+    toggle.addEventListener("click", function () {
+      setOnly(toggle.getAttribute("aria-pressed") !== "true");
     });
   }
   var seg = document.querySelector(".seg");
