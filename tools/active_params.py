@@ -18,7 +18,9 @@ A quantized integer weight pairs with its scale tensor (X.weight with X.scale, X
 with X_scales). It holds FP4 values packed two per byte, and counts at twice its stored size, when the scale is one byte
 per block of 16 or 32 values ([..., n, k] weight bytes with [..., 2k/B] or [..., n] scales); otherwise it holds one
 value per byte. The count stops with an error on any other integer tensor of two or more dimensions, and on routed
-experts without an expert count in the config. Prints JSON.
+experts without an expert count in the config. It also stops when the stored bytes differ from the index's total_size,
+unless the index's weight map names exactly the tensors it read: some indexes record total_size another way
+(GLM-4.7-Flash's counts elements). Prints JSON.
 """
 import argparse
 import json
@@ -33,7 +35,7 @@ ROUTED = re.compile(r"\.experts\.")
 SKIP = (re.compile(r"(^|\.)visual\."), re.compile(r"(^|\.)vision_tower\."), re.compile(r"(^|\.)mtp\."),
         re.compile(r"(^|\.)(audio_tower|vision_adapter|vision_projection)\."),   # Muse Spark's other modalities
         re.compile(r"scales?(_inv)?$"))   # quantization scales of FP8/FP4/INT8 checkpoints
-EMBED = re.compile(r"(^|\.)(embed|embed_tokens|wte|word_embeddings|embed_in|tok_embeddings)\.weight$")
+EMBED = re.compile(r"(^|\.)(embed|embed_tokens|embeddings|wte|word_embeddings|embed_in|tok_embeddings)\.weight$")
 POSITION = re.compile(r"(^|\.)(ape|pos_embed|position_embeddings?|wpe)(\.weight)?$")   # added to activations
 OUTPUT = re.compile(r"(^|\.)(lm_)?head\.weight$")
 INTEGER = ("I8", "U8", "I16", "U16", "I32", "U32", "I64", "U64")
@@ -142,7 +144,7 @@ def main(argv=None):
         parts["output"] = embed   # tied embeddings: the output projection reuses the embedding matrix
     active = parts["routed_experts"] + parts["other_matmul"] + parts["output"]
     want = index.get("metadata", {}).get("total_size")
-    if want is not None and want != nbytes:
+    if want is not None and want != nbytes and set(index["weight_map"]) != set(tensors):
         sys.exit("header bytes %d != index total_size %d" % (nbytes, want))
     print(json.dumps({"source": a.src, "revision": a.revision, "total_params": total, "active_params": round(active),
                       "experts_per_token": k, "routed_experts": e,

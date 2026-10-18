@@ -10,7 +10,7 @@ tokens. This directory holds what rebuilds and checks those rows.
 | File | Purpose |
 |---|---|
 | `generate_fixed_sft.py` | builds the rows from the source Parquet shards and writes `<output>.manifest.json` beside them |
-| `patch_glm5_mask.py` | adds a glm5 loss mask to slime's `mask_utils.py`, in place; run it before a GLM-5.2 build |
+| `patch_glm5_mask.py` | adds a glm5 loss mask to slime's `mask_utils.py`, in place; run it before a GLM-5.2 or GLM-4.7-Flash build |
 | `patch_gptoss_mask.py` | adds a gpt_oss (harmony) loss mask to slime's `mask_utils.py`, in place; run it before a gpt-oss build |
 | `pretokenized_sft_rollout.py` | the slime rollout adapter the recipes use; it feeds each row's stored tokens and mask unchanged |
 | `verify_rows.py` | checks a built file against the dataset build a recipe records |
@@ -29,9 +29,9 @@ validates every row, and writes the manifest with the source, tokenizer and outp
 
 - Python 3.10 or later, `pyarrow` and `transformers`.
 - A slime checkout on `PYTHONPATH`. The builder imports slime's `Dataset`, `MultiTurnLossMaskGenerator` and
-  `load_processor`. Upstream slime (<https://github.com/THUDM/slime>) has the `qwen3_5` loss mask; GLM-5.2 needs
-  `patch_glm5_mask.py` and gpt-oss `patch_gptoss_mask.py`. The `deepseek_v4` mask needs no slime generator; the
-  loader check then uses miles when slime is absent.
+  `load_processor`. Upstream slime (<https://github.com/THUDM/slime>) has the `qwen3_5` loss mask; GLM-5.2 and
+  GLM-4.7-Flash need `patch_glm5_mask.py` and gpt-oss `patch_gptoss_mask.py`. The `deepseek_v4` mask needs no slime
+  generator; the loader check then uses miles when slime is absent.
 - The `muse_spark` mask needs a miles checkout at commit `bfdcff0e` and Megatron-LM on `PYTHONPATH`: it registers
   miles' Muse Spark config with transformers to load the checkpoint's tokenizer. That import loads Megatron and
   Transformer Engine, so the build needs a host with a CUDA driver; one GPU is enough.
@@ -93,6 +93,40 @@ Run the build once per tokenizer.
      --source-revision b14afda60f1bbebe55d5d2fa1e4df5042f97f8be \
      --input-key messages --source-key source --loss-mask-type glm5 \
      --sequence-length 8192 --rows 12800 --seed 20260828 \
+     --source-batch-size 2048 --write-batch-size 64 --min-token-entropy-bits 8.0
+   ```
+
+   GLM-4.7-Flash has GLM-5.2's `tokenizer.json`, but its chat template has no reasoning-effort system turn, so its
+   recipes use their own set. Patch slime as for GLM-5.2, then build from the checkpoint of `zai-org/GLM-4.7-Flash`
+   (revision `7dd20894a642a0aa287e9827cb1a1f7f91386b67`):
+
+   ```bash
+   python3 -u patch_glm5_mask.py
+   python3 -u generate_fixed_sft.py \
+     --input tulu-3-sft-mixture/data \
+     --output glm47flash-tulu3-fixed8192-v1/train.parquet \
+     --tokenizer <GLM-4.7-Flash checkpoint> \
+     --source-dataset allenai/tulu-3-sft-mixture \
+     --source-revision b14afda60f1bbebe55d5d2fa1e4df5042f97f8be \
+     --input-key messages --source-key source --loss-mask-type glm5 \
+     --sequence-length 8192 --rows 6400 --seed 42 \
+     --source-batch-size 2048 --write-batch-size 64 --min-token-entropy-bits 8.0
+   ```
+
+   Nemotron-3-Nano-30B-A3B's chat template marks turns with `<|im_start|>` and `<|im_end|>`, so slime's `qwen3_5` mask
+   applies: it supervises each assistant turn through its `<|im_end|>` and the newline after it, including the empty
+   `<think></think>` block the template puts before an answer without reasoning. Use the checkpoint of
+   `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16` (revision `bf77c3174f68ad409e1c2aa60daeb46e32d1c606`):
+
+   ```bash
+   python3 -u generate_fixed_sft.py \
+     --input tulu-3-sft-mixture/data \
+     --output nemotron3nano-tulu3-fixed8192-v1/train.parquet \
+     --tokenizer <Nemotron-3-Nano-30B-A3B checkpoint> \
+     --source-dataset allenai/tulu-3-sft-mixture \
+     --source-revision b14afda60f1bbebe55d5d2fa1e4df5042f97f8be \
+     --input-key messages --source-key source --loss-mask-type qwen3_5 \
+     --sequence-length 8192 --rows 6400 --seed 42 \
      --source-batch-size 2048 --write-batch-size 64 --min-token-entropy-bits 8.0
    ```
 
@@ -175,14 +209,16 @@ tokens (default 8,192); set it in the environment of every pod. The adapter refu
 
 - The library versions of the original builds (transformers, tokenizers, pyarrow, slime) were not recorded. A
   different chat template or tokenizer version can change the rows; `rows_sha256` detects it.
-- The GLM-5.2 set was built with `patch_glm5_mask.py` applied to a slime that had no glm5 generator. With a slime that
-  ships its own, the patch does nothing and the rows can differ.
+- The GLM-5.2 and GLM-4.7-Flash sets were built with `patch_glm5_mask.py` applied to a slime that had no glm5
+  generator. With a slime that ships its own, the patch does nothing and the rows can differ.
 - The recorded builds ran with the tokenizer's remote code allowed. The Qwen3.5 tokenizer has no custom code (its
   `tokenizer_config.json` has no `auto_map`), so the Qwen3.5 command needs no `--trust-remote-code`. If the GLM-5.2
   checkpoint's `tokenizer_config.json` has an `auto_map`, add `--trust-remote-code` to the GLM-5.2 command;
   `verify_rows.py` shows whether the rows match.
 - The gpt-oss set was built with transformers 5.8.1, tokenizers 0.22.2 and pyarrow 23.0.1; rebuilt on two more
   clusters from the same inputs, it matched byte for byte.
+- The GLM-4.7-Flash and Nemotron-3-Nano-30B-A3B sets were built with transformers 5.8.1, tokenizers 0.22.2 and pyarrow
+  23.0.1, without remote code: neither tokenizer has custom code.
 - The Muse Spark set was built with transformers 5.12.1, tokenizers 0.22.2 and pyarrow 25.0.1, the versions of the
   training image.
 - `row_hash` hashes the tokens as native 32-bit integers, so it assumes a little-endian host (x86-64 or ARM64).

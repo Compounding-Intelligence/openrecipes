@@ -24,12 +24,12 @@ def files():
 
 def test_pages(files):
     pairs = [k for k in files if re.match(r"^[a-z0-9.-]+/(h100|h200|b200)/index\.html$", k)]
-    assert len(pairs) == 21
+    assert len(pairs) == 23
     for page in ("index.html", "protocol.html", "submit.html", "404.html", "sitemap.xml",
                  "robots.txt", "data.json", "style.css", "app.js", "favicon.svg", "_headers", "LICENSE.txt", "NOTICE.txt",
                  "schema/recipe.schema.yaml"):
         assert page in files, page
-    assert len([k for k in files if k.startswith("recipes/")]) == 45
+    assert len([k for k in files if k.startswith("recipes/")]) == 47
 
 
 def test_build_is_deterministic():
@@ -58,15 +58,15 @@ def test_notes_appear_once(files):
     assert "<h2>Notes for" not in files["qwen3.5-122b-a10b/h200/index.html"]
     index = files["index.html"].split('id="models">')[1].split("</section>")[0]
     assert "gauge" not in index and "$" not in index   # the index lists GPU types only; numbers sit in the blocks
-    assert files["index.html"].count('class="irow has"') == 10 and "models have recipes" not in files["index.html"]
+    assert files["index.html"].count('class="irow has"') == 12 and "models have recipes" not in files["index.html"]
     assert 'class="tg" aria-pressed="false" hidden>With recipes only</button>' in files["index.html"]
-    assert files["index.html"].count('<section class="hud mb"') == 10 and 'data-gpu="H100"' in files["index.html"]
+    assert files["index.html"].count('<section class="hud mb"') == 12 and 'data-gpu="H100"' in files["index.html"]
 
 
 def test_missing_gpu_types_are_grey(files):
     page = files["deepseek-v4-flash/h200/index.html"]
     assert page.count('class="card gpu off"') == 2
-    assert files["index.html"].count('<span class="off">') == 3 * 41 - 21
+    assert files["index.html"].count('<span class="off">') == 3 * 41 - 23
 
 
 def test_protocol_and_submit(files):
@@ -117,10 +117,10 @@ def test_internal_links_use_clean_urls(files):
 
 def test_data_json_and_sitemap(files):
     data = json.loads(files["data.json"])
-    assert len(data["recipes"]) == 45 and len(data["models"]) == 41
+    assert len(data["recipes"]) == 47 and len(data["models"]) == 41
     best = [r for r in data["recipes"] if r["model"] == "Qwen3.5-122B-A10B" and r["gpu"]["type"] == "H200"]
     assert [r["rank"] for r in best] == [1, 2, 3] and best[0]["result"]["measured"] == "2026-10-13"
-    assert files["sitemap.xml"].count("<url>") == 3 + 21
+    assert files["sitemap.xml"].count("<url>") == 3 + 23
     assert "Sitemap: https://openrecipes.ai/sitemap.xml" in files["robots.txt"]
 
 

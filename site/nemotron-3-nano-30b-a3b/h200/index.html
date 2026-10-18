@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training Nemotron-3-Nano-30B-A3B on H200 | OpenRecipes</title>
+<meta name="description" content="Verified training recipes for Nemotron-3-Nano-30B-A3B on H200: best 7,814.0 tokens/s per GPU on 8 GPUs, $0.28 per million tokens.">
+<link rel="canonical" href="https://openrecipes.ai/nemotron-3-nano-30b-a3b/h200/">
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+<script src="../../app.js" defer></script>
+</head>
+<body>
+<header class="nav"><a class="brand" href="../../"><svg class="mark" width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><path d="M25.85 14.26A10 10 0 1 1 21 7.34" fill="none" stroke="#0e7490" stroke-width="4" stroke-linecap="round"/><circle cx="25.2" cy="7.6" r="2.6" fill="#0f172a"/></svg>OpenRecipes</a><nav class="links" aria-label="Site"><a href="../../#models">Models</a><a href="../../protocol">Protocol</a><a href="../../submit">Submit</a><a href="https://github.com/Compounding-Intelligence/openrecipes">GitHub</a></nav></header>
+<main class="wrap">
+<a class="back" href="../../#models">&lsaquo; All models</a>
+<section class="hud rank"><div class="ml">Nemotron</div><h1>Training Nemotron-3-Nano-30B-A3B on H200</h1><div class="ml">Ranked by tokens/s per GPU &middot; 8,192-token SFT rows &middot; global batch 128 &middot; BF16</div><div class="tablewrap"><table class="stack"><thead><tr><th>#</th><th>Tokens/s per GPU</th><th>$ / 1M tokens</th><th>GPUs</th><th>Layout</th><th>Measured</th><th>Author</th><th></th></tr></thead><tbody><tr><td class="rk" data-label="#"><span class="cv">#1</span></td><td class="tp" data-label="Tokens/s per GPU"><span class="cv"><span class="v hi">7,814.0</span><span class="gauge" title="100% of the best"><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b></span></span></td><td class="n hi" data-label="$ / 1M tokens"><span class="cv">$0.28</span></td><td class="n" data-label="GPUs"><span class="cv">8</span></td><td data-label="Layout"><span class="cv">TP1 PP2 EP4 DP4<br><small>max 8,192 tokens/GPU, no offload</small></span></td><td class="nw" data-label="Measured"><span class="cv">2026-10-15</span></td><td data-label="Author"><span class="cv"><a href="https://arxiv.org/abs/2610.17528">ATTUNE</a></span></td><td class="go" data-label=""><span class="cv"><a href="#attune-tp1-pp2-ep4">Recipe&nbsp;&rsaquo;</a></span></td></tr></tbody></table></div></section>
+<h2>Notes for Nemotron-3-Nano-30B-A3B</h2><div class="card notes prose"><ul><li>Weights: the BF16 checkpoint <code>nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16</code> (revision bf77c317), with no conversion: miles loads it through Megatron-Bridge (<code>--megatron-to-hf-mode bridge</code>), so <code>--hf-checkpoint</code> and <code>--ref-load</code> are both the checkpoint directory.</li><li><code>MODEL_ARGS</code> come from miles&#x27; <code>scripts/models/nemotron-3-nano-30b-a3b.py</code> at commit 78527b91, printed by <code>miles/utils/external_utils/model_args_utils.py nemotron-3-nano-30b-a3b</code>; run the command from a miles checkout at that commit.</li><li>It trains on its own rows, built with <code>--loss-mask-type qwen3_5</code> (data/README.md).</li></ul><p class="muted small">The steps every recipe shares: <a href="../../protocol#run">Running a recipe</a>.</p></div>
+<h2>Recipes</h2>
+<details class="card recipe" id="attune-tp1-pp2-ep4" open>
+<summary><span class="rank">#1</span><span class="slug">attune-tp1-pp2-ep4</span><span class="tps">7,814.0 tokens/s/GPU</span><span class="muted small">TP1 PP2 EP4 DP4</span><span class="hl">max 8,192 tokens/GPU, no offload</span></summary>
+<div class="body">
+<div class="prose"><ul><li>Starting point: miles&#x27; Nemotron-3-Nano launcher, <code>scripts/run_nemotron_3_nano.py</code> at miles 0.1.0 (model page <a href="https://miles.radixark.com/docs/models/nemotron/nemotron-3-nano-moe">https://miles.radixark.com/docs/models/nemotron/nemotron-3-nano-moe</a>). miles publishes it as a GRPO smoke test with no tokens/s figure. Ported to this workload with its layout (TP 2 with sequence parallel, PP 2, EP 2, full recompute) and max 8,192 tokens/GPU on 8 H200, it measured 5,229.2 tokens/s/GPU; ATTUNE tuned it to 7,814.0 (+49%).</li></ul></div><dl class="facts"><dt>Author</dt><dd><a href="https://arxiv.org/abs/2610.17528">ATTUNE</a> (<a href="#cite">cite</a>)</dd><dt>GPUs</dt><dd>8 x H200 141 GB (AWS p5en.48xlarge, 8 per node)</dd><dt>Layout</dt><dd>TP 1, PP 2 (even split), CP 1, EP 4, ETP 1, DP 4; one 8,192-token row per microbatch (THD, max 8,192 tokens/GPU); full recompute (uniform, 1 layer); distributed optimizer; allgather dispatcher; no offload</dd><dt>Tokens/s per GPU</dt><dd>7,814.02</dd><dt>$ / 1M tokens</dt><dd>$0.28</dd><dt>MFU</dt><dd>15.3% (N = 3,227,369,472 active parameters per token)</dd><dt>Step-time CV</dt><dd>1.63%</dd><dt>Convergence check</dt><dd>correlation 0.9999997, final loss difference 4.3e-05, 0 pointwise failures over 20 steps</dd><dt>Measured</dt><dd>2026-10-15</dd><dt>GPU-hours</dt><dd>1.2</dd><dt>Rows</dt><dd><code>nemotron3nano-tulu3-fixed8192-v1</code> (rows_sha256 <code>8fc04d3ce32c2b2cf8b1255a84cd8627df647cb38b6cbbe69a8e6bbde0ce54c7</code>)</dd></dl>
+<div class="cols"><div><h3>Stack</h3><dl class="facts"><dt>framework</dt><dd>miles 0.1.0 (radixark/miles commit 78527b91, a slime fork), no local changes</dd><dt>megatron lm</dt><dd>radixark/Megatron-LM commit 37f91617 (megatron-core 0.16.0rc0), no local changes</dd><dt>transformer engine</dt><dd>2.17.0</dd><dt>pytorch</dt><dd>2.11.0 (CUDA 13.0 build)</dd><dt>cuda</dt><dd>13.0</dd><dt>nccl</dt><dd>2.28.9 (CUDA 13.0 build; printed by the measured run)</dd><dt>deepep</dt><dd>1.2.1 (installed; the allgather dispatcher does not use it)</dd><dt>python</dt><dd>3.12.3</dd><dt>network</dt><dd>8 GPUs per node, EFA (aws-ofi-nccl 1.20), 3.2 Tb/s RDMA per node</dd></dl></div><div><h3>Environment</h3><ul class="env"><li><code>CUDA_DEVICE_MAX_CONNECTIONS=1</code></li><li><code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code></li><li><code>TILELANG_CACHE_DIR=$KERNEL_CACHE/tilelang</code></li><li><code>TRITON_CACHE_DIR=$KERNEL_CACHE/triton</code></li><li><code>TORCHINDUCTOR_CACHE_DIR=$KERNEL_CACHE/inductor</code></li><li><code>FI_PROVIDER=efa</code></li><li><code>FI_EFA_USE_DEVICE_RDMA=1</code></li></ul></div></div>
+<div class="filebar"><span class="k">Command</span><span class="acts"><a class="btn o" href="../../protocol#run">How to run</a><button type="button" class="btn o" data-copy="run-attune-tp1-pp2-ep4">Copy</button></span></div>
+<pre id="run-attune-tp1-pp2-ep4">export CUDA_DEVICE_MAX_CONNECTIONS=1
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export TILELANG_CACHE_DIR=&quot;$KERNEL_CACHE/tilelang&quot;
+export TRITON_CACHE_DIR=&quot;$KERNEL_CACHE/triton&quot;
+export TORCHINDUCTOR_CACHE_DIR=&quot;$KERNEL_CACHE/inductor&quot;
+export FI_PROVIDER=efa
+export FI_EFA_USE_DEVICE_RDMA=1
+
+MODEL_ARGS_LINE=&quot;$(python3 miles/utils/external_utils/model_args_utils.py nemotron-3-nano-30b-a3b)&quot;
+read -ra MODEL_ARGS &lt;&lt;&lt; &quot;$MODEL_ARGS_LINE&quot;
+python3 train.py \
+  --actor-num-nodes 1 \
+  --actor-num-gpus-per-node 8 \
+  --num-gpus-per-node 8 \
+  &quot;${MODEL_ARGS[@]}&quot; \
+  --hf-checkpoint &quot;$HF_CKPT&quot; \
+  --ref-load &quot;$HF_CKPT&quot; \
+  --megatron-to-hf-mode bridge \
+  --loss-type sft_loss \
+  --calculate-per-token-loss \
+  --disable-compute-advantages-and-returns \
+  --debug-train-only \
+  --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+  --prompt-data &quot;$SFT_DATA&quot; \
+  --input-key messages \
+  --metadata-key metadata \
+  --num-rollout 20 \
+  --rollout-batch-size 128 \
+  --global-batch-size 128 \
+  --tensor-model-parallel-size 1 \
+  --pipeline-model-parallel-size 2 \
+  --context-parallel-size 1 \
+  --expert-model-parallel-size 4 \
+  --expert-tensor-parallel-size 1 \
+  --recompute-granularity full \
+  --recompute-method uniform \
+  --recompute-num-layers 1 \
+  --use-dynamic-batch-size \
+  --max-tokens-per-gpu 8192 \
+  --attention-backend auto \
+  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+  --attention-dropout 0.0 --hidden-dropout 0.0 \
+  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \
+  --distributed-timeout-minutes 30
+</pre>
+<div class="filebar"><span class="k">recipes/nemotron-3-nano-30b-a3b/h200/attune-tp1-pp2-ep4.yaml</span><span class="acts"><a class="btn o" href="../../recipes/nemotron-3-nano-30b-a3b/h200/attune-tp1-pp2-ep4.yaml" download>Download</a><a class="btn o" href="https://github.com/Compounding-Intelligence/openrecipes/blob/main/recipes/nemotron-3-nano-30b-a3b/h200/attune-tp1-pp2-ep4.yaml">GitHub</a><button type="button" class="btn o" data-copy="file-attune-tp1-pp2-ep4">Copy</button></span></div>
+<pre class="file" id="file-attune-tp1-pp2-ep4"># recipes/nemotron-3-nano-30b-a3b/h200/attune-tp1-pp2-ep4.yaml
+# An OpenRecipes recipe; the fields are documented in schema/recipe.schema.yaml.
+schema_version: 1
+model: Nemotron-3-Nano-30B-A3B
+gpu:
+  type: H200
+  memory_gb: 141
+  count: 8
+  per_node: 8
+  instance: AWS p5en.48xlarge
+author:
+  name: ATTUNE
+  url: https://arxiv.org/abs/2610.17528
+status: verified
+stack:
+  framework: miles 0.1.0 (radixark/miles commit 78527b91, a slime fork), no local changes
+  megatron_lm: radixark/Megatron-LM commit 37f91617 (megatron-core 0.16.0rc0), no local changes
+  transformer_engine: 2.17.0
+  pytorch: 2.11.0 (CUDA 13.0 build)
+  cuda: &#x27;13.0&#x27;
+  nccl: 2.28.9 (CUDA 13.0 build; printed by the measured run)
+  deepep: 1.2.1 (installed; the allgather dispatcher does not use it)
+  python: 3.12.3
+  network: 8 GPUs per node, EFA (aws-ofi-nccl 1.20), 3.2 Tb/s RDMA per node
+  source: &#x27;version dump of the measured run&#x27;&#x27;s training image (same digest), 2026-10-13: installed TE, PyTorch, DeepEP,
+    megatron-core and miles, Megatron-LM and miles git commits (clean trees), Python; NCCL from the measured run&#x27;&#x27;s log&#x27;
+workload:
+  row_tokens: 8192
+  rows: SFT conversations
+  global_batch: 128
+  precision: bf16
+  dataset:
+    name: Tulu 3 SFT mixture
+    source: allenai/tulu-3-sft-mixture
+    revision: b14afda60f1bbebe55d5d2fa1e4df5042f97f8be
+    license: ODC-By 1.0
+    rows_sha256: 8fc04d3ce32c2b2cf8b1255a84cd8627df647cb38b6cbbe69a8e6bbde0ce54c7
+    build:
+      name: nemotron3nano-tulu3-fixed8192-v1
+      tokenizer: Nemotron-3-Nano-30B-A3B (revision bf77c3174f68ad409e1c2aa60daeb46e32d1c606; tokenizer.json sha256
+        c6021eb6847e682f89aa52d5eb6e8c7d902a23acfc8137e25211cf84828f1592; chat_template.jinja sha256
+        ab7813c3abdd9cb655905a410728b26c7884eca45ddfab8d9f931553485a7862)
+      loss_mask: qwen3_5
+      rows: 6400
+      row_tokens: 8192
+      padding_tokens: 0
+      seed: 42
+      packing: source conversations in a seeded global permutation, concatenated with an EOS token between them and cut
+        into consecutive 8,192-token rows; rows without supervised targets are skipped
+      supervised_token_ratio: 0.665
+      parquet_sha256: 7c0d4c1bd9f678b0815801a876cb8c460972424707d9f6d75883c336e1f70895
+      parquet_bytes: 85528499
+      builder: data/generate_fixed_sft.py with --loss-mask-type qwen3_5 (data/README.md)
+layout:
+  label: TP1 PP2 EP4 DP4
+  summary: TP 1, PP 2 (even split), CP 1, EP 4, ETP 1, DP 4; one 8,192-token row per microbatch (THD, max 8,192
+    tokens/GPU); full recompute (uniform, 1 layer); distributed optimizer; allgather dispatcher; no offload
+  highlights: max 8,192 tokens/GPU, no offload
+  tp: 1
+  pp: 2
+  vpp: 1
+  cp: 1
+  ep: 4
+  etp: 1
+  dp: 4
+  sequence_parallel: false
+  layer_split: null
+  max_tokens_per_gpu: 8192
+  rows_per_microbatch: 1
+  recompute:
+    granularity: full
+    method: uniform
+    num_layers: 1
+  offload: null
+  dispatcher: allgather
+result:
+  tokens_per_s_per_gpu: 7814.02
+  usd_per_million_tokens: 0.28
+  step_time_cv_percent: 1.63
+  mfu: 0.153
+  mfu_note: null
+  active_params:
+    count: 3227369472
+    source: https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16
+    revision: bf77c3174f68ad409e1c2aa60daeb46e32d1c606
+  measured: 2026-10-15
+  steps_per_run: 20
+  window:
+  - 5
+  - 19
+  window_tokens: 15728640
+  runs: 1
+  profiler: false
+  gpu_hours: 1.2
+  gpu_hours_note: GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the
+    convergence check
+correctness:
+  result: pass
+  summary: passed
+  reference: &#x27;miles&#x27;&#x27; layout for Nemotron-3-Nano-30B-A3B (`scripts/run_nemotron_3_nano.py`): TP 2 with sequence parallel,
+    PP 2, EP 2, full recompute (uniform, 1 layer), Adam on the GPU, with max 8,192 tokens/GPU (one row) where the
+    launcher&#x27;&#x27;s GRPO rollouts use 1,024. Model arguments, rows and schedule are the same in both recipes.&#x27;
+  configuration: pass
+  component_tests: []
+  convergence:
+    steps: 20
+    result: pass
+    correlation: 0.9999997
+    final_loss_difference: 4.3e-05
+    pointwise_failures: 0
+    note: &#x27;candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and
+      rows; the parity probe off in both&#x27;
+  rules: argument classes of ATTUNE&#x27;s skill/scripts/correctness/rules/numerics_list.yaml (amazon-science/attune f2cb450);
+    20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds
+env:
+  CUDA_DEVICE_MAX_CONNECTIONS: &#x27;1&#x27;
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+  TILELANG_CACHE_DIR: $KERNEL_CACHE/tilelang
+  TRITON_CACHE_DIR: $KERNEL_CACHE/triton
+  TORCHINDUCTOR_CACHE_DIR: $KERNEL_CACHE/inductor
+  FI_PROVIDER: efa
+  FI_EFA_USE_DEVICE_RDMA: &#x27;1&#x27;
+patches: []
+run: |
+  export CUDA_DEVICE_MAX_CONNECTIONS=1
+  export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+  export TILELANG_CACHE_DIR=&quot;$KERNEL_CACHE/tilelang&quot;
+  export TRITON_CACHE_DIR=&quot;$KERNEL_CACHE/triton&quot;
+  export TORCHINDUCTOR_CACHE_DIR=&quot;$KERNEL_CACHE/inductor&quot;
+  export FI_PROVIDER=efa
+  export FI_EFA_USE_DEVICE_RDMA=1
+
+  MODEL_ARGS_LINE=&quot;$(python3 miles/utils/external_utils/model_args_utils.py nemotron-3-nano-30b-a3b)&quot;
+  read -ra MODEL_ARGS &lt;&lt;&lt; &quot;$MODEL_ARGS_LINE&quot;
+  python3 train.py \
+    --actor-num-nodes 1 \
+    --actor-num-gpus-per-node 8 \
+    --num-gpus-per-node 8 \
+    &quot;${MODEL_ARGS[@]}&quot; \
+    --hf-checkpoint &quot;$HF_CKPT&quot; \
+    --ref-load &quot;$HF_CKPT&quot; \
+    --megatron-to-hf-mode bridge \
+    --loss-type sft_loss \
+    --calculate-per-token-loss \
+    --disable-compute-advantages-and-returns \
+    --debug-train-only \
+    --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+    --prompt-data &quot;$SFT_DATA&quot; \
+    --input-key messages \
+    --metadata-key metadata \
+    --num-rollout 20 \
+    --rollout-batch-size 128 \
+    --global-batch-size 128 \
+    --tensor-model-parallel-size 1 \
+    --pipeline-model-parallel-size 2 \
+    --context-parallel-size 1 \
+    --expert-model-parallel-size 4 \
+    --expert-tensor-parallel-size 1 \
+    --recompute-granularity full \
+    --recompute-method uniform \
+    --recompute-num-layers 1 \
+    --use-dynamic-batch-size \
+    --max-tokens-per-gpu 8192 \
+    --attention-backend auto \
+    --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+    --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+    --attention-dropout 0.0 --hidden-dropout 0.0 \
+    --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \
+    --distributed-timeout-minutes 30
+notes: |
+  - Starting point: miles&#x27; Nemotron-3-Nano launcher, `scripts/run_nemotron_3_nano.py` at miles 0.1.0 (model page
+    https://miles.radixark.com/docs/models/nemotron/nemotron-3-nano-moe). miles publishes it as a GRPO smoke test with
+    no tokens/s figure. Ported to this workload with its layout (TP 2 with sequence parallel, PP 2, EP 2, full
+    recompute) and max 8,192 tokens/GPU on 8 H200, it measured 5,229.2 tokens/s/GPU; ATTUNE tuned it to 7,814.0 (+49%).
+</pre>
+</div>
+</details>
+<h2 id="cite">Citation</h2><div class="card notes"><p>If you use a recipe by ATTUNE, please cite <a href="https://arxiv.org/abs/2610.17528">the paper</a>.</p><div class="filebar"><span class="k">BibTeX</span><span class="acts"><button type="button" class="btn o" data-copy="bibtex-1">Copy</button></span></div><pre id="bibtex-1">@article{fan2026attune,
+  title   = {{ATTUNE: Agentic Throughput Tuning for LLM Training}},
+  author  = {Leo Fan and Hongyang Wang and Wenbo Chen and Jingguo Liu and Xian Li and Xuan Wang and
+             Ruochen Wen and Yiming Yan and Hao Wu and Zheshen Wang and Benoit Dumoulin},
+  journal = {arXiv preprint arXiv:2610.17528},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2610.17528}
+}
+</pre></div>
+<h2>Nemotron-3-Nano-30B-A3B on other GPUs</h2>
+<div class="others"><div class="card gpu off"><div class="k">H100</div><div class="v">&ndash;</div><div class="small">No recipe yet</div></div><div class="card gpu here"><div class="k">H200 &middot; 8 GPUs &middot; this page</div><div class="v">7,814.0</div><div class="small muted">tokens/s/GPU &middot; $0.28 / 1M tokens</div></div><div class="card gpu off"><div class="k">B200</div><div class="v">&ndash;</div><div class="small">No recipe yet</div></div></div>
+</main>
+<footer><div class="wrap">OpenRecipes, Apache-2.0. Measurements through 2026-10-17.</div></footer>
+</body>
+</html>

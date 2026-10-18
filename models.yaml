@@ -111,6 +111,14 @@ models:
     model: GLM-4.7-Flash
     slug: glm-4.7-flash
     hf: zai-org/GLM-4.7-Flash
+    notes: |
+      - Weights: the BF16 checkpoint `zai-org/GLM-4.7-Flash` (revision 7dd20894), converted to Megatron `torch_dist` with
+        miles' `tools/convert_hf_to_torch_dist.py` at miles 0.1.0 (commit 78527b91).
+      - `MODEL_ARGS` come from miles' `scripts/models/glm4.7-flash.py` at commit 78527b91, printed by
+        `miles/utils/external_utils/model_args_utils.py glm4.7-flash`; run the command from a miles checkout at that
+        commit.
+      - It trains on its own rows, built with `--loss-mask-type glm5` after `data/patch_glm5_mask.py` (data/README.md).
+        Its `tokenizer.json` is GLM-5.2's, but its chat template differs, so the GLM-5.2 rows do not apply.
   - family: GLM
     model: GLM-4.5
     slug: glm-4.5
@@ -166,6 +174,14 @@ models:
     model: Nemotron-3-Nano-30B-A3B
     slug: nemotron-3-nano-30b-a3b
     hf: nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16
+    notes: |
+      - Weights: the BF16 checkpoint `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16` (revision bf77c317), with no
+        conversion: miles loads it through Megatron-Bridge (`--megatron-to-hf-mode bridge`), so `--hf-checkpoint` and
+        `--ref-load` are both the checkpoint directory.
+      - `MODEL_ARGS` come from miles' `scripts/models/nemotron-3-nano-30b-a3b.py` at commit 78527b91, printed by
+        `miles/utils/external_utils/model_args_utils.py nemotron-3-nano-30b-a3b`; run the command from a miles checkout
+        at that commit.
+      - It trains on its own rows, built with `--loss-mask-type qwen3_5` (data/README.md).
   - family: Nemotron
     model: Nemotron-3-Super-120B-A12B
     slug: nemotron-3-super-120b-a12b

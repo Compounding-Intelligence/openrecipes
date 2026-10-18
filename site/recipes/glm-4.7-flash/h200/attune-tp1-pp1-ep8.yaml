@@ -1,0 +1,193 @@
+# recipes/glm-4.7-flash/h200/attune-tp1-pp1-ep8.yaml
+# An OpenRecipes recipe; the fields are documented in schema/recipe.schema.yaml.
+schema_version: 1
+model: GLM-4.7-Flash
+gpu:
+  type: H200
+  memory_gb: 141
+  count: 8
+  per_node: 8
+  instance: AWS p5en.48xlarge
+author:
+  name: ATTUNE
+  url: https://arxiv.org/abs/2610.17528
+status: verified
+stack:
+  framework: miles 0.1.0 (radixark/miles commit 78527b91, a slime fork), no local changes
+  megatron_lm: radixark/Megatron-LM commit 37f91617 (megatron-core 0.16.0rc0), no local changes
+  transformer_engine: 2.17.0
+  pytorch: 2.11.0 (CUDA 13.0 build)
+  cuda: '13.0'
+  nccl: 2.28.9 (CUDA 13.0 build; printed by the measured run)
+  deepep: 1.2.1 (installed; the allgather dispatcher does not use it)
+  python: 3.12.3
+  network: 8 GPUs per node, EFA (aws-ofi-nccl 1.20), 3.2 Tb/s RDMA per node
+  source: 'version dump of the measured run''s training image (same digest), 2026-10-13: installed TE, PyTorch, DeepEP,
+    megatron-core and miles, Megatron-LM and miles git commits (clean trees), Python; NCCL from the measured run''s log'
+workload:
+  row_tokens: 8192
+  rows: SFT conversations
+  global_batch: 128
+  precision: bf16
+  dataset:
+    name: Tulu 3 SFT mixture
+    source: allenai/tulu-3-sft-mixture
+    revision: b14afda60f1bbebe55d5d2fa1e4df5042f97f8be
+    license: ODC-By 1.0
+    rows_sha256: 79bfe4b7e20e66ec85c12caf4995ea9574bbf6d316772e4d69193a01efe01914
+    build:
+      name: glm47flash-tulu3-fixed8192-v1
+      tokenizer: GLM-4.7-Flash (revision 7dd20894a642a0aa287e9827cb1a1f7f91386b67; tokenizer.json sha256
+        19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d; chat_template.jinja sha256
+        d63ad536c3c81880043e22ec7fd08db42b4d8fb7c89c7138bc562bfa25281375)
+      loss_mask: glm5
+      rows: 6400
+      row_tokens: 8192
+      padding_tokens: 0
+      seed: 42
+      packing: source conversations in a seeded global permutation, concatenated with an EOS token between them and cut
+        into consecutive 8,192-token rows; rows without supervised targets are skipped
+      supervised_token_ratio: 0.674
+      parquet_sha256: 33e50f503dee9999e27c16a9ae1781c822ad1acc012b4b52c2efccfd9c8bbcb4
+      parquet_bytes: 83603534
+      builder: data/generate_fixed_sft.py with patch_glm5_mask.py (data/README.md)
+layout:
+  label: TP1 PP1 EP8 DP8
+  summary: TP 1, PP 1, CP 1, EP 8, ETP 1, DP 8; two 8,192-token rows per microbatch (THD, max 16,384 tokens/GPU); full
+    recompute (uniform, 1 layer); distributed optimizer with the precision-aware optimizer; allgather dispatcher; no
+    offload
+  highlights: max 16,384 tokens/GPU, no offload
+  tp: 1
+  pp: 1
+  vpp: 1
+  cp: 1
+  ep: 8
+  etp: 1
+  dp: 8
+  sequence_parallel: false
+  layer_split: null
+  max_tokens_per_gpu: 16384
+  rows_per_microbatch: 2
+  recompute:
+    granularity: full
+    method: uniform
+    num_layers: 1
+  offload: null
+  dispatcher: allgather
+result:
+  tokens_per_s_per_gpu: 6178.46
+  usd_per_million_tokens: 0.36
+  step_time_cv_percent: 0.95
+  mfu: 0.1342
+  mfu_note: null
+  active_params:
+    count: 3579314176
+    source: https://huggingface.co/zai-org/GLM-4.7-Flash
+    revision: 7dd20894a642a0aa287e9827cb1a1f7f91386b67
+  measured: 2026-10-15
+  steps_per_run: 20
+  window:
+  - 5
+  - 19
+  window_tokens: 15728640
+  runs: 1
+  profiler: false
+  gpu_hours: 1.34
+  gpu_hours_note: GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the
+    convergence check
+correctness:
+  result: pass
+  summary: passed; 1 component test passed on this image
+  reference: 'miles'' layout for GLM-4.7-Flash (`scripts/run_glm47_flash.py`): TP 4 with sequence parallel, EP 8, full
+    recompute (uniform, 1 layer), max 32,768 tokens/GPU and Adam on the CPU (`--optimizer-cpu-offload
+    --overlap-cpu-optimizer-d2h-h2d --use-precision-aware-optimizer`), here on 8 GPUs (DP 2). Model arguments, rows and
+    schedule are the same in both recipes.'
+  configuration: pass
+  component_tests:
+  - test: precision-aware Adam on the GPU and CPU optimizer offload (fraction 1.0, overlapped copies), each against an
+      FP64 reference
+    shape: 'one Qwen3.5-397B-A17B MoE layer: hidden 4096, 512 experts, top-10, expert FFN 1024, EP 8, ETP 1, 4,096 tokens
+      per rank'
+    gpu: H200
+    date: 2026-10-14
+    result: pass
+    detail: worst tensor (dense update) relative L2 error 5.12e-7 on the GPU and 7.98e-7 offloaded against a bound of
+      1.0e-3 after one step, and 4.99e-5 and 7.72e-5 against 1.1e-3 after three steps at the recipe's hyperparameters
+      (bound 2 x the default GPU optimizer's error + 1e-3); reconstructed FP32 masters bitwise identical to an arm with
+      explicit FP32 masters, the TE remainder self-test passes and the three negative controls fail
+    note: run on this recipe's training image; the optimizer step is elementwise, so the result holds for every model on
+      the image
+  convergence:
+    steps: 20
+    result: pass
+    correlation: 0.9779
+    final_loss_difference: 0.0032
+    pointwise_failures: 1
+    note: 'candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and
+      rows; the parity probe off in both'
+  rules: argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml (amazon-science/attune f2cb450);
+    20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds
+env:
+  CUDA_DEVICE_MAX_CONNECTIONS: '1'
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+  TILELANG_CACHE_DIR: $KERNEL_CACHE/tilelang
+  TRITON_CACHE_DIR: $KERNEL_CACHE/triton
+  TORCHINDUCTOR_CACHE_DIR: $KERNEL_CACHE/inductor
+  FI_PROVIDER: efa
+  FI_EFA_USE_DEVICE_RDMA: '1'
+patches: []
+run: |
+  export CUDA_DEVICE_MAX_CONNECTIONS=1
+  export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+  export TILELANG_CACHE_DIR="$KERNEL_CACHE/tilelang"
+  export TRITON_CACHE_DIR="$KERNEL_CACHE/triton"
+  export TORCHINDUCTOR_CACHE_DIR="$KERNEL_CACHE/inductor"
+  export FI_PROVIDER=efa
+  export FI_EFA_USE_DEVICE_RDMA=1
+
+  MODEL_ARGS_LINE="$(python3 miles/utils/external_utils/model_args_utils.py glm4.7-flash)"
+  read -ra MODEL_ARGS <<< "$MODEL_ARGS_LINE"
+  python3 train.py \
+    --actor-num-nodes 1 \
+    --actor-num-gpus-per-node 8 \
+    --num-gpus-per-node 8 \
+    "${MODEL_ARGS[@]}" \
+    --hf-checkpoint "$HF_CKPT" \
+    --ref-load "$TORCH_DIST" \
+    --loss-type sft_loss \
+    --calculate-per-token-loss \
+    --disable-compute-advantages-and-returns \
+    --debug-train-only \
+    --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+    --prompt-data "$SFT_DATA" \
+    --input-key messages \
+    --metadata-key metadata \
+    --num-rollout 20 \
+    --rollout-batch-size 128 \
+    --global-batch-size 128 \
+    --tensor-model-parallel-size 1 \
+    --pipeline-model-parallel-size 1 \
+    --context-parallel-size 1 \
+    --expert-model-parallel-size 8 \
+    --expert-tensor-parallel-size 1 \
+    --recompute-granularity full \
+    --recompute-method uniform \
+    --recompute-num-layers 1 \
+    --use-dynamic-batch-size \
+    --max-tokens-per-gpu 16384 \
+    --use-precision-aware-optimizer \
+    --attention-backend flash \
+    --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+    --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+    --attention-dropout 0.0 --hidden-dropout 0.0 \
+    --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \
+    --distributed-timeout-minutes 30
+notes: |
+  - Starting point: miles' GLM-4.7-Flash launcher, `scripts/run_glm47_flash.py` at miles 0.1.0 (model page
+    https://miles.radixark.com/docs/models/glm/glm4-7-flash). miles publishes it as a GRPO recipe with no tokens/s figure.
+    Ported to this workload with its layout (TP 4 with sequence parallel, EP 8, full recompute, max 32,768 tokens/GPU,
+    Adam on the CPU) on 8 H200, it measured 3,142.9 tokens/s/GPU; ATTUNE tuned it to 6,178.5 (+97%).
+  - The loss starts 1.0% above the reference recipe's (1.1580 against 1.1465 at step 0; Hugging Face transformers gives
+    1.1536 on the same 128 rows). In steps 0-3, where both recipes' gradient norms run at 16-276 before clipping to 1.0,
+    it rises to 1.34 at step 3 against the reference's 0.97; from step 6 it stays within 1.2% of the reference and from
+    step 12 within 0.5%.

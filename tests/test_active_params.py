@@ -119,3 +119,29 @@ def test_audio_tower_and_vision_adapter_are_not_text_matmuls(tmp_path, capsys):
     assert out["parts"]["other_matmul"] == 16
     assert out["parts"]["excluded"] == 160
     assert out["active_params"] == 16
+
+
+def test_nemotron_h_backbone_embeddings_is_the_input_embedding(tmp_path, capsys):
+    src = _checkpoint(tmp_path, {"num_hidden_layers": 1}, {"model.safetensors": {
+        "backbone.embeddings.weight": ("BF16", [10, 4]),
+        "backbone.layers.0.mixer.in_proj.weight": ("BF16", [8, 4]),       # 32
+        "lm_head.weight": ("BF16", [10, 4]),                              # 40
+    }})
+    out = _count(src, capsys)
+    assert out["parts"]["excluded"] == 40
+    assert out["active_params"] == 72
+
+
+def test_total_size_in_another_unit_passes_when_the_weight_map_matches(tmp_path, capsys):
+    src = _checkpoint(tmp_path, {"num_hidden_layers": 1}, {"model.safetensors": {
+        "model.layers.0.mlp.up.weight": ("BF16", [4, 4]),
+    }})
+    index_path = tmp_path / "model.safetensors.index.json"
+    index = json.loads(index_path.read_text())
+    index["metadata"]["total_size"] = 16                                  # elements, not bytes
+    index_path.write_text(json.dumps(index))
+    assert _count(src, capsys)["active_params"] == 16
+    index["weight_map"]["model.layers.0.mlp.down.weight"] = "model.safetensors"   # a tensor the headers lack
+    index_path.write_text(json.dumps(index))
+    with pytest.raises(SystemExit):
+        active_params.main([src])
