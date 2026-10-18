@@ -80,6 +80,23 @@ Run the build once per tokenizer.
    use their own set: the same command with `--output qwen38-tulu3-fixed8192-v1/train.parquet` and
    `--tokenizer <Qwen3.8-27B checkpoint>`.
 
+   Qwen3-32B has its own tokenizer and trains on its own set, built with slime's `qwen3` mask. The mask supervises
+   each assistant turn from the empty `<think></think>` block the template puts before an answer without reasoning
+   through its `<|im_end|>` and the newline after it. Use the checkpoint of `Qwen/Qwen3-32B` (revision
+   `9216db5781bf21249d130ec9da846c4624c16137`):
+
+   ```bash
+   python3 -u generate_fixed_sft.py \
+     --input tulu-3-sft-mixture/data \
+     --output qwen3-tulu3-fixed8192-v1/train.parquet \
+     --tokenizer <Qwen3-32B checkpoint> \
+     --source-dataset allenai/tulu-3-sft-mixture \
+     --source-revision b14afda60f1bbebe55d5d2fa1e4df5042f97f8be \
+     --input-key messages --source-key source --loss-mask-type qwen3 \
+     --sequence-length 8192 --rows 6400 --seed 42 \
+     --source-batch-size 2048 --write-batch-size 64 --min-token-entropy-bits 8.0
+   ```
+
    The GLM-5.2 recipes use a second set. Patch slime first; the patch edits `slime/utils/mask_utils.py` in the
    checkout on `PYTHONPATH` and does nothing if a glm5 generator is already there:
 
@@ -219,6 +236,8 @@ tokens (default 8,192); set it in the environment of every pod. The adapter refu
   clusters from the same inputs, it matched byte for byte.
 - The GLM-4.7-Flash and Nemotron-3-Nano-30B-A3B sets were built with transformers 5.8.1, tokenizers 0.22.2 and pyarrow
   23.0.1, without remote code: neither tokenizer has custom code.
+- The Qwen3-32B set was built with transformers 5.8.1, tokenizers 0.22.2 and pyarrow 23.0.1, without remote code: the
+  tokenizer has no custom code.
 - The Muse Spark set was built with transformers 5.12.1, tokenizers 0.22.2 and pyarrow 25.0.1, the versions of the
   training image.
 - `row_hash` hashes the tokens as native 32-bit integers, so it assumes a little-endian host (x86-64 or ARM64).

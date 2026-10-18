@@ -46,6 +46,9 @@ models:
     model: Qwen3.6-27B
     slug: qwen3.6-27b
     hf: Qwen/Qwen3.6-27B
+    notes: |
+      `MODEL_ARGS` are slime's `scripts/models/qwen3.5-27B.sh`: Qwen3.6-27B has the Qwen3.5-27B architecture and the
+      tokenizer of Qwen3.6-35B-A3B, so it trains on the Qwen3.5 rows.
   - family: Qwen
     model: Qwen3.6-35B-A3B
     slug: qwen3.6-35b-a3b
@@ -81,6 +84,9 @@ models:
     model: Qwen3-32B
     slug: qwen3-32b
     hf: Qwen/Qwen3-32B
+    notes: |
+      `MODEL_ARGS` are slime's `scripts/models/qwen3-32B.sh`. It trains on its own rows, built with slime's `qwen3` loss
+      mask (data/README.md).
   - family: Qwen
     model: Qwen3-235B-A22B
     slug: qwen3-235b-a22b
