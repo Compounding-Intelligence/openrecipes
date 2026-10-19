@@ -213,8 +213,9 @@ def shell(rel, title, description, body, current=None, data_date=None, absolute=
 
 SEGS = 24   # segments in a throughput gauge
 LATEST = 12   # rows the latest-recipes list shows before "Show all"
-TAGLINE = ("Tuned, verified LLM training recipes on one fixed SFT workload, each with its cost per million tokens and a "
-           "passed convergence check.")
+SUBTITLE = "Tuned and verified LLM training recipes"
+TAGLINE = ("Throughput-optimized training recipes for frontier open‑weight models, each measured on one fixed SFT workload "
+           "with its cost per million tokens and a passed convergence check.")
 GAIN = re.compile(r"it measured ([\d,.]+) tokens/s/GPU(?: on \d+ (\w+))?; \S+ tuned it to ([\d,.]+) \(([+-]\d+)%\)")
 SOURCE = re.compile(r"Starting point: ([^,(`]+)")
 SIZE = re.compile(r"-(\d+(?:\.\d+)?)[Bb](?:-A\d+(?:\.\d+)?B)?$")   # the total size a model name ends with
@@ -358,11 +359,11 @@ def index_page(pairs, models, gpus, date):
     stats = [("Recipes", n_recipes, "verified"),
              ("Models", len(tuned), "in %d families" % len({m["family"] for m in tuned})),
              ("Model&ndash;GPU pairs", len(pairs), "on " + ", ".join(esc(gt) for gt in on))]
-    hero = ('<header class="hud hero split"><div><h1>OpenRecipes</h1><p class="tag">{tag}</p>'
+    hero = ('<header class="hud hero split"><div><h1>OpenRecipes</h1><p class="sub">{sub}</p><p class="tag">{tag}</p>'
             '<p class="spec"><span>8,192-token SFT rows</span> &middot; <span>global batch 128</span> &middot; <span>BF16'
             '</span></p><div class="acts"><a class="btn pri" href="submit.html">Submit a recipe</a><a class="btn" '
             'href="protocol.html">Protocol</a><a class="btn" href="{repo}">GitHub</a></div></div><div class="big">{stats}'
-            '</div></header>').format(tag=TAGLINE, repo=REPO_URL, stats="".join(
+            '</div></header>').format(sub=SUBTITLE, tag=TAGLINE, repo=REPO_URL, stats="".join(
                 '<div><div class="ml">%s</div><span class="num">%d</span><div class="det">%s</div></div>' % s for s in stats))
     cards = ('<div class="shead" id="models"><h2>Models with recipes</h2><span class="wt">Each GPU row shows its fastest '
              "recipe; the bar compares it with the model's fastest.</span></div><div class=\"cards\">%s</div>"
