@@ -131,7 +131,7 @@ workload:
       supervised_token_ratio: 0.67
       parquet_sha256: 4357fac051c7968a0c53f5bb885686aa66fc0197dea89fbfc9fb9244df64506c
       parquet_bytes: 71707115
-      builder: data/generate_fixed_sft.py with --loss-mask-type gemma4 (data/README.md)
+      builder: data/generate_fixed_sft.py with --loss-mask-type gemma4 (gemma4_mask.py; data/README.md)
 layout:
   label: TP2 PP4 DP1
   summary: TP 2, PP 4 (13/16/16/15 layers), CP 1, DP 1, sequence parallel; one 8,192-token row per microbatch (BSHD);

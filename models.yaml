@@ -207,7 +207,7 @@ models:
       - `MODEL_ARGS` come from miles' `scripts/models/gemma-4-26b-a4b-it.py` at commit 78527b91, printed by
         `miles/utils/external_utils/model_args_utils.py gemma-4-26b-a4b-it`; run the command from a miles checkout at that
         commit, in the `radixark/miles` v0.1.0 image, whose Megatron-Bridge (commit 7f0fb345) holds the Gemma 4 provider.
-      - It trains on the Gemma 4 rows, built with the `gemma4` loss mask (data/README.md).
+      - It trains on the Gemma 4 rows, built with `--loss-mask-type gemma4` (data/README.md).
       - Selective recompute and `--micro-batch-size 1` replace the launcher's full recompute and dynamic batching: full
         recompute stops at step 0, where `save_for_backward` receives Gemma 4's rotary embedding as a tuple, and miles
         refuses dynamic batching with `--qkv-format bshd`. `--max-tokens-per-gpu` stays from the launcher and has no

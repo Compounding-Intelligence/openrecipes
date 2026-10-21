@@ -473,7 +473,7 @@
    "model": "Gemma-4-26B-A4B",
    "slug": "gemma-4-26b-a4b",
    "hf": "google/gemma-4-26B-A4B-it",
-   "notes": "- Weights: the BF16 checkpoint `google/gemma-4-26B-A4B-it` (revision 4d7ae498), with no conversion: miles loads it\n  through Megatron-Bridge (`--megatron-to-hf-mode bridge`), so `--hf-checkpoint` and `--ref-load` are both the\n  checkpoint directory.\n- `MODEL_ARGS` come from miles' `scripts/models/gemma-4-26b-a4b-it.py` at commit 78527b91, printed by\n  `miles/utils/external_utils/model_args_utils.py gemma-4-26b-a4b-it`; run the command from a miles checkout at that\n  commit, in the `radixark/miles` v0.1.0 image, whose Megatron-Bridge (commit 7f0fb345) holds the Gemma 4 provider.\n- It trains on the Gemma 4 rows, built with the `gemma4` loss mask (data/README.md).\n- Selective recompute and `--micro-batch-size 1` replace the launcher's full recompute and dynamic batching: full\n  recompute stops at step 0, where `save_for_backward` receives Gemma 4's rotary embedding as a tuple, and miles\n  refuses dynamic batching with `--qkv-format bshd`. `--max-tokens-per-gpu` stays from the launcher and has no\n  effect without dynamic batching. Of the selective recompute modules, `moe_act` and `layernorm` stop in the first\n  backward.\n- On B200, keep `--attention-backend unfused`. With `auto`, TE 2.17 selects FlashAttention 4 for the sliding-window\n  layers, whose sm100 kernel does not support a local window at head dim 256, and the run stops at step 0; with\n  `fused`, no cuDNN backend covers the layers. On H200, `auto` runs cuDNN fused attention on the 25 sliding-window\n  layers and TE's unfused attention on the 5 global layers (head dim 512).\n",
+   "notes": "- Weights: the BF16 checkpoint `google/gemma-4-26B-A4B-it` (revision 4d7ae498), with no conversion: miles loads it\n  through Megatron-Bridge (`--megatron-to-hf-mode bridge`), so `--hf-checkpoint` and `--ref-load` are both the\n  checkpoint directory.\n- `MODEL_ARGS` come from miles' `scripts/models/gemma-4-26b-a4b-it.py` at commit 78527b91, printed by\n  `miles/utils/external_utils/model_args_utils.py gemma-4-26b-a4b-it`; run the command from a miles checkout at that\n  commit, in the `radixark/miles` v0.1.0 image, whose Megatron-Bridge (commit 7f0fb345) holds the Gemma 4 provider.\n- It trains on the Gemma 4 rows, built with `--loss-mask-type gemma4` (data/README.md).\n- Selective recompute and `--micro-batch-size 1` replace the launcher's full recompute and dynamic batching: full\n  recompute stops at step 0, where `save_for_backward` receives Gemma 4's rotary embedding as a tuple, and miles\n  refuses dynamic batching with `--qkv-format bshd`. `--max-tokens-per-gpu` stays from the launcher and has no\n  effect without dynamic batching. Of the selective recompute modules, `moe_act` and `layernorm` stop in the first\n  backward.\n- On B200, keep `--attention-backend unfused`. With `auto`, TE 2.17 selects FlashAttention 4 for the sliding-window\n  layers, whose sm100 kernel does not support a local window at head dim 256, and the run stops at step 0; with\n  `fused`, no cuDNN backend covers the layers. On H200, `auto` runs cuDNN fused attention on the 25 sliding-window\n  layers and TE's unfused attention on the 5 global layers (head dim 512).\n",
    "pairs": [
     {
      "gpu": "H200",
@@ -2021,7 +2021,7 @@
       "supervised_token_ratio": 0.67,
       "parquet_sha256": "4357fac051c7968a0c53f5bb885686aa66fc0197dea89fbfc9fb9244df64506c",
       "parquet_bytes": 71707115,
-      "builder": "data/generate_fixed_sft.py with --loss-mask-type gemma4 (data/README.md)"
+      "builder": "data/generate_fixed_sft.py with --loss-mask-type gemma4 (gemma4_mask.py; data/README.md)"
      }
     }
    },
@@ -2149,7 +2149,7 @@
       "supervised_token_ratio": 0.67,
       "parquet_sha256": "4357fac051c7968a0c53f5bb885686aa66fc0197dea89fbfc9fb9244df64506c",
       "parquet_bytes": 71707115,
-      "builder": "data/generate_fixed_sft.py with --loss-mask-type gemma4 (data/README.md)"
+      "builder": "data/generate_fixed_sft.py with --loss-mask-type gemma4 (gemma4_mask.py; data/README.md)"
      }
     }
    },
@@ -2277,7 +2277,7 @@
       "supervised_token_ratio": 0.67,
       "parquet_sha256": "4357fac051c7968a0c53f5bb885686aa66fc0197dea89fbfc9fb9244df64506c",
       "parquet_bytes": 71707115,
-      "builder": "data/generate_fixed_sft.py with --loss-mask-type gemma4 (data/README.md)"
+      "builder": "data/generate_fixed_sft.py with --loss-mask-type gemma4 (gemma4_mask.py; data/README.md)"
      }
     }
    },
