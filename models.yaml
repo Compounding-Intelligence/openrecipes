@@ -202,6 +202,17 @@ models:
     model: Nemotron-3-Super-120B-A12B
     slug: nemotron-3-super-120b-a12b
     hf: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16
+    notes: |
+      - Weights: the BF16 checkpoint `nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16` (revision 2dc98e2a), with no
+        conversion: miles loads it through Megatron-Bridge (`--megatron-to-hf-mode bridge`), so `--hf-checkpoint` and
+        `--ref-load` are both the checkpoint directory.
+      - `MODEL_ARGS` come from miles' `scripts/models/nemotron-3-super-120b-a12b.py` at commit 78527b91, printed by
+        `miles/utils/external_utils/model_args_utils.py nemotron-3-super-120b-a12b`; run the command from a miles
+        checkout at that commit.
+      - miles' Nemotron-H bridge shim (`miles_plugins/megatron_bridge/nemotron_h.py`) leaves out the checkpoint's
+        multi-token prediction layer unless `MILES_NEMOTRONH_KEEP_MTP` is set, so the recipes train without it.
+      - It trains on rows built from its own tokenizer with `--loss-mask-type qwen3_5`; they are byte-identical to the
+        Nemotron-3-Nano rows (data/README.md).
   - family: Nemotron
     model: Nemotron-3-Ultra-550B-A55B
     slug: nemotron-3-ultra-550b-a55b

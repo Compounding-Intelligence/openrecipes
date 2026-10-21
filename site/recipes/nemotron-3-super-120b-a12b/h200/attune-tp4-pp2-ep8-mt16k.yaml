@@ -1,0 +1,188 @@
+# recipes/nemotron-3-super-120b-a12b/h200/attune-tp4-pp2-ep8-mt16k.yaml
+# An OpenRecipes recipe; the fields are documented in schema/recipe.schema.yaml.
+schema_version: 1
+model: Nemotron-3-Super-120B-A12B
+gpu:
+  type: H200
+  memory_gb: 141
+  count: 16
+  per_node: 8
+  instance: AWS p5en.48xlarge
+author:
+  name: ATTUNE
+  url: https://arxiv.org/abs/2610.17528
+status: verified
+stack:
+  framework: miles 0.1.0 (radixark/miles commit 78527b91, a slime fork), no local changes
+  megatron_lm: radixark/Megatron-LM commit 37f91617 (megatron-core 0.16.0rc0), no local changes
+  megatron_bridge: 0.5.0 (commit 7f0fb345; the Nemotron-H provider and bridge, with miles' Nemotron-H bridge shim)
+  transformer_engine: 2.17.0
+  pytorch: 2.11.0 (CUDA 13.0 build)
+  cuda: '13.0'
+  nccl: 2.28.9 (CUDA 13.0 build; printed by the measured run)
+  deepep: 1.2.1 (installed; the alltoall dispatcher does not use it)
+  python: 3.12.3
+  network: 8 GPUs per node, EFA (aws-ofi-nccl 1.20), 3.2 Tb/s RDMA per node
+  source: 'version check of the measured run''s training image (same digest), 2026-10-21: miles and Megatron-LM git
+    commits (clean miles tree), installed TE, PyTorch, megatron-core, Megatron-Bridge, DeepEP and aws-ofi-nccl, Python, and
+    miles'' Nemotron-3-Super model and launcher scripts; NCCL from the measured run''s log. The image is radixark/miles
+    v0.1.0 (amd64 digest sha256:45ae7833f97a01369dbd8f336784830a87d94587bc010c7b8065291cc15cd7ca) with EFA 1.49 added'
+workload:
+  row_tokens: 8192
+  rows: SFT conversations
+  global_batch: 128
+  precision: bf16
+  dataset:
+    name: Tulu 3 SFT mixture
+    source: allenai/tulu-3-sft-mixture
+    revision: b14afda60f1bbebe55d5d2fa1e4df5042f97f8be
+    license: ODC-By 1.0
+    rows_sha256: 8fc04d3ce32c2b2cf8b1255a84cd8627df647cb38b6cbbe69a8e6bbde0ce54c7
+    build:
+      name: nemotron3super-tulu3-fixed8192-v1
+      tokenizer: Nemotron-3-Super-120B-A12B (revision 2dc98e2afe4face0e4ce40972a915c45368bd34a; tokenizer.json sha256
+        623c34567aebb18582765289fbe23d901c62704d6518d71866e0e58db892b5b7; chat_template.jinja sha256
+        575fb74f54ed264df9047d0ecce3c98938aae953fb4f50356675706264cbb68a)
+      loss_mask: qwen3_5
+      rows: 6400
+      row_tokens: 8192
+      padding_tokens: 0
+      seed: 42
+      packing: source conversations in a seeded global permutation, concatenated with an EOS token between them and cut
+        into consecutive 8,192-token rows; rows without supervised targets are skipped
+      supervised_token_ratio: 0.665
+      parquet_sha256: 7c0d4c1bd9f678b0815801a876cb8c460972424707d9f6d75883c336e1f70895
+      parquet_bytes: 85528499
+      identical_to: nemotron3nano-tulu3-fixed8192-v1, byte for byte
+      builder: data/generate_fixed_sft.py with --loss-mask-type qwen3_5 (data/README.md)
+layout:
+  label: TP4 PP2 EP8 DP2
+  summary: TP 4, PP 2 (even split), CP 1, EP 8, ETP 1, DP 2, sequence parallel; two 8,192-token rows per microbatch (THD,
+    max 16,384 tokens/GPU); selective recompute of the MoE layers; CPU optimizer offload of 55% with overlapped copies and
+    the precision-aware optimizer; distributed optimizer; alltoall dispatcher
+  highlights: max 16,384 tokens/GPU, selective MoE recompute, CPU optimizer offload 0.55
+  tp: 4
+  pp: 2
+  vpp: 1
+  cp: 1
+  ep: 8
+  etp: 1
+  dp: 2
+  sequence_parallel: true
+  layer_split: null
+  max_tokens_per_gpu: 16384
+  rows_per_microbatch: 2
+  recompute:
+    granularity: selective
+    method: null
+    num_layers: null
+  offload:
+    optimizer_fraction: 0.55
+    overlap_d2h_h2d: true
+  dispatcher: alltoall
+result:
+  tokens_per_s_per_gpu: 1045.21
+  usd_per_million_tokens: 2.1
+  step_time_cv_percent: 7.51
+  mfu: 0.0776
+  mfu_note: null
+  active_params:
+    count: 12232228864
+    source: https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16
+    revision: 2dc98e2afe4face0e4ce40972a915c45368bd34a
+  measured: 2026-10-21
+  steps_per_run: 20
+  window:
+  - 5
+  - 19
+  window_tokens: 15728640
+  runs: 1
+  profiler: false
+  gpu_hours: 7.78
+  gpu_hours_note: GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the
+    convergence check
+correctness:
+  result: pass
+  summary: passed; the optimizer offload fraction (1.0 to 0.55), which the check listed as unknown, was classed as
+    placement on review (2026-10-21)
+  reference: 'miles'' layout for Nemotron-3-Super-120B-A12B (`scripts/run_nemotron_3_super_120b_a12b.py`, its 16-GPU
+    default): TP 4 with sequence parallel, PP 2, EP 8, full recompute (uniform, 1 layer), max 1,024 tokens/GPU (one row
+    per microbatch) and Adam on the CPU (`--optimizer-cpu-offload --overlap-cpu-optimizer-d2h-h2d
+    --use-precision-aware-optimizer`). Model arguments, rows and schedule are the same in both recipes.'
+  configuration: pass
+  component_tests: []
+  convergence:
+    steps: 20
+    result: pass
+    correlation: 0.9999986
+    final_loss_difference: 0.000124
+    pointwise_failures: 0
+    note: 'candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and
+      rows; the parity probe off in both'
+  rules: argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml (amazon-science/attune aff5b81),
+    with `--optimizer-offload-fraction`, which that list does not class, classed as placement on review (2026-10-21);
+    20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds
+env:
+  CUDA_DEVICE_MAX_CONNECTIONS: '1'
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+  FI_PROVIDER: efa
+  FI_EFA_USE_DEVICE_RDMA: '1'
+patches: []
+run: |
+  export CUDA_DEVICE_MAX_CONNECTIONS=1
+  export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+  export FI_PROVIDER=efa
+  export FI_EFA_USE_DEVICE_RDMA=1
+
+  MODEL_ARGS_LINE="$(python3 miles/utils/external_utils/model_args_utils.py nemotron-3-super-120b-a12b)"
+  read -ra MODEL_ARGS <<< "$MODEL_ARGS_LINE"
+  python3 train.py \
+    --actor-num-nodes 2 \
+    --actor-num-gpus-per-node 8 \
+    --num-gpus-per-node 8 \
+    "${MODEL_ARGS[@]}" \
+    --hf-checkpoint "$HF_CKPT" \
+    --ref-load "$HF_CKPT" \
+    --megatron-to-hf-mode bridge \
+    --loss-type sft_loss \
+    --calculate-per-token-loss \
+    --disable-compute-advantages-and-returns \
+    --debug-train-only \
+    --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+    --prompt-data "$SFT_DATA" \
+    --input-key messages \
+    --metadata-key metadata \
+    --num-rollout 20 \
+    --rollout-batch-size 128 \
+    --global-batch-size 128 \
+    --tensor-model-parallel-size 4 \
+    --sequence-parallel \
+    --pipeline-model-parallel-size 2 \
+    --context-parallel-size 1 \
+    --expert-model-parallel-size 8 \
+    --expert-tensor-parallel-size 1 \
+    --recompute-granularity selective \
+    --recompute-modules moe \
+    --use-dynamic-batch-size \
+    --max-tokens-per-gpu 16384 \
+    --log-probs-chunk-size 128 \
+    --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+    --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+    --optimizer-cpu-offload --overlap-cpu-optimizer-d2h-h2d --use-precision-aware-optimizer \
+    --optimizer-offload-fraction 0.55 \
+    --attention-dropout 0.0 --hidden-dropout 0.0 \
+    --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \
+    --attention-backend auto \
+    --distributed-timeout-minutes 30
+notes: |
+  - Starting point: miles' Nemotron-3-Super launcher, `scripts/run_nemotron_3_super_120b_a12b.py` at miles 0.1.0 (model
+    page https://miles.radixark.com/docs/models/nemotron/nemotron-3-super). miles publishes it as a GRPO recipe with no
+    tokens/s figure. Ported to this workload with its 16-GPU layout (TP 4 with sequence parallel, PP 2, EP 8, full
+    recompute, max 1,024 tokens/GPU, Adam on the CPU) on 16 H200, it measured 688.3 tokens/s/GPU; ATTUNE tuned it to
+    1,045.2 (+52%).
+  - The reference recipe's full recompute has no effect on this model: Megatron's `MambaStack`
+    (`megatron/core/ssm/mamba_block.py` at commit 37f91617) has no recompute path. Selective recompute of the MoE layers
+    frees the memory that holds 45% of the optimizer state on the GPU (`--optimizer-offload-fraction 0.55`).
+  - 0.55 is the lowest offload fraction that fits at two rows per microbatch: a tuning run at 0.45 ran out of memory at
+    step 2, and one at 0.55 with three rows per microbatch at step 0. Check the memory before lowering the fraction or
+    raising `--max-tokens-per-gpu`.

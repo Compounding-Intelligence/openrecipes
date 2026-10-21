@@ -152,6 +152,13 @@ Run the build once per tokenizer.
      --source-batch-size 2048 --write-batch-size 64 --min-token-entropy-bits 8.0
    ```
 
+   The Nemotron-3-Super-120B-A12B recipes use `nemotron3super-tulu3-fixed8192-v1`, the same command with
+   `--output nemotron3super-tulu3-fixed8192-v1/train.parquet` and the checkpoint of
+   `nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16` (revision `2dc98e2afe4face0e4ce40972a915c45368bd34a`) as
+   `--tokenizer`. Its `tokenizer.json` parses to the same JSON as Nano's, and its chat template differs from Nano's
+   only by an optional `low_effort` flag that is off by default, so the set is byte-identical to
+   `nemotron3nano-tulu3-fixed8192-v1`.
+
    DeepSeek-V4 ships no chat template: `--loss-mask-type deepseek_v4` (`dsv4_mask.py`) renders each conversation with
    the checkout's official `encoding/encoding_dsv4.py` in chat mode and supervises the assistant turns. It runs that
    file, so it needs `--trust-remote-code`; use a checkout of `deepseek-ai/DeepSeek-V4-Flash` (revision
