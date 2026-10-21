@@ -294,6 +294,22 @@ models:
     model: Inkling-Small
     slug: inkling-small
     hf: thinkingmachines/Inkling-Small
+    notes: |
+      - Weights: the BF16 checkpoint `thinkingmachines/Inkling-Small` (revision 8cc5877b), converted to Megatron
+        `torch_dist` with miles' `tools/convert_hf_to_torch_dist.py` at commit 78527b91 and the `inkling-small` model
+        arguments on one 8-GPU node (TP 8, EP 8), as miles' model page describes. `--ref-load` is the conversion and
+        `--hf-checkpoint` the checkout, whose `config.json` miles' Inkling model reads.
+      - `MODEL_ARGS` come from miles' `scripts/models/inkling-small.py` at commit 78527b91, printed by
+        `miles/utils/external_utils/model_args_utils.py inkling-small`; run the command from a miles checkout at that
+        commit. They select miles' text model provider (`miles_plugins.models.inkling.model.inkling_model_provider`), so
+        the recipes train the text model only.
+      - It trains on its own rows, built with `--loss-mask-type inkling` (data/README.md).
+      - `--ref-load` replaces the launcher's `--load <torch_dist> --no-load-optim --no-load-rng --finetune`: with a
+        checkpoint tracker at `--load`, miles starts at rollout 1 and the run logs no step 0; `--ref-load` loads the
+        same weights and starts at rollout 0 (`miles/utils/arguments.py`).
+      - miles' Inkling model builds its own Megatron config (`build_inkling_config` in
+        `miles_plugins/models/inkling/model.py`), which takes no recompute settings and fixes the token dispatcher to
+        alltoall, so the `--recompute-*` flags the launcher passes have no effect.
   - family: Inkling
     model: Inkling
     slug: inkling

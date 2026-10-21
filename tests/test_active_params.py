@@ -161,3 +161,21 @@ def test_gemma4_top_k_experts_and_vision_embedding_projection(tmp_path, capsys):
     assert out["parts"]["routed_experts"] == 64
     assert out["parts"]["other_matmul"] == 48
     assert out["active_params"] == 152
+
+
+def test_inkling_audio_and_vision_towers_and_mtp_layers_excluded(tmp_path, capsys):
+    config = {"text_config": {"num_hidden_layers": 1, "n_routed_experts": 4, "num_experts_per_tok": 2}}
+    src = _checkpoint(tmp_path, config, {"model.safetensors": {
+        "model.llm.embed.weight": ("BF16", [10, 4]),
+        "model.llm.layers.0.mlp.experts.w13_weight": ("BF16", [4, 8, 4]),               # 128, top-2 of 4: 64
+        "model.llm.layers.0.mlp.shared_experts.shared_w13_weight": ("BF16", [8, 4]),    # 32
+        "model.llm.layers.0.attn_sconv.weight": ("BF16", [4, 1, 4]),                    # 16
+        "model.llm.unembed.weight": ("BF16", [10, 4]),                                  # 40
+        "model.audio.encoder.weight": ("BF16", [6, 4]),
+        "model.visual.layers.linear_0.weight": ("BF16", [6, 4]),
+        "model.mtp.layers.0.input_proj.weight": ("BF16", [4, 8]),
+    }})
+    out = _count(src, capsys)
+    assert out["parts"]["routed_experts"] == 64
+    assert out["parts"]["other_matmul"] == 88
+    assert out["active_params"] == 152

@@ -35,6 +35,7 @@ ROUTED = re.compile(r"\.experts\.")
 SKIP = (re.compile(r"(^|\.)visual\."), re.compile(r"(^|\.)vision_tower\."), re.compile(r"(^|\.)mtp\."),
         re.compile(r"(^|\.)(audio_tower|vision_adapter|vision_projection)\."),   # Muse Spark's other modalities
         re.compile(r"(^|\.)embed_(vision|audio)\."),   # Gemma's projections of image and audio tokens
+        re.compile(r"(^|\.)audio\."),   # Inkling's audio projection
         re.compile(r"scales?(_inv)?$"))   # quantization scales of FP8/FP4/INT8 checkpoints
 EMBED = re.compile(r"(^|\.)(embed|embed_tokens|embeddings|wte|word_embeddings|embed_in|tok_embeddings)\.weight$")
 POSITION = re.compile(r"(^|\.)(ape|pos_embed|position_embeddings?|wpe)(\.weight)?$")   # added to activations

@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training Inkling-Small on H200 | OpenRecipes</title>
+<meta name="description" content="Verified training recipes for Inkling-Small on H200: best 616.7 tokens/s per GPU on 32 GPUs, $3.56 per million tokens.">
+<link rel="canonical" href="https://openrecipes.ai/inkling-small/h200/">
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+<script src="../../app.js" defer></script>
+</head>
+<body>
+<header class="nav"><a class="brand" href="../../"><svg class="mark" width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><path d="M25.85 14.26A10 10 0 1 1 21 7.34" fill="none" stroke="#0e7490" stroke-width="4" stroke-linecap="round"/><circle cx="25.2" cy="7.6" r="2.6" fill="#0f172a"/></svg>OpenRecipes</a><nav class="links" aria-label="Site"><a href="../../#models">Models</a><a href="../../protocol">Protocol</a><a href="../../submit">Submit</a><a href="https://github.com/Compounding-Intelligence/openrecipes">GitHub</a></nav></header>
+<main class="wrap">
+<a class="back" href="../../#models">&lsaquo; All models</a>
+<section class="hud rank"><div class="ml">Inkling</div><h1>Training Inkling-Small on H200</h1><div class="ml">Ranked by tokens/s per GPU &middot; 8,192-token SFT rows &middot; global batch 128 &middot; BF16</div><div class="tablewrap"><table class="stack"><thead><tr><th>#</th><th>Tokens/s per GPU</th><th>$ / 1M tokens</th><th>GPUs</th><th>Layout</th><th>Measured</th><th>Author</th><th></th></tr></thead><tbody><tr><td class="rk" data-label="#"><span class="cv">#1</span></td><td class="tp" data-label="Tokens/s per GPU"><span class="cv"><span class="v hi">616.7</span><span class="gauge" title="100% of the best"><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b></span></span></td><td class="n hi" data-label="$ / 1M tokens"><span class="cv">$3.56</span></td><td class="n" data-label="GPUs"><span class="cv">32</span></td><td data-label="Layout"><span class="cv">TP4 PP4 EP8 DP2<br><small>12/10/10/10 layer split, CPU optimizer offload 0.7</small></span></td><td class="nw" data-label="Measured"><span class="cv">2026-10-21</span></td><td data-label="Author"><span class="cv"><a href="https://arxiv.org/abs/2610.17528">ATTUNE</a></span></td><td class="go" data-label=""><span class="cv"><a href="#attune-tp4-pp4-ep8-split12">Recipe&nbsp;&rsaquo;</a></span></td></tr></tbody></table></div></section>
+<h2>Notes for Inkling-Small</h2><div class="card notes prose"><ul><li>Weights: the BF16 checkpoint <code>thinkingmachines/Inkling-Small</code> (revision 8cc5877b), converted to Megatron <code>torch_dist</code> with miles&#x27; <code>tools/convert_hf_to_torch_dist.py</code> at commit 78527b91 and the <code>inkling-small</code> model arguments on one 8-GPU node (TP 8, EP 8), as miles&#x27; model page describes. <code>--ref-load</code> is the conversion and <code>--hf-checkpoint</code> the checkout, whose <code>config.json</code> miles&#x27; Inkling model reads.</li><li><code>MODEL_ARGS</code> come from miles&#x27; <code>scripts/models/inkling-small.py</code> at commit 78527b91, printed by <code>miles/utils/external_utils/model_args_utils.py inkling-small</code>; run the command from a miles checkout at that commit. They select miles&#x27; text model provider (<code>miles_plugins.models.inkling.model.inkling_model_provider</code>), so the recipes train the text model only.</li><li>It trains on its own rows, built with <code>--loss-mask-type inkling</code> (data/README.md).</li><li><code>--ref-load</code> replaces the launcher&#x27;s <code>--load &lt;torch_dist&gt; --no-load-optim --no-load-rng --finetune</code>: with a checkpoint tracker at <code>--load</code>, miles starts at rollout 1 and the run logs no step 0; <code>--ref-load</code> loads the same weights and starts at rollout 0 (<code>miles/utils/arguments.py</code>).</li><li>miles&#x27; Inkling model builds its own Megatron config (<code>build_inkling_config</code> in <code>miles_plugins/models/inkling/model.py</code>), which takes no recompute settings and fixes the token dispatcher to alltoall, so the <code>--recompute-*</code> flags the launcher passes have no effect.</li></ul><p class="muted small">The steps every recipe shares: <a href="../../protocol#run">Running a recipe</a>.</p></div>
+<h2>Recipes</h2>
+<details class="card recipe" id="attune-tp4-pp4-ep8-split12" open>
+<summary><span class="rank">#1</span><span class="slug">attune-tp4-pp4-ep8-split12</span><span class="tps">616.7 tokens/s/GPU</span><span class="muted small">TP4 PP4 EP8 DP2</span><span class="hl">12/10/10/10 layer split, CPU optimizer offload 0.7</span></summary>
+<div class="body">
+<div class="prose"><ul><li>Starting point: miles&#x27; Inkling launcher, <code>scripts/run_inkling.py</code> at miles 0.1.0, with its Inkling-Small profile (model page <a href="https://miles.radixark.com/docs/models/thinkingmachines/inkling-small">https://miles.radixark.com/docs/models/thinkingmachines/inkling-small</a>). miles publishes it as a GRPO recipe validated on 4 nodes of 8 H200, with no tokens/s figure. Ported to this workload with that layout (TP 4 with sequence parallel, PP 8, EP 4, Adam on the CPU) on 32 H200, it measured 396.9 tokens/s/GPU; ATTUNE tuned it to 616.7 (+55%).</li><li>EP 8 places each expert group within one node. The first pipeline stage holds the two dense layers and ten MoE layers and peaks highest in memory; at <code>--optimizer-offload-fraction 0.7</code>, 30% of the optimizer state stays on the GPU, and a tuning run at 0.6 ran out of memory. Check the memory before lowering the fraction.</li></ul></div><dl class="facts"><dt>Author</dt><dd><a href="https://arxiv.org/abs/2610.17528">ATTUNE</a> (<a href="#cite">cite</a>)</dd><dt>GPUs</dt><dd>32 x H200 141 GB (AWS p5en.48xlarge, 8 per node)</dd><dt>Layout</dt><dd>TP 4, PP 4 (12/10/10/10 layers), CP 1, EP 8, ETP 1, DP 2, sequence parallel; one 8,192-token row per microbatch (THD); no recompute (miles&#x27; Inkling model takes no recompute settings); CPU optimizer offload of 70% with overlapped copies and the precision-aware optimizer; distributed optimizer; alltoall dispatcher</dd><dt>Tokens/s per GPU</dt><dd>616.67</dd><dt>$ / 1M tokens</dt><dd>$3.56</dd><dt>MFU</dt><dd>4.2% (N = 11,173,191,680 active parameters per token)</dd><dt>Step-time CV</dt><dd>5.23%</dd><dt>Convergence check</dt><dd>correlation 0.999955, final loss difference 0.00205, 0 pointwise failures over 20 steps</dd><dt>Measured</dt><dd>2026-10-21</dd><dt>GPU-hours</dt><dd>12.84</dd><dt>Rows</dt><dd><code>inkling-tulu3-fixed8192-v1</code> (rows_sha256 <code>be57af7054d9191833764ba1dd1eac8545cbf12e9538ba09c660ecf2ed4a8af7</code>)</dd></dl>
+<div class="cols"><div><h3>Stack</h3><dl class="facts"><dt>framework</dt><dd>miles 0.1.0 (radixark/miles commit 78527b91, a slime fork), no local changes</dd><dt>megatron lm</dt><dd>radixark/Megatron-LM commit 37f91617 (megatron-core 0.16.0rc0), no local changes</dd><dt>transformer engine</dt><dd>2.17.0</dd><dt>pytorch</dt><dd>2.11.0 (CUDA 13.0 build)</dd><dt>cuda</dt><dd>13.0</dd><dt>nccl</dt><dd>2.28.9 (CUDA 13.0 build; printed by the measured run)</dd><dt>deepep</dt><dd>1.2.1 (installed; the alltoall dispatcher does not use it)</dd><dt>python</dt><dd>3.12.3</dd><dt>network</dt><dd>8 GPUs per node, EFA (aws-ofi-nccl 1.20), 3.2 Tb/s RDMA per node</dd></dl></div><div><h3>Environment</h3><ul class="env"><li><code>CUDA_DEVICE_MAX_CONNECTIONS=1</code></li><li><code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code></li><li><code>RAY_memory_monitor_refresh_ms=0</code></li><li><code>NCCL_MNNVL_ENABLE=1</code></li><li><code>NCCL_NVLS_ENABLE=0</code></li><li><code>NCCL_RAS_ENABLE=0</code></li><li><code>TRITON_CACHE_DIR=$KERNEL_CACHE/triton</code></li><li><code>TORCHINDUCTOR_CACHE_DIR=$KERNEL_CACHE/inductor</code></li><li><code>FI_PROVIDER=efa</code></li><li><code>FI_EFA_USE_DEVICE_RDMA=1</code></li></ul></div></div>
+<div class="filebar"><span class="k">Command</span><span class="acts"><a class="btn o" href="../../protocol#run">How to run</a><button type="button" class="btn o" data-copy="run-attune-tp4-pp4-ep8-split12">Copy</button></span></div>
+<pre id="run-attune-tp4-pp4-ep8-split12">export CUDA_DEVICE_MAX_CONNECTIONS=1
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export RAY_memory_monitor_refresh_ms=0
+export NCCL_MNNVL_ENABLE=1
+export NCCL_NVLS_ENABLE=0
+export NCCL_RAS_ENABLE=0
+export TRITON_CACHE_DIR=&quot;$KERNEL_CACHE/triton&quot;
+export TORCHINDUCTOR_CACHE_DIR=&quot;$KERNEL_CACHE/inductor&quot;
+export FI_PROVIDER=efa
+export FI_EFA_USE_DEVICE_RDMA=1
+
+MODEL_ARGS_LINE=&quot;$(python3 miles/utils/external_utils/model_args_utils.py inkling-small)&quot;
+read -ra MODEL_ARGS &lt;&lt;&lt; &quot;$MODEL_ARGS_LINE&quot;
+python3 train.py \
+  --actor-num-nodes 4 \
+  --actor-num-gpus-per-node 8 \
+  --num-gpus-per-node 8 \
+  &quot;${MODEL_ARGS[@]}&quot; \
+  --hf-checkpoint &quot;$HF_CKPT&quot; \
+  --ref-load &quot;$TORCH_DIST&quot; \
+  --model-name inkling \
+  --megatron-to-hf-mode raw \
+  --loss-type sft_loss \
+  --calculate-per-token-loss \
+  --disable-compute-advantages-and-returns \
+  --debug-train-only \
+  --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+  --prompt-data &quot;$SFT_DATA&quot; \
+  --input-key messages \
+  --metadata-key metadata \
+  --num-rollout 20 \
+  --rollout-batch-size 128 \
+  --global-batch-size 128 \
+  --tensor-model-parallel-size 4 \
+  --sequence-parallel \
+  --pipeline-model-parallel-size 4 \
+  --decoder-first-pipeline-num-layers 12 \
+  --expert-model-parallel-size 8 \
+  --expert-tensor-parallel-size 1 \
+  --recompute-granularity full \
+  --recompute-method uniform \
+  --recompute-num-layers 1 \
+  --micro-batch-size 1 \
+  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+  --use-distributed-optimizer \
+  --no-check-for-nan-in-loss-and-grad \
+  --accumulate-allreduce-grads-in-fp32 \
+  --optimizer-cpu-offload --overlap-cpu-optimizer-d2h-h2d --use-precision-aware-optimizer \
+  --optimizer-offload-fraction 0.7 \
+  --transformer-impl transformer_engine \
+  --bf16 \
+  --attention-dropout 0.0 --hidden-dropout 0.0 \
+  --attention-softmax-in-fp32 \
+  --no-bias-dropout-fusion \
+  --distributed-timeout-minutes 30
+</pre>
+<div class="filebar"><span class="k">recipes/inkling-small/h200/attune-tp4-pp4-ep8-split12.yaml</span><span class="acts"><a class="btn o" href="../../recipes/inkling-small/h200/attune-tp4-pp4-ep8-split12.yaml" download>Download</a><a class="btn o" href="https://github.com/Compounding-Intelligence/openrecipes/blob/main/recipes/inkling-small/h200/attune-tp4-pp4-ep8-split12.yaml">GitHub</a><button type="button" class="btn o" data-copy="file-attune-tp4-pp4-ep8-split12">Copy</button></span></div>
+<pre class="file" id="file-attune-tp4-pp4-ep8-split12"># recipes/inkling-small/h200/attune-tp4-pp4-ep8-split12.yaml
+# An OpenRecipes recipe; the fields are documented in schema/recipe.schema.yaml.
+schema_version: 1
+model: Inkling-Small
+gpu:
+  type: H200
+  memory_gb: 141
+  count: 32
+  per_node: 8
+  instance: AWS p5en.48xlarge
+author:
+  name: ATTUNE
+  url: https://arxiv.org/abs/2610.17528
+status: verified
+stack:
+  framework: miles 0.1.0 (radixark/miles commit 78527b91, a slime fork), no local changes
+  megatron_lm: radixark/Megatron-LM commit 37f91617 (megatron-core 0.16.0rc0), no local changes
+  transformer_engine: 2.17.0
+  pytorch: 2.11.0 (CUDA 13.0 build)
+  cuda: &#x27;13.0&#x27;
+  nccl: 2.28.9 (CUDA 13.0 build; printed by the measured run)
+  deepep: 1.2.1 (installed; the alltoall dispatcher does not use it)
+  python: 3.12.3
+  network: 8 GPUs per node, EFA (aws-ofi-nccl 1.20), 3.2 Tb/s RDMA per node
+  source: &#x27;version check of the measured run&#x27;&#x27;s training image (same digest), 2026-10-21: miles and Megatron-LM git
+    commits (clean miles tree), installed TE, PyTorch, megatron-core, DeepEP and aws-ofi-nccl, Python, and miles&#x27;&#x27;
+    Inkling model, model arguments and launcher; NCCL from the measured run&#x27;&#x27;s log. The image is radixark/miles v0.1.0
+    (amd64 digest sha256:45ae7833f97a01369dbd8f336784830a87d94587bc010c7b8065291cc15cd7ca) with EFA 1.49 added&#x27;
+workload:
+  row_tokens: 8192
+  rows: SFT conversations
+  global_batch: 128
+  precision: bf16
+  dataset:
+    name: Tulu 3 SFT mixture
+    source: allenai/tulu-3-sft-mixture
+    revision: b14afda60f1bbebe55d5d2fa1e4df5042f97f8be
+    license: ODC-By 1.0
+    rows_sha256: be57af7054d9191833764ba1dd1eac8545cbf12e9538ba09c660ecf2ed4a8af7
+    build:
+      name: inkling-tulu3-fixed8192-v1
+      tokenizer: Inkling-Small (revision 8cc5877b44d343f88b92086aa1fb72897950f06a; tokenizer.json sha256
+        9fb6333a7db8fe5da90728e741e4a3ee4ac2ae12c5dd4958cc6f31688787d3c2; chat_template.jinja sha256
+        0aa1aa0c729d90176dcaa00c440c8faffca2957ffb2cc4b79456ee6d02bcf43b)
+      loss_mask: inkling
+      rows: 6400
+      row_tokens: 8192
+      padding_tokens: 0
+      seed: 42
+      packing: source conversations in a seeded global permutation, concatenated without a separator (the tokenizer
+        has no EOS token, and each answered conversation ends with &lt;|content_model_end_sampling|&gt;) and cut into
+        consecutive 8,192-token rows; rows without supervised targets are skipped
+      template_kwargs: reasoning_effort high (thinking-effort level 0.9, the template&#x27;s default)
+      supervised_token_ratio: 0.663
+      parquet_sha256: 1e04d74348ceef56499d0c9ffea0e5f2f52cb0b9552ee719362e185d44058df2
+      parquet_bytes: 73787266
+      builder: data/generate_fixed_sft.py with --loss-mask-type inkling (inkling_mask.py; data/README.md)
+layout:
+  label: TP4 PP4 EP8 DP2
+  summary: TP 4, PP 4 (12/10/10/10 layers), CP 1, EP 8, ETP 1, DP 2, sequence parallel; one 8,192-token row per
+    microbatch (THD); no recompute (miles&#x27; Inkling model takes no recompute settings); CPU optimizer offload of 70% with
+    overlapped copies and the precision-aware optimizer; distributed optimizer; alltoall dispatcher
+  highlights: 12/10/10/10 layer split, CPU optimizer offload 0.7
+  tp: 4
+  pp: 4
+  vpp: 1
+  cp: 1
+  ep: 8
+  etp: 1
+  dp: 2
+  sequence_parallel: true
+  layer_split:
+    first: 12
+    last: 10
+  max_tokens_per_gpu: null
+  rows_per_microbatch: 1
+  recompute: null
+  offload:
+    optimizer_fraction: 0.7
+    overlap_d2h_h2d: true
+  dispatcher: alltoall
+result:
+  tokens_per_s_per_gpu: 616.67
+  usd_per_million_tokens: 3.56
+  step_time_cv_percent: 5.23
+  mfu: 0.0418
+  mfu_note: null
+  active_params:
+    count: 11173191680
+    source: https://huggingface.co/thinkingmachines/Inkling-Small
+    revision: 8cc5877b44d343f88b92086aa1fb72897950f06a
+  measured: 2026-10-21
+  steps_per_run: 20
+  window:
+  - 5
+  - 19
+  window_tokens: 15728640
+  runs: 1
+  profiler: false
+  gpu_hours: 12.84
+  gpu_hours_note: GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the
+    convergence check
+correctness:
+  result: pass
+  summary: passed; the optimizer offload fraction (1.0 to 0.7), which the check listed as unknown, was classed as
+    placement on review (2026-10-21)
+  reference: &#x27;miles&#x27;&#x27; layout for Inkling-Small (`scripts/run_inkling.py`, the profile it validated on 4 nodes of 8 H200):
+    TP 4 with sequence parallel, PP 8 (7 layers on the last stage), EP 4, DP 1, one row per microbatch and Adam on the
+    CPU (`--optimizer-cpu-offload --overlap-cpu-optimizer-d2h-h2d --use-precision-aware-optimizer`). Model arguments,
+    rows and schedule are the same in both recipes.&#x27;
+  configuration: pass
+  component_tests: []
+  convergence:
+    steps: 20
+    result: pass
+    correlation: 0.999955
+    final_loss_difference: 0.00205
+    pointwise_failures: 0
+    note: &#x27;candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and
+      rows; the parity probe off in both&#x27;
+  rules: argument classes of ATTUNE&#x27;s skill/scripts/correctness/rules/numerics_list.yaml (amazon-science/attune aff5b81),
+    with `--optimizer-offload-fraction`, which that list does not class, classed as placement on review (2026-10-21);
+    20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds
+env:
+  CUDA_DEVICE_MAX_CONNECTIONS: &#x27;1&#x27;
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+  RAY_memory_monitor_refresh_ms: &#x27;0&#x27;
+  NCCL_MNNVL_ENABLE: &#x27;1&#x27;
+  NCCL_NVLS_ENABLE: &#x27;0&#x27;
+  NCCL_RAS_ENABLE: &#x27;0&#x27;
+  TRITON_CACHE_DIR: $KERNEL_CACHE/triton
+  TORCHINDUCTOR_CACHE_DIR: $KERNEL_CACHE/inductor
+  FI_PROVIDER: efa
+  FI_EFA_USE_DEVICE_RDMA: &#x27;1&#x27;
+patches: []
+run: |
+  export CUDA_DEVICE_MAX_CONNECTIONS=1
+  export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+  export RAY_memory_monitor_refresh_ms=0
+  export NCCL_MNNVL_ENABLE=1
+  export NCCL_NVLS_ENABLE=0
+  export NCCL_RAS_ENABLE=0
+  export TRITON_CACHE_DIR=&quot;$KERNEL_CACHE/triton&quot;
+  export TORCHINDUCTOR_CACHE_DIR=&quot;$KERNEL_CACHE/inductor&quot;
+  export FI_PROVIDER=efa
+  export FI_EFA_USE_DEVICE_RDMA=1
+
+  MODEL_ARGS_LINE=&quot;$(python3 miles/utils/external_utils/model_args_utils.py inkling-small)&quot;
+  read -ra MODEL_ARGS &lt;&lt;&lt; &quot;$MODEL_ARGS_LINE&quot;
+  python3 train.py \
+    --actor-num-nodes 4 \
+    --actor-num-gpus-per-node 8 \
+    --num-gpus-per-node 8 \
+    &quot;${MODEL_ARGS[@]}&quot; \
+    --hf-checkpoint &quot;$HF_CKPT&quot; \
+    --ref-load &quot;$TORCH_DIST&quot; \
+    --model-name inkling \
+    --megatron-to-hf-mode raw \
+    --loss-type sft_loss \
+    --calculate-per-token-loss \
+    --disable-compute-advantages-and-returns \
+    --debug-train-only \
+    --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+    --prompt-data &quot;$SFT_DATA&quot; \
+    --input-key messages \
+    --metadata-key metadata \
+    --num-rollout 20 \
+    --rollout-batch-size 128 \
+    --global-batch-size 128 \
+    --tensor-model-parallel-size 4 \
+    --sequence-parallel \
+    --pipeline-model-parallel-size 4 \
+    --decoder-first-pipeline-num-layers 12 \
+    --expert-model-parallel-size 8 \
+    --expert-tensor-parallel-size 1 \
+    --recompute-granularity full \
+    --recompute-method uniform \
+    --recompute-num-layers 1 \
+    --micro-batch-size 1 \
+    --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+    --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+    --use-distributed-optimizer \
+    --no-check-for-nan-in-loss-and-grad \
+    --accumulate-allreduce-grads-in-fp32 \
+    --optimizer-cpu-offload --overlap-cpu-optimizer-d2h-h2d --use-precision-aware-optimizer \
+    --optimizer-offload-fraction 0.7 \
+    --transformer-impl transformer_engine \
+    --bf16 \
+    --attention-dropout 0.0 --hidden-dropout 0.0 \
+    --attention-softmax-in-fp32 \
+    --no-bias-dropout-fusion \
+    --distributed-timeout-minutes 30
+notes: |
+  - Starting point: miles&#x27; Inkling launcher, `scripts/run_inkling.py` at miles 0.1.0, with its Inkling-Small profile
+    (model page https://miles.radixark.com/docs/models/thinkingmachines/inkling-small). miles publishes it as a GRPO
+    recipe validated on 4 nodes of 8 H200, with no tokens/s figure. Ported to this workload with that layout (TP 4 with
+    sequence parallel, PP 8, EP 4, Adam on the CPU) on 32 H200, it measured 396.9 tokens/s/GPU; ATTUNE tuned it to
+    616.7 (+55%).
+  - EP 8 places each expert group within one node. The first pipeline stage holds the two dense layers and ten MoE
+    layers and peaks highest in memory; at `--optimizer-offload-fraction 0.7`, 30% of the optimizer state stays on the
+    GPU, and a tuning run at 0.6 ran out of memory. Check the memory before lowering the fraction.
+</pre>
+</div>
+</details>
+<h2 id="cite">Citation</h2><div class="card notes"><p>If you use a recipe by ATTUNE, please cite <a href="https://arxiv.org/abs/2610.17528">the paper</a>.</p><div class="filebar"><span class="k">BibTeX</span><span class="acts"><button type="button" class="btn o" data-copy="bibtex-1">Copy</button></span></div><pre id="bibtex-1">@article{fan2026attune,
+  title   = {{ATTUNE: Agentic Throughput Tuning for LLM Training}},
+  author  = {Leo Fan and Hongyang Wang and Wenbo Chen and Jingguo Liu and Xian Li and Xuan Wang and
+             Ruochen Wen and Yiming Yan and Hao Wu and Zheshen Wang and Benoit Dumoulin},
+  journal = {arXiv preprint arXiv:2610.17528},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2610.17528}
+}
+</pre></div>
+<h2>Inkling-Small on other GPUs</h2>
+<div class="others"><div class="card gpu off"><div class="k">H100</div><div class="v">&ndash;</div><div class="small">No recipe yet</div></div><div class="card gpu here"><div class="k">H200 &middot; 32 GPUs &middot; this page</div><div class="v">616.7</div><div class="small muted">tokens/s/GPU &middot; $3.56 / 1M tokens</div></div><div class="card gpu off"><div class="k">B200</div><div class="v">&ndash;</div><div class="small">No recipe yet</div></div></div>
+</main>
+<footer><div class="wrap">OpenRecipes, Apache-2.0. Measurements through 2026-10-21.</div></footer>
+</body>
+</html>
