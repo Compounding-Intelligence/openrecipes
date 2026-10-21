@@ -145,3 +145,19 @@ def test_total_size_in_another_unit_passes_when_the_weight_map_matches(tmp_path,
     index_path.write_text(json.dumps(index))
     with pytest.raises(SystemExit):
         active_params.main([src])
+
+
+def test_gemma4_top_k_experts_and_vision_embedding_projection(tmp_path, capsys):
+    config = {"text_config": {"num_hidden_layers": 1, "num_experts": 4, "top_k_experts": 2, "tie_word_embeddings": True}}
+    src = _checkpoint(tmp_path, config, {"model.safetensors": {
+        "model.language_model.embed_tokens.weight": ("BF16", [10, 4]),              # tied output projection: 40
+        "model.language_model.layers.0.experts.gate_up_proj": ("BF16", [4, 8, 4]),  # 128, top-2 of 4: 64
+        "model.language_model.layers.0.mlp.up_proj.weight": ("BF16", [8, 4]),       # 32
+        "model.language_model.layers.0.router.proj.weight": ("BF16", [4, 4]),       # 16
+        "model.embed_vision.embedding_projection.weight": ("BF16", [4, 6]),
+    }})
+    out = _count(src, capsys)
+    assert out["experts_per_token"] == 2
+    assert out["parts"]["routed_experts"] == 64
+    assert out["parts"]["other_matmul"] == 48
+    assert out["active_params"] == 152

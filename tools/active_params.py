@@ -8,11 +8,11 @@
 
 Reads only the safetensors headers (shapes and dtypes), fetched with HTTP range requests for a Hub repo. N counts every
 weight with two or more dimensions that the text model applies to each token: attention, linear attention, indexer,
-dense and shared-expert MLPs, routers and the output projection; routed experts count num_experts_per_tok of
-num_experts. It leaves out the input embedding (a lookup), one-dimensional tensors and biases, position embeddings and
-64-bit integer index tables (added or looked up, not multiplied), multi-token prediction layers, vision and audio
-towers with their projections and quantization scales, none of which an entry's text-only SFT run applies to its tokens
-as a matmul.
+dense and shared-expert MLPs, routers and the output projection; routed experts count num_experts_per_tok (Gemma 4's
+top_k_experts) of num_experts. It leaves out the input embedding (a lookup), one-dimensional tensors and biases,
+position embeddings and 64-bit integer index tables (added or looked up, not multiplied), multi-token prediction layers,
+vision and audio towers with their projections and quantization scales, none of which an entry's text-only SFT run
+applies to its tokens as a matmul.
 
 A quantized integer weight pairs with its scale tensor (X.weight with X.scale, X.weight_scale and the like; X_blocks
 with X_scales). It holds FP4 values packed two per byte, and counts at twice its stored size, when the scale is one byte
@@ -34,6 +34,7 @@ import time
 ROUTED = re.compile(r"\.experts\.")
 SKIP = (re.compile(r"(^|\.)visual\."), re.compile(r"(^|\.)vision_tower\."), re.compile(r"(^|\.)mtp\."),
         re.compile(r"(^|\.)(audio_tower|vision_adapter|vision_projection)\."),   # Muse Spark's other modalities
+        re.compile(r"(^|\.)embed_(vision|audio)\."),   # Gemma's projections of image and audio tokens
         re.compile(r"scales?(_inv)?$"))   # quantization scales of FP8/FP4/INT8 checkpoints
 EMBED = re.compile(r"(^|\.)(embed|embed_tokens|embeddings|wte|word_embeddings|embed_in|tok_embeddings)\.weight$")
 POSITION = re.compile(r"(^|\.)(ape|pos_embed|position_embeddings?|wpe)(\.weight)?$")   # added to activations
@@ -101,7 +102,8 @@ def main(argv=None):
     cfg = json.loads(_fetch(a.src, a.revision, "config.json"))
     text = cfg.get("text_config", cfg)
     layers = text["num_hidden_layers"]
-    k = text.get("num_experts_per_tok") or text.get("experts_per_token") or 1   # dense models have no routed experts
+    k = (text.get("num_experts_per_tok") or text.get("experts_per_token") or text.get("top_k_experts")
+         or 1)   # dense models have no routed experts
     e = text.get("n_routed_experts") or text.get("num_experts") or text.get("num_local_experts") or 1
     total = nbytes = active = 0
     parts = {"routed_experts": 0, "other_matmul": 0, "output": 0, "excluded": 0}

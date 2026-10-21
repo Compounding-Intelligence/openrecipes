@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training Gemma-4-31B on H100 | OpenRecipes</title>
+<meta name="description" content="Verified training recipes for Gemma-4-31B on H100: best 1,178.1 tokens/s per GPU on 8 GPUs, $1.62 per million tokens.">
+<link rel="canonical" href="https://openrecipes.ai/gemma-4-31b/h100/">
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+<script src="../../app.js" defer></script>
+</head>
+<body>
+<header class="nav"><a class="brand" href="../../"><svg class="mark" width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><path d="M25.85 14.26A10 10 0 1 1 21 7.34" fill="none" stroke="#0e7490" stroke-width="4" stroke-linecap="round"/><circle cx="25.2" cy="7.6" r="2.6" fill="#0f172a"/></svg>OpenRecipes</a><nav class="links" aria-label="Site"><a href="../../#models">Models</a><a href="../../protocol">Protocol</a><a href="../../submit">Submit</a><a href="https://github.com/Compounding-Intelligence/openrecipes">GitHub</a></nav></header>
+<main class="wrap">
+<a class="back" href="../../#models">&lsaquo; All models</a>
+<section class="hud rank"><div class="ml">Gemma</div><h1>Training Gemma-4-31B on H100</h1><div class="ml">Ranked by tokens/s per GPU &middot; 8,192-token SFT rows &middot; global batch 128 &middot; BF16</div><div class="tablewrap"><table class="stack"><thead><tr><th>#</th><th>Tokens/s per GPU</th><th>$ / 1M tokens</th><th>GPUs</th><th>Layout</th><th>Measured</th><th>Author</th><th></th></tr></thead><tbody><tr><td class="rk" data-label="#"><span class="cv">#1</span></td><td class="tp" data-label="Tokens/s per GPU"><span class="cv"><span class="v hi">1,178.1</span><span class="gauge" title="100% of the best"><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b></span></span></td><td class="n hi" data-label="$ / 1M tokens"><span class="cv">$1.62</span></td><td class="n" data-label="GPUs"><span class="cv">8</span></td><td data-label="Layout"><span class="cv">TP2 PP4 DP1<br><small>13/16/16/15 layer split, CPU optimizer offload 0.8, cuDNN fused sliding-window attention</small></span></td><td class="nw" data-label="Measured"><span class="cv">2026-10-20</span></td><td data-label="Author"><span class="cv"><a href="https://arxiv.org/abs/2610.17528">ATTUNE</a></span></td><td class="go" data-label=""><span class="cv"><a href="#attune-tp2-pp4-split13">Recipe&nbsp;&rsaquo;</a></span></td></tr></tbody></table></div></section>
+<h2>Notes for Gemma-4-31B</h2><div class="card notes prose"><ul><li>Weights: the BF16 checkpoint <code>google/gemma-4-31B-it</code> (revision 842da379), with no conversion: miles loads it through Megatron-Bridge (<code>--megatron-to-hf-mode bridge</code>), so <code>--hf-checkpoint</code> and <code>--ref-load</code> are both the checkpoint directory.</li><li><code>MODEL_ARGS</code> come from miles&#x27; <code>scripts/models/gemma-4-31b-it.py</code> at commit 78527b91, printed by <code>miles/utils/external_utils/model_args_utils.py gemma-4-31b-it</code>; run the command from a miles checkout at that commit, in the <code>radixark/miles</code> v0.1.0 image, whose Megatron-Bridge (commit 7f0fb345) holds the dense Gemma 4 provider the launcher requires.</li><li>It trains on the Gemma 4 rows: its <code>tokenizer.json</code>, <code>tokenizer_config.json</code> and <code>chat_template.jinja</code> are byte-identical to Gemma-4-26B-A4B&#x27;s (data/README.md).</li><li>Selective recompute and <code>--micro-batch-size 1</code> replace the launcher&#x27;s full recompute and dynamic batching, as for Gemma-4-26B-A4B, and <code>--max-tokens-per-gpu</code> has no effect without dynamic batching.</li><li>On H100, <code>--attention-backend auto</code> runs cuDNN fused attention on the 50 sliding-window layers and TE&#x27;s unfused attention on the 10 global layers (head dim 512).</li></ul><p class="muted small">The steps every recipe shares: <a href="../../protocol#run">Running a recipe</a>.</p></div>
+<h2>Recipes</h2>
+<details class="card recipe" id="attune-tp2-pp4-split13" open>
+<summary><span class="rank">#1</span><span class="slug">attune-tp2-pp4-split13</span><span class="tps">1,178.1 tokens/s/GPU</span><span class="muted small">TP2 PP4 DP1</span><span class="hl">13/16/16/15 layer split, CPU optimizer offload 0.8, cuDNN fused sliding-window attention</span></summary>
+<div class="body">
+<div class="prose"><ul><li>Starting point: miles&#x27; Gemma-4-31B launcher, <code>scripts/run_gemma_4_31b.py</code> at miles 0.1.0 (model page <a href="https://miles.radixark.com/docs/models/gemma/gemma-4">https://miles.radixark.com/docs/models/gemma/gemma-4</a>). miles publishes it as a GRPO recipe for 8 H200 with no tokens/s figure. Ported to this workload with its TP 4 with sequence parallel, TE&#x27;s unfused attention and Adam on the CPU on 8 H100, with PP 2, selective recompute of the core attention and the MLP and one row per microbatch, it measured 743.4 tokens/s/GPU; ATTUNE tuned it to 1,178.1 (+58%).</li><li><code>--optimizer-offload-fraction 0.8</code> keeps 20% of the optimizer state on the GPU and shortens the CPU Adam step. At 0.8 the first pipeline stage runs with less than 10% of its memory free.</li><li>At step 0 the loss on the first 128 rows is 2.27393, against 2.26972 for the reference recipe; Hugging Face transformers 5.12.1 gives 2.27153 on the same rows.</li><li>The convergence check covers 20 steps. This recipe runs cuDNN fused attention on the sliding-window layers, where the reference recipe runs TE&#x27;s unfused attention, and on another MoE model cuDNN fused attention passed the 20-step check while its loss drifted up later (ATTUNE&#x27;s lever catalog). Compare the loss over a longer run before a full training run.</li></ul></div><dl class="facts"><dt>Author</dt><dd><a href="https://arxiv.org/abs/2610.17528">ATTUNE</a> (<a href="#cite">cite</a>)</dd><dt>GPUs</dt><dd>8 x H100 80 GB (AWS p5.48xlarge, 8 per node)</dd><dt>Layout</dt><dd>TP 2, PP 4 (13/16/16/15 layers), CP 1, DP 1, sequence parallel; one 8,192-token row per microbatch (BSHD); selective recompute of the core attention and the MLP; TE&#x27;s auto attention backend (cuDNN fused attention on the sliding-window layers, unfused on the global layers); CPU optimizer offload of 80% with overlapped copies and the precision-aware optimizer; dense model, no experts</dd><dt>Tokens/s per GPU</dt><dd>1,178.10</dd><dt>$ / 1M tokens</dt><dd>$1.62</dd><dt>MFU</dt><dd>21.9% (N = 30,696,013,824 active parameters per token)</dd><dt>Step-time CV</dt><dd>2.19%</dd><dt>Convergence check</dt><dd>correlation 0.98649, final loss difference 0.0091, 0 pointwise failures over 20 steps</dd><dt>Measured</dt><dd>2026-10-20</dd><dt>GPU-hours</dt><dd>5.69</dd><dt>Rows</dt><dd><code>gemma4-tulu3-fixed8192-v1</code> (rows_sha256 <code>36956f40db9943482d88e9732d1a69ad9bc94ec00e822ab3df93c0a379e7effa</code>)</dd></dl>
+<div class="cols"><div><h3>Stack</h3><dl class="facts"><dt>framework</dt><dd>miles 0.1.0 (radixark/miles commit 78527b91, a slime fork), no local changes</dd><dt>megatron lm</dt><dd>radixark/Megatron-LM commit 37f91617 (megatron-core 0.16.0rc0), no local changes</dd><dt>megatron bridge</dt><dd>0.5.0 (commit 7f0fb345; the Gemma 4 provider and bridge, with the dense Gemma 4 support miles&#x27; launcher requires)</dd><dt>transformer engine</dt><dd>2.17.0</dd><dt>pytorch</dt><dd>2.11.0 (CUDA 13.0 build)</dd><dt>cuda</dt><dd>13.0</dd><dt>nccl</dt><dd>2.28.9 (CUDA 13.0 build; printed by the measured run)</dd><dt>deepep</dt><dd>1.2.1 (installed; a dense model does not use it)</dd><dt>python</dt><dd>3.12.3</dd><dt>network</dt><dd>one node of 8 GPUs (NVLink); no inter-node traffic</dd></dl></div><div><h3>Environment</h3><ul class="env"><li><code>CUDA_DEVICE_MAX_CONNECTIONS=1</code></li><li><code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code></li></ul></div></div>
+<div class="filebar"><span class="k">Command</span><span class="acts"><a class="btn o" href="../../protocol#run">How to run</a><button type="button" class="btn o" data-copy="run-attune-tp2-pp4-split13">Copy</button></span></div>
+<pre id="run-attune-tp2-pp4-split13">export CUDA_DEVICE_MAX_CONNECTIONS=1
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+MODEL_ARGS_LINE=&quot;$(python3 miles/utils/external_utils/model_args_utils.py gemma-4-31b-it)&quot;
+read -ra MODEL_ARGS &lt;&lt;&lt; &quot;$MODEL_ARGS_LINE&quot;
+python3 train.py \
+  --actor-num-nodes 1 \
+  --actor-num-gpus-per-node 8 \
+  --num-gpus-per-node 8 \
+  &quot;${MODEL_ARGS[@]}&quot; \
+  --hf-checkpoint &quot;$HF_CKPT&quot; \
+  --ref-load &quot;$HF_CKPT&quot; \
+  --megatron-to-hf-mode bridge \
+  --loss-type sft_loss \
+  --calculate-per-token-loss \
+  --disable-compute-advantages-and-returns \
+  --debug-train-only \
+  --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+  --prompt-data &quot;$SFT_DATA&quot; \
+  --input-key messages \
+  --metadata-key metadata \
+  --num-rollout 20 \
+  --rollout-batch-size 128 \
+  --global-batch-size 128 \
+  --tensor-model-parallel-size 2 \
+  --sequence-parallel \
+  --pipeline-model-parallel-size 4 \
+  --context-parallel-size 1 \
+  --recompute-granularity selective \
+  --recompute-modules core_attn mlp \
+  --micro-batch-size 1 \
+  --max-tokens-per-gpu 512 \
+  --optimizer-cpu-offload \
+  --overlap-cpu-optimizer-d2h-h2d \
+  --use-precision-aware-optimizer \
+  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+  --attention-dropout 0.0 --hidden-dropout 0.0 \
+  --accumulate-allreduce-grads-in-fp32 \
+  --no-gradient-accumulation-fusion \
+  --no-check-for-nan-in-loss-and-grad \
+  --attention-softmax-in-fp32 \
+  --attention-backend auto \
+  --qkv-format bshd \
+  --distributed-timeout-minutes 30 \
+  --decoder-first-pipeline-num-layers 13 \
+  --decoder-last-pipeline-num-layers 15 \
+  --optimizer-offload-fraction 0.8
+</pre>
+<div class="filebar"><span class="k">recipes/gemma-4-31b/h100/attune-tp2-pp4-split13.yaml</span><span class="acts"><a class="btn o" href="../../recipes/gemma-4-31b/h100/attune-tp2-pp4-split13.yaml" download>Download</a><a class="btn o" href="https://github.com/Compounding-Intelligence/openrecipes/blob/main/recipes/gemma-4-31b/h100/attune-tp2-pp4-split13.yaml">GitHub</a><button type="button" class="btn o" data-copy="file-attune-tp2-pp4-split13">Copy</button></span></div>
+<pre class="file" id="file-attune-tp2-pp4-split13"># recipes/gemma-4-31b/h100/attune-tp2-pp4-split13.yaml
+# An OpenRecipes recipe; the fields are documented in schema/recipe.schema.yaml.
+schema_version: 1
+model: Gemma-4-31B
+gpu:
+  type: H100
+  memory_gb: 80
+  count: 8
+  per_node: 8
+  instance: AWS p5.48xlarge
+author:
+  name: ATTUNE
+  url: https://arxiv.org/abs/2610.17528
+status: verified
+stack:
+  framework: miles 0.1.0 (radixark/miles commit 78527b91, a slime fork), no local changes
+  megatron_lm: radixark/Megatron-LM commit 37f91617 (megatron-core 0.16.0rc0), no local changes
+  megatron_bridge: 0.5.0 (commit 7f0fb345; the Gemma 4 provider and bridge, with the dense Gemma 4 support miles&#x27;
+    launcher requires)
+  transformer_engine: 2.17.0
+  pytorch: 2.11.0 (CUDA 13.0 build)
+  cuda: &#x27;13.0&#x27;
+  nccl: 2.28.9 (CUDA 13.0 build; printed by the measured run)
+  deepep: 1.2.1 (installed; a dense model does not use it)
+  python: 3.12.3
+  network: one node of 8 GPUs (NVLink); no inter-node traffic
+  source: &#x27;version check of the measured run&#x27;&#x27;s training image (same digest), 2026-10-20: miles and Megatron-LM git
+    commits (clean miles tree), installed TE, PyTorch, megatron-core and Megatron-Bridge, and miles&#x27;&#x27; Gemma 4 model and
+    launcher scripts byte-identical to miles v0.1.0; version dump of the same image, 2026-10-13: DeepEP and Python; NCCL
+    from the measured run&#x27;&#x27;s log. The image is radixark/miles v0.1.0 (amd64 digest
+    sha256:45ae7833f97a01369dbd8f336784830a87d94587bc010c7b8065291cc15cd7ca) with EFA 1.49 added&#x27;
+workload:
+  row_tokens: 8192
+  rows: SFT conversations
+  global_batch: 128
+  precision: bf16
+  dataset:
+    name: Tulu 3 SFT mixture
+    source: allenai/tulu-3-sft-mixture
+    revision: b14afda60f1bbebe55d5d2fa1e4df5042f97f8be
+    license: ODC-By 1.0
+    rows_sha256: 36956f40db9943482d88e9732d1a69ad9bc94ec00e822ab3df93c0a379e7effa
+    build:
+      name: gemma4-tulu3-fixed8192-v1
+      tokenizer: Gemma-4-26B-A4B-it (revision 4d7ae4984b7db7de8f8457170b3f1a419ee76d52; tokenizer.json sha256
+        cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f; chat_template.jinja sha256
+        ae53464bf3be25802b3a5b37def7fd89667067d7577049b3b2d74c4d8de4c6d4), byte-identical to Gemma-4-31B-it&#x27;s at
+        revision 842da3794eaa0b77d5f08bae87a17459d91ff475
+      loss_mask: gemma4
+      rows: 6400
+      row_tokens: 8192
+      padding_tokens: 0
+      seed: 42
+      packing: source conversations in a seeded global permutation, concatenated with an EOS token between them and cut
+        into consecutive 8,192-token rows; rows without supervised targets are skipped
+      supervised_token_ratio: 0.67
+      parquet_sha256: 4357fac051c7968a0c53f5bb885686aa66fc0197dea89fbfc9fb9244df64506c
+      parquet_bytes: 71707115
+      builder: data/generate_fixed_sft.py with --loss-mask-type gemma4 (data/README.md)
+layout:
+  label: TP2 PP4 DP1
+  summary: TP 2, PP 4 (13/16/16/15 layers), CP 1, DP 1, sequence parallel; one 8,192-token row per microbatch (BSHD);
+    selective recompute of the core attention and the MLP; TE&#x27;s auto attention backend (cuDNN fused attention on the
+    sliding-window layers, unfused on the global layers); CPU optimizer offload of 80% with overlapped copies and the
+    precision-aware optimizer; dense model, no experts
+  highlights: 13/16/16/15 layer split, CPU optimizer offload 0.8, cuDNN fused sliding-window attention
+  tp: 2
+  pp: 4
+  vpp: 1
+  cp: 1
+  ep: 1
+  etp: 1
+  dp: 1
+  sequence_parallel: true
+  layer_split:
+    first: 13
+    last: 15
+  max_tokens_per_gpu: null
+  rows_per_microbatch: 1
+  recompute:
+    granularity: selective
+    method: null
+    num_layers: null
+  offload:
+    optimizer_fraction: 0.8
+    overlap_d2h_h2d: true
+  dispatcher: null
+result:
+  tokens_per_s_per_gpu: 1178.1
+  usd_per_million_tokens: 1.62
+  step_time_cv_percent: 2.19
+  mfu: 0.2194
+  mfu_note: null
+  active_params:
+    count: 30696013824
+    source: https://huggingface.co/google/gemma-4-31B-it
+    revision: 842da3794eaa0b77d5f08bae87a17459d91ff475
+  measured: 2026-10-20
+  steps_per_run: 20
+  window:
+  - 5
+  - 19
+  window_tokens: 15728640
+  runs: 1
+  profiler: false
+  gpu_hours: 5.69
+  gpu_hours_note: GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the
+    convergence check
+correctness:
+  result: pass
+  summary: passed; the attention backend change (unfused to auto) and the optimizer offload fraction (1.0 to 0.8) have no
+    component test and are listed for review
+  reference: &#x27;miles&#x27;&#x27; layout for Gemma-4-31B (`scripts/run_gemma_4_31b.py`): TP 4 with sequence parallel, TE&#x27;&#x27;s unfused
+    attention, `--qkv-format bshd` and Adam on the CPU (`--optimizer-cpu-offload --overlap-cpu-optimizer-d2h-h2d
+    --use-precision-aware-optimizer`), here on 8 H100 with one row per microbatch in place of its dynamic batching,
+    selective recompute of the core attention and the MLP in place of its full recompute, and PP 2 (30 layers per stage)
+    in place of its PP 1: with the core attention recomputed alone, TP 4 ran out of memory at step 0 at PP 1 and at PP
+    2. Model arguments, rows and schedule are the same in both recipes.&#x27;
+  configuration: pass
+  component_tests: []
+  convergence:
+    steps: 20
+    result: pass
+    correlation: 0.98649
+    final_loss_difference: 0.0091
+    pointwise_failures: 0
+    note: &#x27;candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and
+      rows; the parity probe off in both&#x27;
+  rules: argument classes of ATTUNE&#x27;s skill/scripts/correctness/rules/numerics_list.yaml (amazon-science/attune aff5b81);
+    20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds
+env:
+  CUDA_DEVICE_MAX_CONNECTIONS: &#x27;1&#x27;
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+patches: []
+run: |
+  export CUDA_DEVICE_MAX_CONNECTIONS=1
+  export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+  MODEL_ARGS_LINE=&quot;$(python3 miles/utils/external_utils/model_args_utils.py gemma-4-31b-it)&quot;
+  read -ra MODEL_ARGS &lt;&lt;&lt; &quot;$MODEL_ARGS_LINE&quot;
+  python3 train.py \
+    --actor-num-nodes 1 \
+    --actor-num-gpus-per-node 8 \
+    --num-gpus-per-node 8 \
+    &quot;${MODEL_ARGS[@]}&quot; \
+    --hf-checkpoint &quot;$HF_CKPT&quot; \
+    --ref-load &quot;$HF_CKPT&quot; \
+    --megatron-to-hf-mode bridge \
+    --loss-type sft_loss \
+    --calculate-per-token-loss \
+    --disable-compute-advantages-and-returns \
+    --debug-train-only \
+    --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+    --prompt-data &quot;$SFT_DATA&quot; \
+    --input-key messages \
+    --metadata-key metadata \
+    --num-rollout 20 \
+    --rollout-batch-size 128 \
+    --global-batch-size 128 \
+    --tensor-model-parallel-size 2 \
+    --sequence-parallel \
+    --pipeline-model-parallel-size 4 \
+    --context-parallel-size 1 \
+    --recompute-granularity selective \
+    --recompute-modules core_attn mlp \
+    --micro-batch-size 1 \
+    --max-tokens-per-gpu 512 \
+    --optimizer-cpu-offload \
+    --overlap-cpu-optimizer-d2h-h2d \
+    --use-precision-aware-optimizer \
+    --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+    --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+    --attention-dropout 0.0 --hidden-dropout 0.0 \
+    --accumulate-allreduce-grads-in-fp32 \
+    --no-gradient-accumulation-fusion \
+    --no-check-for-nan-in-loss-and-grad \
+    --attention-softmax-in-fp32 \
+    --attention-backend auto \
+    --qkv-format bshd \
+    --distributed-timeout-minutes 30 \
+    --decoder-first-pipeline-num-layers 13 \
+    --decoder-last-pipeline-num-layers 15 \
+    --optimizer-offload-fraction 0.8
+notes: |
+  - Starting point: miles&#x27; Gemma-4-31B launcher, `scripts/run_gemma_4_31b.py` at miles 0.1.0 (model page
+    https://miles.radixark.com/docs/models/gemma/gemma-4). miles publishes it as a GRPO recipe for 8 H200 with no
+    tokens/s figure. Ported to this workload with its TP 4 with sequence parallel, TE&#x27;s unfused attention and Adam on
+    the CPU on 8 H100, with PP 2, selective recompute of the core attention and the MLP and one row per microbatch, it
+    measured 743.4 tokens/s/GPU; ATTUNE tuned it to 1,178.1 (+58%).
+  - `--optimizer-offload-fraction 0.8` keeps 20% of the optimizer state on the GPU and shortens the CPU Adam step. At
+    0.8 the first pipeline stage runs with less than 10% of its memory free.
+  - At step 0 the loss on the first 128 rows is 2.27393, against 2.26972 for the reference recipe; Hugging Face
+    transformers 5.12.1 gives 2.27153 on the same rows.
+  - The convergence check covers 20 steps. This recipe runs cuDNN fused attention on the sliding-window layers, where
+    the reference recipe runs TE&#x27;s unfused attention, and on another MoE model cuDNN fused attention passed the 20-step
+    check while its loss drifted up later (ATTUNE&#x27;s lever catalog). Compare the loss over a longer run before a full
+    training run.
+</pre>
+</div>
+</details>
+<h2 id="cite">Citation</h2><div class="card notes"><p>If you use a recipe by ATTUNE, please cite <a href="https://arxiv.org/abs/2610.17528">the paper</a>.</p><div class="filebar"><span class="k">BibTeX</span><span class="acts"><button type="button" class="btn o" data-copy="bibtex-1">Copy</button></span></div><pre id="bibtex-1">@article{fan2026attune,
+  title   = {{ATTUNE: Agentic Throughput Tuning for LLM Training}},
+  author  = {Leo Fan and Hongyang Wang and Wenbo Chen and Jingguo Liu and Xian Li and Xuan Wang and
+             Ruochen Wen and Yiming Yan and Hao Wu and Zheshen Wang and Benoit Dumoulin},
+  journal = {arXiv preprint arXiv:2610.17528},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2610.17528}
+}
+</pre></div>
+<h2>Gemma-4-31B on other GPUs</h2>
+<div class="others"><div class="card gpu here"><div class="k">H100 &middot; 8 GPUs &middot; this page</div><div class="v">1,178.1</div><div class="small muted">tokens/s/GPU &middot; $1.62 / 1M tokens</div></div><div class="card gpu off"><div class="k">H200</div><div class="v">&ndash;</div><div class="small">No recipe yet</div></div><div class="card gpu off"><div class="k">B200</div><div class="v">&ndash;</div><div class="small">No recipe yet</div></div></div>
+</main>
+<footer><div class="wrap">OpenRecipes, Apache-2.0. Measurements through 2026-10-20.</div></footer>
+</body>
+</html>

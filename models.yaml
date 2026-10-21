@@ -200,10 +200,41 @@ models:
     model: Gemma-4-26B-A4B
     slug: gemma-4-26b-a4b
     hf: google/gemma-4-26B-A4B-it
+    notes: |
+      - Weights: the BF16 checkpoint `google/gemma-4-26B-A4B-it` (revision 4d7ae498), with no conversion: miles loads it
+        through Megatron-Bridge (`--megatron-to-hf-mode bridge`), so `--hf-checkpoint` and `--ref-load` are both the
+        checkpoint directory.
+      - `MODEL_ARGS` come from miles' `scripts/models/gemma-4-26b-a4b-it.py` at commit 78527b91, printed by
+        `miles/utils/external_utils/model_args_utils.py gemma-4-26b-a4b-it`; run the command from a miles checkout at that
+        commit, in the `radixark/miles` v0.1.0 image, whose Megatron-Bridge (commit 7f0fb345) holds the Gemma 4 provider.
+      - It trains on the Gemma 4 rows, built with the `gemma4` loss mask (data/README.md).
+      - Selective recompute and `--micro-batch-size 1` replace the launcher's full recompute and dynamic batching: full
+        recompute stops at step 0, where `save_for_backward` receives Gemma 4's rotary embedding as a tuple, and miles
+        refuses dynamic batching with `--qkv-format bshd`. `--max-tokens-per-gpu` stays from the launcher and has no
+        effect without dynamic batching. Of the selective recompute modules, `moe_act` and `layernorm` stop in the first
+        backward.
+      - On B200, keep `--attention-backend unfused`. With `auto`, TE 2.17 selects FlashAttention 4 for the sliding-window
+        layers, whose sm100 kernel does not support a local window at head dim 256, and the run stops at step 0; with
+        `fused`, no cuDNN backend covers the layers. On H200, `auto` runs cuDNN fused attention on the 25 sliding-window
+        layers and TE's unfused attention on the 5 global layers (head dim 512).
   - family: Gemma
     model: Gemma-4-31B
     slug: gemma-4-31b
     hf: google/gemma-4-31B-it
+    notes: |
+      - Weights: the BF16 checkpoint `google/gemma-4-31B-it` (revision 842da379), with no conversion: miles loads it
+        through Megatron-Bridge (`--megatron-to-hf-mode bridge`), so `--hf-checkpoint` and `--ref-load` are both the
+        checkpoint directory.
+      - `MODEL_ARGS` come from miles' `scripts/models/gemma-4-31b-it.py` at commit 78527b91, printed by
+        `miles/utils/external_utils/model_args_utils.py gemma-4-31b-it`; run the command from a miles checkout at that
+        commit, in the `radixark/miles` v0.1.0 image, whose Megatron-Bridge (commit 7f0fb345) holds the dense Gemma 4
+        provider the launcher requires.
+      - It trains on the Gemma 4 rows: its `tokenizer.json`, `tokenizer_config.json` and `chat_template.jinja` are
+        byte-identical to Gemma-4-26B-A4B's (data/README.md).
+      - Selective recompute and `--micro-batch-size 1` replace the launcher's full recompute and dynamic batching, as for
+        Gemma-4-26B-A4B, and `--max-tokens-per-gpu` has no effect without dynamic batching.
+      - On H100, `--attention-backend auto` runs cuDNN fused attention on the 50 sliding-window layers and TE's unfused
+        attention on the 10 global layers (head dim 512).
   - family: MiMo
     model: MiMo-V2.6-Flash
     slug: mimo-v2.6-flash

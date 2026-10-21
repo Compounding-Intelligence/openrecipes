@@ -203,6 +203,15 @@ Run the build once per tokenizer.
      --source-batch-size 2048 --write-batch-size 64 --min-token-entropy-bits 8.0
    ```
 
+   The Gemma 4 recipes use one set, `gemma4-tulu3-fixed8192-v1`, built from the checkpoint of
+   `google/gemma-4-26B-A4B-it` (revision `4d7ae4984b7db7de8f8457170b3f1a419ee76d52`); Gemma-4-31B-it's
+   `tokenizer.json`, `tokenizer_config.json` and `chat_template.jinja` are byte-identical at revision
+   `842da3794eaa0b77d5f08bae87a17459d91ff475`. Its `gemma4` mask supervises each assistant turn, which the template
+   renders after `<|turn>model` and a newline, through its `<turn|>` and the newline after it. The set was built with
+   the Qwen3.5 command above with `--loss-mask-type gemma4`, `--output gemma4-tulu3-fixed8192-v1/train.parquet` and
+   `--tokenizer <Gemma-4-26B-A4B-it checkpoint>`. It skipped one source conversation with two consecutive assistant
+   messages, which the template merges into one turn.
+
 4. Verify against a recipe (needs PyYAML):
 
    ```bash
@@ -240,4 +249,7 @@ tokens (default 8,192); set it in the environment of every pod. The adapter refu
   tokenizer has no custom code.
 - The Muse Spark set was built with transformers 5.12.1, tokenizers 0.22.2 and pyarrow 25.0.1, the versions of the
   training image.
+- The Gemma 4 set was built with a slime whose `MultiTurnLossMaskGenerator` has a `gemma4` type, which upstream slime
+  and miles do not have, so this directory cannot rebuild it yet; `verify_rows.py` checks a copy. The build ran with
+  transformers 5.8.1 and tokenizers 0.22.2, without remote code: the tokenizer has no custom code.
 - `row_hash` hashes the tokens as native 32-bit integers, so it assumes a little-endian host (x86-64 or ARM64).
