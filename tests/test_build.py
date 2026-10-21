@@ -221,7 +221,7 @@ def test_internal_links_use_clean_urls(files):
 
 def test_data_json_and_sitemap(files):
     data = json.loads(files["data.json"])
-    assert len(data["recipes"]) == 55 and len(data["models"]) == 41
+    assert len(data["recipes"]) == 55 and len(data["models"]) == 40
     best = [r for r in data["recipes"] if r["model"] == "Qwen3.5-122B-A10B" and r["gpu"]["type"] == "H200"]
     assert [r["rank"] for r in best] == [1, 2, 3] and best[0]["result"]["measured"] == "2026-10-13"
     assert files["sitemap.xml"].count("<url>") == 3 + 31

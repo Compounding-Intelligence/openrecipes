@@ -584,13 +584,6 @@
    "slug": "inkling",
    "hf": "thinkingmachines/Inkling",
    "pairs": []
-  },
-  {
-   "family": "JoyAI",
-   "model": "JoyAI-LLM-Flash",
-   "slug": "joyai-llm-flash",
-   "hf": "jdopensource/JoyAI-LLM-Flash",
-   "pairs": []
   }
  ],
  "recipes": [

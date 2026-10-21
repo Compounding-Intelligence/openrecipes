@@ -21,7 +21,7 @@ def test_every_recipe_in_the_repository_is_valid():
     assert errs == []
     assert len(recipes) == 55
     assert len({(r["model"], r["gpu"]["type"]) for r in recipes.values()}) == 31
-    assert len(models) == 41 and set(gpus) == {"H100", "H200", "B200"}
+    assert len(models) == 40 and set(gpus) == {"H100", "H200", "B200"}
 
 
 @pytest.mark.parametrize("value,schema,needle", [

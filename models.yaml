@@ -277,7 +277,3 @@ models:
     model: Inkling
     slug: inkling
     hf: thinkingmachines/Inkling
-  - family: JoyAI
-    model: JoyAI-LLM-Flash
-    slug: joyai-llm-flash
-    hf: jdopensource/JoyAI-LLM-Flash
