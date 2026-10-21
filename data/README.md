@@ -99,6 +99,9 @@ Run the build once per tokenizer.
      --source-batch-size 2048 --write-batch-size 64 --min-token-entropy-bits 8.0
    ```
 
+   The Qwen3-30B-A3B recipes use this set too: at revision `ad44e777bcd18fa416d9da3bd8f70d33ebb85d39`, its
+   `tokenizer.json`, `tokenizer_config.json`, `vocab.json` and `merges.txt` are byte-identical to Qwen3-32B's.
+
    The GLM-5.2 recipes use a second set. Patch slime first; the patch edits `slime/utils/mask_utils.py` in the
    checkout on `PYTHONPATH` and does nothing if a glm5 generator is already there:
 

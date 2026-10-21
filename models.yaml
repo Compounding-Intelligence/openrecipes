@@ -80,6 +80,16 @@ models:
     model: Qwen3-30B-A3B
     slug: qwen3-30b-a3b
     hf: Qwen/Qwen3-30B-A3B
+    notes: |
+      - Weights: the BF16 checkpoint `Qwen/Qwen3-30B-A3B` (revision ad44e777), converted to Megatron `torch_dist` with
+        miles' `tools/convert_hf_to_torch_dist.py` at commit 78527b91; `--ref-load` is the conversion and
+        `--hf-checkpoint` the checkpoint.
+      - `MODEL_ARGS` come from miles' `scripts/models/qwen3-30B-A3B.py` at commit 78527b91, printed by
+        `miles/utils/external_utils/model_args_utils.py qwen3-30B-A3B`; run the command from a miles checkout at that
+        commit.
+      - It trains on the Qwen3-32B rows, built with slime's `qwen3` loss mask: its `tokenizer.json`,
+        `tokenizer_config.json` (which holds the chat template), `vocab.json` and `merges.txt` are byte-identical to
+        Qwen3-32B's (data/README.md).
   - family: Qwen
     model: Qwen3-32B
     slug: qwen3-32b

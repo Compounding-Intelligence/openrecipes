@@ -1,0 +1,188 @@
+# recipes/qwen3-30b-a3b/h200/attune-tp1-pp1-ep8-mt16k.yaml
+# An OpenRecipes recipe; the fields are documented in schema/recipe.schema.yaml.
+schema_version: 1
+model: Qwen3-30B-A3B
+gpu:
+  type: H200
+  memory_gb: 141
+  count: 8
+  per_node: 8
+  instance: AWS p5en.48xlarge
+author:
+  name: ATTUNE
+  url: https://arxiv.org/abs/2610.17528
+status: verified
+stack:
+  framework: miles 0.1.0 (radixark/miles commit 78527b91, a slime fork), no local changes
+  megatron_lm: radixark/Megatron-LM commit 37f91617 (megatron-core 0.16.0rc0), no local changes
+  transformer_engine: 2.17.0
+  pytorch: 2.11.0 (CUDA 13.0 build)
+  cuda: '13.0'
+  nccl: 2.28.9 (CUDA 13.0 build; printed by the measured run)
+  deepep: 1.2.1 (installed; the alltoall dispatcher does not use it)
+  python: 3.12.3
+  network: one node of 8 GPUs (NVLink); no inter-node traffic
+  source: 'version check of the measured run''s training image (same digest), 2026-10-21: miles and Megatron-LM git
+    commits (clean trees), installed TE, PyTorch, megatron-core and DeepEP, Python; NCCL from the measured run''s log.
+    The image is radixark/miles v0.1.0 (amd64 digest
+    sha256:45ae7833f97a01369dbd8f336784830a87d94587bc010c7b8065291cc15cd7ca) with EFA 1.49 added'
+workload:
+  row_tokens: 8192
+  rows: SFT conversations
+  global_batch: 128
+  precision: bf16
+  dataset:
+    name: Tulu 3 SFT mixture
+    source: allenai/tulu-3-sft-mixture
+    revision: b14afda60f1bbebe55d5d2fa1e4df5042f97f8be
+    license: ODC-By 1.0
+    rows_sha256: 8f76b822a284adbe24faaf3cfe725e65cb5e94f98ba54aceade45b275345f983
+    build:
+      name: qwen3-tulu3-fixed8192-v1
+      tokenizer: Qwen3-32B (revision 9216db5781bf21249d130ec9da846c4624c16137; tokenizer.json sha256 aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4;
+        tokenizer_config.json sha256 d5d09f07b48c3086c508b30d1c9114bd1189145b74e982a265350c923acd8101), byte-identical to
+        Qwen3-30B-A3B's at revision ad44e777bcd18fa416d9da3bd8f70d33ebb85d39
+      loss_mask: qwen3
+      rows: 6400
+      row_tokens: 8192
+      padding_tokens: 0
+      seed: 42
+      packing: source conversations in a seeded global permutation, concatenated with an EOS token between them and cut
+        into consecutive 8,192-token rows; rows without supervised targets are skipped
+      supervised_token_ratio: 0.677
+      parquet_sha256: 7ea7f5dca51f6be280e2f7cd7ee786ac05f546570e5ac1b07236c920338241fe
+      parquet_bytes: 88808580
+      builder: data/generate_fixed_sft.py with --loss-mask-type qwen3 (data/README.md)
+layout:
+  label: TP1 PP1 EP8 DP8
+  summary: TP 1, PP 1, CP 1, EP 8, ETP 1, DP 8; two 8,192-token rows per microbatch (THD, max 16,384 tokens/GPU); full
+    recompute (uniform, 1 layer); precision-aware distributed optimizer, no offload; alltoall dispatcher; the CUDA caching
+    allocator without expandable segments
+  highlights: max 16,384 tokens/GPU, no offload, allocator without expandable segments
+  tp: 1
+  pp: 1
+  vpp: 1
+  cp: 1
+  ep: 8
+  etp: 1
+  dp: 8
+  sequence_parallel: false
+  layer_split: null
+  max_tokens_per_gpu: 16384
+  rows_per_microbatch: 2
+  recompute:
+    granularity: full
+    method: uniform
+    num_layers: 1
+  offload: null
+  dispatcher: alltoall
+result:
+  tokens_per_s_per_gpu: 6913.23
+  usd_per_million_tokens: 0.32
+  step_time_cv_percent: 0.59
+  mfu: 0.1276
+  mfu_note: null
+  active_params:
+    count: 3041656832
+    source: https://huggingface.co/Qwen/Qwen3-30B-A3B
+    revision: ad44e777bcd18fa416d9da3bd8f70d33ebb85d39
+  measured: 2026-10-21
+  steps_per_run: 20
+  window:
+  - 5
+  - 19
+  window_tokens: 15728640
+  runs: 1
+  profiler: false
+  gpu_hours: 1.25
+  gpu_hours_note: GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the
+    convergence check
+correctness:
+  result: pass
+  summary: passed; 1 component test passed on this image
+  reference: 'miles'' layout for Qwen3-30B-A3B (`scripts/run_qwen3_30b_a3b.py`, its one-node case): TP 4 with sequence
+    parallel, EP 8, full recompute (uniform, 1 layer), max 32,768 tokens/GPU and Adam on the CPU
+    (`--optimizer-cpu-offload --overlap-cpu-optimizer-d2h-h2d --use-precision-aware-optimizer`), with
+    `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`. Model arguments, rows and schedule are the same in both recipes.'
+  configuration: pass
+  component_tests:
+  - test: precision-aware Adam on the GPU and CPU optimizer offload (fraction 1.0, overlapped copies), each against an
+      FP64 reference
+    shape: 'one Qwen3.5-397B-A17B MoE layer: hidden 4096, 512 experts, top-10, expert FFN 1024, EP 8, ETP 1, 4,096 tokens
+      per rank'
+    gpu: H200
+    date: 2026-10-14
+    result: pass
+    detail: worst tensor (dense update) relative L2 error 5.12e-7 on the GPU and 7.98e-7 offloaded against a bound of
+      1.0e-3 after one step, and 4.99e-5 and 7.72e-5 against 1.1e-3 after three steps at the recipe's hyperparameters
+      (bound 2 x the default GPU optimizer's error + 1e-3); reconstructed FP32 masters bitwise identical to an arm with
+      explicit FP32 masters, the TE remainder self-test passes and the three negative controls fail
+    note: run on this recipe's training image; the optimizer step is elementwise, so the result holds for every model on
+      the image
+  convergence:
+    steps: 20
+    result: pass
+    correlation: 0.9999984
+    final_loss_difference: 0.000808
+    pointwise_failures: 0
+    note: 'candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and
+      rows; the parity probe off in both'
+  rules: argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml and environment classes of its
+    skill/scripts/env_rules.py (amazon-science/attune aff5b81); 20-step check by Megatron-Bridge validate_convergence
+    with its pipeline thresholds
+env:
+  CUDA_DEVICE_MAX_CONNECTIONS: '1'
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:False
+patches: []
+run: |
+  export CUDA_DEVICE_MAX_CONNECTIONS=1
+  export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:False
+
+  MODEL_ARGS_LINE="$(python3 miles/utils/external_utils/model_args_utils.py qwen3-30B-A3B)"
+  read -ra MODEL_ARGS <<< "$MODEL_ARGS_LINE"
+  python3 train.py \
+    --actor-num-nodes 1 \
+    --actor-num-gpus-per-node 8 \
+    --num-gpus-per-node 8 \
+    "${MODEL_ARGS[@]}" \
+    --hf-checkpoint "$HF_CKPT" \
+    --ref-load "$TORCH_DIST" \
+    --loss-type sft_loss \
+    --calculate-per-token-loss \
+    --disable-compute-advantages-and-returns \
+    --debug-train-only \
+    --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+    --prompt-data "$SFT_DATA" \
+    --input-key messages \
+    --metadata-key metadata \
+    --num-rollout 20 \
+    --rollout-batch-size 128 \
+    --global-batch-size 128 \
+    --tensor-model-parallel-size 1 \
+    --pipeline-model-parallel-size 1 \
+    --context-parallel-size 1 \
+    --expert-model-parallel-size 8 \
+    --expert-tensor-parallel-size 1 \
+    --recompute-granularity full \
+    --recompute-method uniform \
+    --recompute-num-layers 1 \
+    --use-dynamic-batch-size \
+    --max-tokens-per-gpu 16384 \
+    --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \
+    --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+    --use-precision-aware-optimizer \
+    --attention-dropout 0.0 --hidden-dropout 0.0 \
+    --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \
+    --attention-backend flash \
+    --distributed-timeout-minutes 30
+notes: |
+  - Starting point: miles' Qwen3-30B-A3B launcher, `scripts/run_qwen3_30b_a3b.py` at miles 0.1.0 (model page
+    https://miles.radixark.com/docs/models/qwen/qwen3-moe). miles publishes it as a GRPO recipe with no tokens/s figure.
+    Ported to this workload with its one-node layout (TP 4 with sequence parallel, EP 8, full recompute, max 32,768
+    tokens/GPU, Adam on the CPU) on 8 H200, it measured 3,129.7 tokens/s/GPU; ATTUNE tuned it to 6,913.2 (+121%).
+  - miles empties the CUDA cache after every step (`train.py` calls `clear_memory`, which runs `torch.cuda.empty_cache`),
+    so the caching allocator acquires its memory again each step. With `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:False`
+    the step took 19.0 s, against 20.8 s with expandable segments in an otherwise identical tuning run (6,296.3
+    tokens/s/GPU).
+  - Keep the full recompute: tuning runs with recompute off and with selective recompute ran out of memory at step 0 at
+    two rows per microbatch.
