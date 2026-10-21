@@ -753,7 +753,7 @@
     "pytorch": "2.11.0 (CUDA 13.0 build)",
     "cuda": "13.0",
     "nccl": "2.28.9 (CUDA 13.0 build; printed by the measured run)",
-    "deepep": "1.2.1 (installed; the allgather dispatcher does not use it)",
+    "deepep": "1.2.1 (installed; the alltoall dispatcher does not use it)",
     "python": "3.12.3",
     "network": "8 GPUs per node, EFA (aws-ofi-nccl 1.20), 3.2 Tb/s RDMA per node",
     "source": "version dump of the measured run's training image (same digest), 2026-10-13: installed TE, PyTorch, DeepEP, megatron-core and miles, Megatron-LM and miles git commits (clean trees), Python; NCCL from the measured run's log"
@@ -787,7 +787,7 @@
    },
    "layout": {
     "label": "TP1 PP1 EP8 DP8",
-    "summary": "TP 1, PP 1, CP 1, EP 8, ETP 1, DP 8; two 8,192-token rows per microbatch (THD, max 16,384 tokens/GPU); full recompute (uniform, 1 layer); distributed optimizer with the precision-aware optimizer; allgather dispatcher; no offload",
+    "summary": "TP 1, PP 1, CP 1, EP 8, ETP 1, DP 8; two 8,192-token rows per microbatch (THD, max 16,384 tokens/GPU); full recompute (uniform, 1 layer); distributed optimizer with the precision-aware optimizer; alltoall dispatcher; no offload",
     "highlights": "max 16,384 tokens/GPU, no offload",
     "tp": 1,
     "pp": 1,
@@ -806,7 +806,7 @@
      "num_layers": 1
     },
     "offload": null,
-    "dispatcher": "allgather"
+    "dispatcher": "alltoall"
    },
    "result": {
     "tokens_per_s_per_gpu": 6178.46,
@@ -2677,7 +2677,7 @@
     "pytorch": "2.11.0 (CUDA 13.0 build)",
     "cuda": "13.0",
     "nccl": "2.28.9 (CUDA 13.0 build; printed by the measured run)",
-    "deepep": "1.2.1 (installed; the allgather dispatcher does not use it)",
+    "deepep": "1.2.1 (installed; the alltoall dispatcher does not use it)",
     "python": "3.12.3",
     "network": "8 GPUs per node, EFA (aws-ofi-nccl 1.20), 3.2 Tb/s RDMA per node",
     "source": "version dump of the measured run's training image (same digest), 2026-10-13: installed TE, PyTorch, DeepEP, megatron-core and miles, Megatron-LM and miles git commits (clean trees), Python; NCCL from the measured run's log"
@@ -2711,7 +2711,7 @@
    },
    "layout": {
     "label": "TP1 PP2 EP4 DP4",
-    "summary": "TP 1, PP 2 (even split), CP 1, EP 4, ETP 1, DP 4; one 8,192-token row per microbatch (THD, max 8,192 tokens/GPU); full recompute (uniform, 1 layer); distributed optimizer; allgather dispatcher; no offload",
+    "summary": "TP 1, PP 2 (even split), CP 1, EP 4, ETP 1, DP 4; one 8,192-token row per microbatch (THD, max 8,192 tokens/GPU); full recompute (uniform, 1 layer); distributed optimizer; alltoall dispatcher; no offload",
     "highlights": "max 8,192 tokens/GPU, no offload",
     "tp": 1,
     "pp": 2,
@@ -2730,7 +2730,7 @@
      "num_layers": 1
     },
     "offload": null,
-    "dispatcher": "allgather"
+    "dispatcher": "alltoall"
    },
    "result": {
     "tokens_per_s_per_gpu": 7814.02,

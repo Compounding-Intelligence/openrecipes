@@ -20,8 +20,8 @@
 <details class="card recipe" id="attune-tp1-pp2-ep4" open>
 <summary><span class="rank">#1</span><span class="slug">attune-tp1-pp2-ep4</span><span class="tps">7,814.0 tokens/s/GPU</span><span class="muted small">TP1 PP2 EP4 DP4</span><span class="hl">max 8,192 tokens/GPU, no offload</span></summary>
 <div class="body">
-<div class="prose"><ul><li>Starting point: miles&#x27; Nemotron-3-Nano launcher, <code>scripts/run_nemotron_3_nano.py</code> at miles 0.1.0 (model page <a href="https://miles.radixark.com/docs/models/nemotron/nemotron-3-nano-moe">https://miles.radixark.com/docs/models/nemotron/nemotron-3-nano-moe</a>). miles publishes it as a GRPO smoke test with no tokens/s figure. Ported to this workload with its layout (TP 2 with sequence parallel, PP 2, EP 2, full recompute) and max 8,192 tokens/GPU on 8 H200, it measured 5,229.2 tokens/s/GPU; ATTUNE tuned it to 7,814.0 (+49%).</li></ul></div><dl class="facts"><dt>Author</dt><dd><a href="https://arxiv.org/abs/2610.17528">ATTUNE</a> (<a href="#cite">cite</a>)</dd><dt>GPUs</dt><dd>8 x H200 141 GB (AWS p5en.48xlarge, 8 per node)</dd><dt>Layout</dt><dd>TP 1, PP 2 (even split), CP 1, EP 4, ETP 1, DP 4; one 8,192-token row per microbatch (THD, max 8,192 tokens/GPU); full recompute (uniform, 1 layer); distributed optimizer; allgather dispatcher; no offload</dd><dt>Tokens/s per GPU</dt><dd>7,814.02</dd><dt>$ / 1M tokens</dt><dd>$0.28</dd><dt>MFU</dt><dd>15.3% (N = 3,227,369,472 active parameters per token)</dd><dt>Step-time CV</dt><dd>1.63%</dd><dt>Convergence check</dt><dd>correlation 0.9999997, final loss difference 4.3e-05, 0 pointwise failures over 20 steps</dd><dt>Measured</dt><dd>2026-10-15</dd><dt>GPU-hours</dt><dd>1.2</dd><dt>Rows</dt><dd><code>nemotron3nano-tulu3-fixed8192-v1</code> (rows_sha256 <code>8fc04d3ce32c2b2cf8b1255a84cd8627df647cb38b6cbbe69a8e6bbde0ce54c7</code>)</dd></dl>
-<div class="cols"><div><h3>Stack</h3><dl class="facts"><dt>framework</dt><dd>miles 0.1.0 (radixark/miles commit 78527b91, a slime fork), no local changes</dd><dt>megatron lm</dt><dd>radixark/Megatron-LM commit 37f91617 (megatron-core 0.16.0rc0), no local changes</dd><dt>transformer engine</dt><dd>2.17.0</dd><dt>pytorch</dt><dd>2.11.0 (CUDA 13.0 build)</dd><dt>cuda</dt><dd>13.0</dd><dt>nccl</dt><dd>2.28.9 (CUDA 13.0 build; printed by the measured run)</dd><dt>deepep</dt><dd>1.2.1 (installed; the allgather dispatcher does not use it)</dd><dt>python</dt><dd>3.12.3</dd><dt>network</dt><dd>8 GPUs per node, EFA (aws-ofi-nccl 1.20), 3.2 Tb/s RDMA per node</dd></dl></div><div><h3>Environment</h3><ul class="env"><li><code>CUDA_DEVICE_MAX_CONNECTIONS=1</code></li><li><code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code></li><li><code>TILELANG_CACHE_DIR=$KERNEL_CACHE/tilelang</code></li><li><code>TRITON_CACHE_DIR=$KERNEL_CACHE/triton</code></li><li><code>TORCHINDUCTOR_CACHE_DIR=$KERNEL_CACHE/inductor</code></li><li><code>FI_PROVIDER=efa</code></li><li><code>FI_EFA_USE_DEVICE_RDMA=1</code></li></ul></div></div>
+<div class="prose"><ul><li>Starting point: miles&#x27; Nemotron-3-Nano launcher, <code>scripts/run_nemotron_3_nano.py</code> at miles 0.1.0 (model page <a href="https://miles.radixark.com/docs/models/nemotron/nemotron-3-nano-moe">https://miles.radixark.com/docs/models/nemotron/nemotron-3-nano-moe</a>). miles publishes it as a GRPO smoke test with no tokens/s figure. Ported to this workload with its layout (TP 2 with sequence parallel, PP 2, EP 2, full recompute) and max 8,192 tokens/GPU on 8 H200, it measured 5,229.2 tokens/s/GPU; ATTUNE tuned it to 7,814.0 (+49%).</li></ul></div><dl class="facts"><dt>Author</dt><dd><a href="https://arxiv.org/abs/2610.17528">ATTUNE</a> (<a href="#cite">cite</a>)</dd><dt>GPUs</dt><dd>8 x H200 141 GB (AWS p5en.48xlarge, 8 per node)</dd><dt>Layout</dt><dd>TP 1, PP 2 (even split), CP 1, EP 4, ETP 1, DP 4; one 8,192-token row per microbatch (THD, max 8,192 tokens/GPU); full recompute (uniform, 1 layer); distributed optimizer; alltoall dispatcher; no offload</dd><dt>Tokens/s per GPU</dt><dd>7,814.02</dd><dt>$ / 1M tokens</dt><dd>$0.28</dd><dt>MFU</dt><dd>15.3% (N = 3,227,369,472 active parameters per token)</dd><dt>Step-time CV</dt><dd>1.63%</dd><dt>Convergence check</dt><dd>correlation 0.9999997, final loss difference 4.3e-05, 0 pointwise failures over 20 steps</dd><dt>Measured</dt><dd>2026-10-15</dd><dt>GPU-hours</dt><dd>1.2</dd><dt>Rows</dt><dd><code>nemotron3nano-tulu3-fixed8192-v1</code> (rows_sha256 <code>8fc04d3ce32c2b2cf8b1255a84cd8627df647cb38b6cbbe69a8e6bbde0ce54c7</code>)</dd></dl>
+<div class="cols"><div><h3>Stack</h3><dl class="facts"><dt>framework</dt><dd>miles 0.1.0 (radixark/miles commit 78527b91, a slime fork), no local changes</dd><dt>megatron lm</dt><dd>radixark/Megatron-LM commit 37f91617 (megatron-core 0.16.0rc0), no local changes</dd><dt>transformer engine</dt><dd>2.17.0</dd><dt>pytorch</dt><dd>2.11.0 (CUDA 13.0 build)</dd><dt>cuda</dt><dd>13.0</dd><dt>nccl</dt><dd>2.28.9 (CUDA 13.0 build; printed by the measured run)</dd><dt>deepep</dt><dd>1.2.1 (installed; the alltoall dispatcher does not use it)</dd><dt>python</dt><dd>3.12.3</dd><dt>network</dt><dd>8 GPUs per node, EFA (aws-ofi-nccl 1.20), 3.2 Tb/s RDMA per node</dd></dl></div><div><h3>Environment</h3><ul class="env"><li><code>CUDA_DEVICE_MAX_CONNECTIONS=1</code></li><li><code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code></li><li><code>TILELANG_CACHE_DIR=$KERNEL_CACHE/tilelang</code></li><li><code>TRITON_CACHE_DIR=$KERNEL_CACHE/triton</code></li><li><code>TORCHINDUCTOR_CACHE_DIR=$KERNEL_CACHE/inductor</code></li><li><code>FI_PROVIDER=efa</code></li><li><code>FI_EFA_USE_DEVICE_RDMA=1</code></li></ul></div></div>
 <div class="filebar"><span class="k">Command</span><span class="acts"><a class="btn o" href="../../protocol#run">How to run</a><button type="button" class="btn o" data-copy="run-attune-tp1-pp2-ep4">Copy</button></span></div>
 <pre id="run-attune-tp1-pp2-ep4">export CUDA_DEVICE_MAX_CONNECTIONS=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
@@ -91,7 +91,7 @@ stack:
   pytorch: 2.11.0 (CUDA 13.0 build)
   cuda: &#x27;13.0&#x27;
   nccl: 2.28.9 (CUDA 13.0 build; printed by the measured run)
-  deepep: 1.2.1 (installed; the allgather dispatcher does not use it)
+  deepep: 1.2.1 (installed; the alltoall dispatcher does not use it)
   python: 3.12.3
   network: 8 GPUs per node, EFA (aws-ofi-nccl 1.20), 3.2 Tb/s RDMA per node
   source: &#x27;version dump of the measured run&#x27;&#x27;s training image (same digest), 2026-10-13: installed TE, PyTorch, DeepEP,
@@ -126,7 +126,7 @@ workload:
 layout:
   label: TP1 PP2 EP4 DP4
   summary: TP 1, PP 2 (even split), CP 1, EP 4, ETP 1, DP 4; one 8,192-token row per microbatch (THD, max 8,192
-    tokens/GPU); full recompute (uniform, 1 layer); distributed optimizer; allgather dispatcher; no offload
+    tokens/GPU); full recompute (uniform, 1 layer); distributed optimizer; alltoall dispatcher; no offload
   highlights: max 8,192 tokens/GPU, no offload
   tp: 1
   pp: 2
@@ -144,7 +144,7 @@ layout:
     method: uniform
     num_layers: 1
   offload: null
-  dispatcher: allgather
+  dispatcher: alltoall
 result:
   tokens_per_s_per_gpu: 7814.02
   usd_per_million_tokens: 0.28
