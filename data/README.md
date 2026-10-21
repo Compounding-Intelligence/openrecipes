@@ -11,6 +11,7 @@ tokens. This directory holds what rebuilds and checks those rows.
 |---|---|
 | `generate_fixed_sft.py` | builds the rows from the source Parquet shards and writes `<output>.manifest.json` beside them |
 | `gemma4_mask.py` | the gemma4 loss mask the builder uses with `--loss-mask-type gemma4`, for the Gemma 4 recipes |
+| `inkling_mask.py` | the inkling loss mask the builder uses with `--loss-mask-type inkling`, for the Inkling recipes |
 | `patch_glm5_mask.py` | adds a glm5 loss mask to slime's `mask_utils.py`, in place; run it before a GLM-5.2 or GLM-4.7-Flash build |
 | `patch_gptoss_mask.py` | adds a gpt_oss (harmony) loss mask to slime's `mask_utils.py`, in place; run it before a gpt-oss build |
 | `pretokenized_sft_rollout.py` | the slime rollout adapter the recipes use; it feeds each row's stored tokens and mask unchanged |
@@ -31,9 +32,9 @@ validates every row, and writes the manifest with the source, tokenizer and outp
 - Python 3.10 or later, `pyarrow` and `transformers`.
 - A slime checkout on `PYTHONPATH`. The builder imports slime's `Dataset`, `MultiTurnLossMaskGenerator` and
   `load_processor`. Upstream slime (<https://github.com/THUDM/slime>) has the `qwen3_5` loss mask; GLM-5.2 and
-  GLM-4.7-Flash need `patch_glm5_mask.py` and gpt-oss `patch_gptoss_mask.py`. The `deepseek_v4` and `gemma4` masks
-  need no slime generator; the loader check then uses miles when slime is absent. The Gemma 4 loader check loads the
-  checkpoint's processor, which needs `torch` and `torchvision`.
+  GLM-4.7-Flash need `patch_glm5_mask.py` and gpt-oss `patch_gptoss_mask.py`. The `deepseek_v4`, `gemma4` and
+  `inkling` masks need no slime generator; the loader check then uses miles when slime is absent. The Gemma 4 and
+  Inkling loader checks load the checkpoint's processor, which needs `torch` and `torchvision`.
 - The `muse_spark` mask needs a miles checkout at commit `bfdcff0e` and Megatron-LM on `PYTHONPATH`: it registers
   miles' Muse Spark config with transformers to load the checkpoint's tokenizer. That import loads Megatron and
   Transformer Engine, so the build needs a host with a CUDA driver; one GPU is enough.
@@ -236,6 +237,29 @@ Run the build once per tokenizer.
      --source-batch-size 2048 --write-batch-size 64 --min-token-entropy-bits 8.0
    ```
 
+   The Inkling-Small recipes use `inkling-tulu3-fixed8192-v1`, built with the checkpoint of
+   `thinkingmachines/Inkling-Small` (revision `8cc5877b44d343f88b92086aa1fb72897950f06a`). The template renders each
+   message as a role token, a content-type token, the content and `<|end_message|>`, and closes an assistant message with
+   `<|content_model_end_sampling|>`, the model's end-of-turn token. `--loss-mask-type inkling` (`inkling_mask.py`) finds
+   each assistant answer by rendering growing prefixes of the conversation and supervises what follows the
+   `<|message_model|>` generation prompt: `<|content_text|>`, the content, `<|end_message|>` and
+   `<|content_model_end_sampling|>`; the header and the other messages are context. It pins the template's
+   thinking-effort line to its default, 0.9, and skips a conversation with an empty assistant message (50 in this
+   build). The tokenizer defines no EOS token, so the builder puts no separator between conversations; each answered
+   conversation already ends with `<|content_model_end_sampling|>`:
+
+   ```bash
+   python3 -u generate_fixed_sft.py \
+     --input tulu-3-sft-mixture/data \
+     --output inkling-tulu3-fixed8192-v1/train.parquet \
+     --tokenizer <Inkling-Small checkpoint> \
+     --source-dataset allenai/tulu-3-sft-mixture \
+     --source-revision b14afda60f1bbebe55d5d2fa1e4df5042f97f8be \
+     --input-key messages --source-key source --loss-mask-type inkling \
+     --sequence-length 8192 --rows 6400 --seed 42 \
+     --source-batch-size 2048 --write-batch-size 64 --min-token-entropy-bits 8.0
+   ```
+
 4. Verify against a recipe (needs PyYAML):
 
    ```bash
@@ -276,4 +300,7 @@ tokens (default 8,192); set it in the environment of every pod. The adapter refu
 - The Gemma 4 set was built with transformers 5.8.1, tokenizers 0.22.2 and pyarrow 23.0.1, without remote code: the
   tokenizer has no custom code. Rebuilt with `gemma4_mask.py` from the same inputs and versions, it matched byte for
   byte.
+- The Inkling set was built with transformers 5.12.1, tokenizers 0.22.2 and pyarrow 25.0.0, the versions of the
+  training image, without remote code: the tokenizer has no custom code. Rebuilt with `inkling_mask.py` from the same
+  inputs and versions, it matched byte for byte.
 - `row_hash` hashes the tokens as native 32-bit integers, so it assumes a little-endian host (x86-64 or ARM64).

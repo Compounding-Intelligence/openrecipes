@@ -7,7 +7,8 @@ Needs pyarrow, transformers and a slime or miles checkout on PYTHONPATH. The tok
 with --trust-remote-code; --loss-mask-type deepseek_v4 also needs it, because it runs the checkout's official encoder
 (dsv4_mask.py). --loss-mask-type muse_spark (muse_spark_mask.py) supervises the assistant content the chat template's
 generation spans locate, its header as context; --loss-mask-type gemma4 (gemma4_mask.py) each Gemma 4 model turn's
-content and closing marker.
+content and closing marker; --loss-mask-type inkling (inkling_mask.py) each Inkling assistant answer after its
+<|message_model|> header.
 """
 
 import argparse
@@ -43,7 +44,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source-key", default="source")
     parser.add_argument("--loss-mask-type", default="qwen3_5",
                         help="a slime MultiTurnLossMaskGenerator type, deepseek_v4 (dsv4_mask.py), muse_spark "
-                             "(muse_spark_mask.py) or gemma4 (gemma4_mask.py)")
+                             "(muse_spark_mask.py), gemma4 (gemma4_mask.py) or inkling (inkling_mask.py)")
     parser.add_argument("--sequence-length", type=int, default=4096)
     parser.add_argument("--rows", type=int, default=6400)
     parser.add_argument("--seed", type=int, default=42)
@@ -290,6 +291,10 @@ def main() -> None:
         from gemma4_mask import Gemma4LossMaskGenerator
 
         mask_generator = Gemma4LossMaskGenerator(tokenizer, args.tokenizer)
+    elif args.loss_mask_type == "inkling":
+        from inkling_mask import InklingLossMaskGenerator
+
+        mask_generator = InklingLossMaskGenerator(tokenizer, args.tokenizer)
     else:
         from slime.utils.mask_utils import MultiTurnLossMaskGenerator
 
