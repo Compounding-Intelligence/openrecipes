@@ -102,13 +102,26 @@ result:
     convergence check
 correctness:
   result: pass
-  summary: passed; the attention backend change (unfused to auto) has no component test and is listed for review
+  summary: passed; the attention backend change (unfused to auto) passed its component test at this model's shape
   reference: 'miles'' layout for Gemma-4-26B-A4B (`scripts/run_gemma_4_26b_a4b.py`): TP 4 with sequence parallel, EP 8,
     TE''s unfused attention and `--qkv-format bshd`, with selective recompute of the core attention in place of its full
     recompute and one row per microbatch in place of its dynamic batching, the two changes this stack needs to run it.
     Model arguments, rows and schedule are the same in both recipes.'
   configuration: pass
-  component_tests: []
+  component_tests:
+  - test: TE's auto attention backend against its unfused attention and an FP64 reference
+    shape: 'Gemma-4-26B-A4B attention at TP 1, forward and backward: 16 query heads, sequence 8,192, micro-batch 1, BF16;
+      sliding-window layers with 8 key-value groups, head dim 256 and window 1,024, global layers with 2 groups and head
+      dim 512; four synthetic cases and four from the checkpoint (sliding layers 0 and 28, global layers 5 and 29, on
+      the first row of the recipe''s rows)'
+    gpu: H200
+    date: 2026-10-21
+    result: pass
+    detail: on the sliding-window layers TE runs cuDNN fused attention, whose relative L2 error against FP64 is 0.15-0.82 x
+      the unfused path's (worst sliding-layer tensor, layer 0 dq, 1.24e-2 against a bound of 3.11e-2, 2 x the unfused error + 1e-3);
+      the global layers stay on the unfused path, bitwise identical; a repeat of the default passes and the two negative
+      controls (a wrong window, a wrong softmax scale) fail
+    note: run on this recipe's training image; one attention call per case, not a training run
   convergence:
     steps: 20
     result: pass

@@ -2073,10 +2073,20 @@
    },
    "correctness": {
     "result": "pass",
-    "summary": "passed; the attention backend change (unfused to auto) has no component test and is listed for review",
+    "summary": "passed; the attention backend change (unfused to auto) passed its component test at this model's shape",
     "reference": "miles' layout for Gemma-4-26B-A4B (`scripts/run_gemma_4_26b_a4b.py`): TP 4 with sequence parallel, EP 8, TE's unfused attention and `--qkv-format bshd`, with selective recompute of the core attention in place of its full recompute and one row per microbatch in place of its dynamic batching, the two changes this stack needs to run it. Model arguments, rows and schedule are the same in both recipes.",
     "configuration": "pass",
-    "component_tests": [],
+    "component_tests": [
+     {
+      "test": "TE's auto attention backend against its unfused attention and an FP64 reference",
+      "shape": "Gemma-4-26B-A4B attention at TP 1, forward and backward: 16 query heads, sequence 8,192, micro-batch 1, BF16; sliding-window layers with 8 key-value groups, head dim 256 and window 1,024, global layers with 2 groups and head dim 512; four synthetic cases and four from the checkpoint (sliding layers 0 and 28, global layers 5 and 29, on the first row of the recipe's rows)",
+      "gpu": "H200",
+      "date": "2026-10-21",
+      "result": "pass",
+      "detail": "on the sliding-window layers TE runs cuDNN fused attention, whose relative L2 error against FP64 is 0.15-0.82 x the unfused path's (worst sliding-layer tensor, layer 0 dq, 1.24e-2 against a bound of 3.11e-2, 2 x the unfused error + 1e-3); the global layers stay on the unfused path, bitwise identical; a repeat of the default passes and the two negative controls (a wrong window, a wrong softmax scale) fail",
+      "note": "run on this recipe's training image; one attention call per case, not a training run"
+     }
+    ],
     "convergence": {
      "steps": 20,
      "result": "pass",
@@ -2335,10 +2345,29 @@
    },
    "correctness": {
     "result": "pass",
-    "summary": "passed; the attention backend change (unfused to auto) and the optimizer offload fraction (1.0 to 0.8) have no component test and are listed for review",
+    "summary": "passed; the attention backend change (unfused to auto) and the optimizer offload fraction (1.0 to 0.8) passed their component tests at this model's shape",
     "reference": "miles' layout for Gemma-4-31B (`scripts/run_gemma_4_31b.py`): TP 4 with sequence parallel, TE's unfused attention, `--qkv-format bshd` and Adam on the CPU (`--optimizer-cpu-offload --overlap-cpu-optimizer-d2h-h2d --use-precision-aware-optimizer`), here on 8 H100 with one row per microbatch in place of its dynamic batching, selective recompute of the core attention and the MLP in place of its full recompute, and PP 2 (30 layers per stage) in place of its PP 1: with the core attention recomputed alone, TP 4 ran out of memory at step 0 at PP 1 and at PP 2. Model arguments, rows and schedule are the same in both recipes.",
     "configuration": "pass",
-    "component_tests": [],
+    "component_tests": [
+     {
+      "test": "TE's auto attention backend against its unfused attention and an FP64 reference",
+      "shape": "Gemma-4-31B attention at TP 2 (rank 0's heads), forward and backward: 16 query heads, sequence 8,192, micro-batch 1, BF16; sliding-window layers with 8 key-value groups, head dim 256 and window 1,024, global layers with 2 groups and head dim 512; four synthetic cases and four from the checkpoint (sliding layers 0 and 58, global layers 5 and 59, on the first row of the recipe's rows)",
+      "gpu": "H100",
+      "date": "2026-10-21",
+      "result": "pass",
+      "detail": "on the sliding-window layers TE runs cuDNN fused attention, whose relative L2 error against FP64 is 0.15-0.82 x the unfused path's (worst sliding-layer tensor, layer 0 dq, 1.62e-2 against a bound of 4.07e-2, 2 x the unfused error + 1e-3); the global layers stay on the unfused path, bitwise identical; a repeat of the default passes and the two negative controls (a wrong window, a wrong softmax scale) fail",
+      "note": "run on this recipe's training image; one attention call per case, not a training run"
+     },
+     {
+      "test": "CPU optimizer offload fraction 0.8 against fraction 1.0 and an FP64 reference",
+      "shape": "TP 2 rank 0's slices of Gemma-4-31B layer 0 (sliding), layer 5 (global) and embedding rows 0-8,191: 21 tensors, 556,051,968 parameters, 19.8% of them on the GPU at fraction 0.8 (the embedding slice, layer 0's attention projections and every norm gain); checkpoint weights, synthetic gradients scaled to the measured run's first three pre-clip norms",
+      "gpu": "H100",
+      "date": "2026-10-21",
+      "result": "pass",
+      "detail": "after three steps at the recipe's hyperparameters, the GPU partition's FP32 masters and updates are 0.62-1.00 x the default's relative L2 error against FP64 and its BF16 weights 1.00 x (worst tensor, the update of the norm gains, 7.24e-2 against a bound of 1.46e-1, 2 x the default's error + 1e-3, the same error as the default's); the CPU partition is bitwise identical to the default; a repeat of the default passes and the three negative controls (no bias correction, BF16 masters, no clipping) fail",
+      "note": "run on this recipe's training image. The Adam moments on the GPU path pass on the bound's 1e-3 term only: exp_avg 1.80e-7 (3.2 x the default's error) and exp_avg_sq 1.01e-6 (9.0 x). TE FusedAdam computes with beta1 and beta2 rounded to FP32; against an FP64 reference with the same rounded betas, its moments are 4.1e-8 and 4.7e-8, the FP32 rounding floor"
+     }
+    ],
     "convergence": {
      "steps": 20,
      "result": "pass",
