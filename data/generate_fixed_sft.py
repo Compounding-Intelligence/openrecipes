@@ -7,7 +7,8 @@ Needs pyarrow, transformers and a slime or miles checkout on PYTHONPATH. The tok
 with --trust-remote-code; --loss-mask-type deepseek_v4 also needs it, because it runs the checkout's official encoder
 (dsv4_mask.py). --loss-mask-type muse_spark (muse_spark_mask.py) supervises the assistant content the chat template's
 generation spans locate, its header as context; --loss-mask-type gemma4 (gemma4_mask.py) each Gemma 4 model turn's
-content and closing marker; --loss-mask-type inkling (inkling_mask.py) each Inkling assistant answer after its
+content and closing marker; --loss-mask-type glm45 (glm45_mask.py) each GLM-4.5 assistant turn after its header and the
+<|user|> that ends it; --loss-mask-type inkling (inkling_mask.py) each Inkling assistant answer after its
 <|message_model|> header; --loss-mask-type minimax_m2 (minimax_m2_mask.py) each MiniMax-M2 assistant turn's content and
 closing EOS.
 """
@@ -45,8 +46,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source-key", default="source")
     parser.add_argument("--loss-mask-type", default="qwen3_5",
                         help="a slime MultiTurnLossMaskGenerator type, deepseek_v4 (dsv4_mask.py), muse_spark "
-                             "(muse_spark_mask.py), gemma4 (gemma4_mask.py), inkling (inkling_mask.py) or minimax_m2 "
-                             "(minimax_m2_mask.py)")
+                             "(muse_spark_mask.py), gemma4 (gemma4_mask.py), glm45 (glm45_mask.py), inkling "
+                             "(inkling_mask.py) or minimax_m2 (minimax_m2_mask.py)")
     parser.add_argument("--sequence-length", type=int, default=4096)
     parser.add_argument("--rows", type=int, default=6400)
     parser.add_argument("--seed", type=int, default=42)
@@ -293,6 +294,10 @@ def main() -> None:
         from gemma4_mask import Gemma4LossMaskGenerator
 
         mask_generator = Gemma4LossMaskGenerator(tokenizer, args.tokenizer)
+    elif args.loss_mask_type == "glm45":
+        from glm45_mask import GLM45LossMaskGenerator
+
+        mask_generator = GLM45LossMaskGenerator(tokenizer, args.tokenizer)
     elif args.loss_mask_type == "inkling":
         from inkling_mask import InklingLossMaskGenerator
 

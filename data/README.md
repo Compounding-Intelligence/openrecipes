@@ -11,6 +11,7 @@ tokens. This directory holds what rebuilds and checks those rows.
 |---|---|
 | `generate_fixed_sft.py` | builds the rows from the source Parquet shards and writes `<output>.manifest.json` beside them |
 | `gemma4_mask.py` | the gemma4 loss mask the builder uses with `--loss-mask-type gemma4`, for the Gemma 4 recipes |
+| `glm45_mask.py` | the glm45 loss mask the builder uses with `--loss-mask-type glm45`, for the GLM-4.5 recipes |
 | `inkling_mask.py` | the inkling loss mask the builder uses with `--loss-mask-type inkling`, for the Inkling recipes |
 | `minimax_m2_mask.py` | the minimax_m2 loss mask the builder uses with `--loss-mask-type minimax_m2`, for the MiniMax-M2 recipes |
 | `patch_glm5_mask.py` | adds a glm5 loss mask to slime's `mask_utils.py`, in place; run it before a GLM-5.2 or GLM-4.7-Flash build |
@@ -33,7 +34,7 @@ validates every row, and writes the manifest with the source, tokenizer and outp
 - Python 3.10 or later, `pyarrow` and `transformers`.
 - A slime checkout on `PYTHONPATH`. The builder imports slime's `Dataset`, `MultiTurnLossMaskGenerator` and
   `load_processor`. Upstream slime (<https://github.com/THUDM/slime>) has the `qwen3_5` loss mask; GLM-5.2 and
-  GLM-4.7-Flash need `patch_glm5_mask.py` and gpt-oss `patch_gptoss_mask.py`. The `deepseek_v4`, `gemma4`,
+  GLM-4.7-Flash need `patch_glm5_mask.py` and gpt-oss `patch_gptoss_mask.py`. The `deepseek_v4`, `gemma4`, `glm45`,
   `inkling` and `minimax_m2` masks need no slime generator; the loader check then uses miles when slime is absent. The
   Gemma 4 and Inkling loader checks load the checkpoint's processor, which needs `torch` and `torchvision`.
 - The `muse_spark` mask needs a miles checkout at commit `bfdcff0e` and Megatron-LM on `PYTHONPATH`: it registers
@@ -238,6 +239,28 @@ Run the build once per tokenizer.
      --source-batch-size 2048 --write-batch-size 64 --min-token-entropy-bits 8.0
    ```
 
+   The GLM-4.5 recipes use their own set, built with the checkpoint of `zai-org/GLM-4.5` (revision
+   `cbb2c7cfb52fa128a9660cb1a7a78e017899e115`). The template opens a conversation with `[gMASK]<sop>`, renders an
+   assistant message as `<|assistant|>`, a newline and `<think></think>` (no reasoning), then a newline and the stripped
+   content when it is not empty, and writes no end-of-turn token: the model ends a turn by generating `<|user|>`, one of
+   its EOS ids. `--loss-mask-type glm45` (`glm45_mask.py`) finds each assistant message's turn by rendering growing
+   prefixes of the conversation and supervises everything the turn renders after its `<|assistant|>` header, then the
+   `<|user|>` that ends it: the next message's, or one appended after the last message. An assistant message followed by
+   a message other than a user message makes the mask skip the conversation (one of the 66,890 conversations read in
+   this build):
+
+   ```bash
+   python3 -u generate_fixed_sft.py \
+     --input tulu-3-sft-mixture/data \
+     --output glm45-tulu3-fixed8192-v1/train.parquet \
+     --tokenizer <GLM-4.5 checkpoint> \
+     --source-dataset allenai/tulu-3-sft-mixture \
+     --source-revision b14afda60f1bbebe55d5d2fa1e4df5042f97f8be \
+     --input-key messages --source-key source --loss-mask-type glm45 \
+     --sequence-length 8192 --rows 6400 --seed 42 \
+     --source-batch-size 2048 --write-batch-size 64 --min-token-entropy-bits 8.0
+   ```
+
    The Inkling-Small recipes use `inkling-tulu3-fixed8192-v1`, built with the checkpoint of
    `thinkingmachines/Inkling-Small` (revision `8cc5877b44d343f88b92086aa1fb72897950f06a`). The template renders each
    message as a role token, a content-type token, the content and `<|end_message|>`, and closes an assistant message with
@@ -329,4 +352,7 @@ tokens (default 8,192); set it in the environment of every pod. The adapter refu
 - The MiniMax-M2 set was built with transformers 5.8.1, tokenizers 0.22.2 and pyarrow 23.0.1, the versions of the
   training image, without remote code: the tokenizer has no custom code. Rebuilt with this directory's builder from the
   same inputs and versions, it matched byte for byte.
+- The GLM-4.5 set was built with transformers 5.8.1, tokenizers 0.22.2 and pyarrow 23.0.1, without remote code: the
+  tokenizer has no custom code. Rebuilt with this directory's builder from the same inputs and versions, it matched byte
+  for byte.
 - `row_hash` hashes the tokens as native 32-bit integers, so it assumes a little-endian host (x86-64 or ARM64).
