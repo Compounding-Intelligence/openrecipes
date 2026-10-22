@@ -139,6 +139,18 @@ models:
     model: GLM-4.5
     slug: glm-4.5
     hf: zai-org/GLM-4.5
+    notes: |
+      - Weights: the BF16 checkpoint `zai-org/GLM-4.5` (revision cbb2c7cf), converted to Megatron `torch_dist` with
+        miles' `tools/convert_hf_to_torch_dist.py` at commit 78527b91 and the recipes' `MODEL_ARGS` on one 8-GPU node.
+        The model arguments build no multi-token-prediction layer, so the checkpoint's layer 92 is neither converted nor
+        trained. `--ref-load` is the conversion and `--hf-checkpoint` the checkout.
+      - `MODEL_ARGS` come from miles' `scripts/models/glm4.5-355B-A32B.py` at commit 78527b91, printed by
+        `miles/utils/external_utils/model_args_utils.py glm4.5-355B-A32B`; run the command from a miles checkout at that
+        commit.
+      - It trains on its own rows, built with `--loss-mask-type glm45` (data/README.md).
+      - The recipes run without `--overlap-grad-reduce` and `--overlap-param-gather`. With `--overlap-grad-reduce`,
+        miles' `train()` (`miles/backends/megatron_utils/model.py`) asserts that `config.no_sync_func` is unset and then
+        sets it; it runs once per rollout, so the second rollout fails the assertion.
   - family: Kimi
     model: Kimi-K3
     slug: kimi-k3

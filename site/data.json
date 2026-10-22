@@ -373,7 +373,16 @@
    "model": "GLM-4.5",
    "slug": "glm-4.5",
    "hf": "zai-org/GLM-4.5",
-   "pairs": []
+   "notes": "- Weights: the BF16 checkpoint `zai-org/GLM-4.5` (revision cbb2c7cf), converted to Megatron `torch_dist` with\n  miles' `tools/convert_hf_to_torch_dist.py` at commit 78527b91 and the recipes' `MODEL_ARGS` on one 8-GPU node.\n  The model arguments build no multi-token-prediction layer, so the checkpoint's layer 92 is neither converted nor\n  trained. `--ref-load` is the conversion and `--hf-checkpoint` the checkout.\n- `MODEL_ARGS` come from miles' `scripts/models/glm4.5-355B-A32B.py` at commit 78527b91, printed by\n  `miles/utils/external_utils/model_args_utils.py glm4.5-355B-A32B`; run the command from a miles checkout at that\n  commit.\n- It trains on its own rows, built with `--loss-mask-type glm45` (data/README.md).\n- The recipes run without `--overlap-grad-reduce` and `--overlap-param-gather`. With `--overlap-grad-reduce`,\n  miles' `train()` (`miles/backends/megatron_utils/model.py`) asserts that `config.no_sync_func` is unset and then\n  sets it; it runs once per rollout, so the second rollout fails the assertion.\n",
+   "pairs": [
+    {
+     "gpu": "H200",
+     "url": "https://openrecipes.ai/glm-4.5/h200/",
+     "recipes": [
+      "recipes/glm-4.5/h200/attune-tp4-pp16-ep8.yaml"
+     ]
+    }
+   ]
   },
   {
    "family": "Kimi",
@@ -756,6 +765,138 @@
    },
    "patches": [],
    "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TILELANG_CACHE_DIR=\"$KERNEL_CACHE/tilelang\"\nexport TRITON_CACHE_DIR=\"$KERNEL_CACHE/triton\"\nexport TORCHINDUCTOR_CACHE_DIR=\"$KERNEL_CACHE/inductor\"\nexport FI_PROVIDER=efa\nexport FI_EFA_USE_DEVICE_RDMA=1\n\nMODEL_ARGS_LINE=\"$(python3 miles/utils/external_utils/model_args_utils.py deepseek-v4-flash)\"\nread -ra MODEL_ARGS <<< \"$MODEL_ARGS_LINE\"\npython3 train.py \\\n  --actor-num-nodes 8 \\\n  --actor-num-gpus-per-node 8 \\\n  --num-gpus-per-node 8 \\\n  \"${MODEL_ARGS[@]}\" \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --model-name deepseekv4 \\\n  --qkv-format bshd \\\n  --moe-router-freeze-gate \\\n  --freeze-e-score-correction-bias \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --tensor-model-parallel-size 2 \\\n  --sequence-parallel \\\n  --pipeline-model-parallel-size 4 \\\n  --decoder-first-pipeline-num-layers 11 \\\n  --decoder-last-pipeline-num-layers 10 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 8 \\\n  --expert-tensor-parallel-size 1 \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --micro-batch-size 1 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --distributed-timeout-minutes 30\n"
+  },
+  {
+   "path": "recipes/glm-4.5/h200/attune-tp4-pp16-ep8.yaml",
+   "slug": "attune-tp4-pp16-ep8",
+   "rank": 1,
+   "schema_version": 1,
+   "model": "GLM-4.5",
+   "gpu": {
+    "type": "H200",
+    "memory_gb": 141,
+    "count": 128,
+    "per_node": 8,
+    "instance": "AWS p5en.48xlarge"
+   },
+   "author": {
+    "name": "ATTUNE",
+    "url": "https://arxiv.org/abs/2610.17528"
+   },
+   "status": "verified",
+   "stack": {
+    "framework": "miles 0.1.0 (radixark/miles commit 78527b91, a slime fork), no local changes",
+    "megatron_lm": "radixark/Megatron-LM commit 37f91617 (megatron-core 0.16.0rc0), no local changes",
+    "transformer_engine": "2.17.0",
+    "pytorch": "2.11.0 (CUDA 13.0 build)",
+    "cuda": "13.0",
+    "nccl": "2.28.9 (CUDA 13.0 build; printed by the measured run)",
+    "deepep": "1.2.1 (installed; the alltoall dispatcher does not use it)",
+    "python": "3.12.3",
+    "network": "8 GPUs per node, EFA (aws-ofi-nccl 1.20), 3.2 Tb/s RDMA per node",
+    "source": "version check of the measured run's training image (same digest), 2026-10-22: miles and Megatron-LM git commits (clean trees), installed TE, PyTorch, megatron-core and DeepEP, Python, and miles' GLM-4.5 model arguments; NCCL from the measured run's log. The image is radixark/miles v0.1.0 (amd64 digest sha256:45ae7833f97a01369dbd8f336784830a87d94587bc010c7b8065291cc15cd7ca) with EFA 1.49 added"
+   },
+   "workload": {
+    "row_tokens": 8192,
+    "rows": "SFT conversations",
+    "global_batch": 128,
+    "precision": "bf16",
+    "dataset": {
+     "name": "Tulu 3 SFT mixture",
+     "source": "allenai/tulu-3-sft-mixture",
+     "revision": "b14afda60f1bbebe55d5d2fa1e4df5042f97f8be",
+     "license": "ODC-By 1.0",
+     "rows_sha256": "863d7c5a242d34efdf86a8109147622829596cb7f9a057c8478c10e50b54eeb0",
+     "build": {
+      "name": "glm45-tulu3-fixed8192-v1",
+      "tokenizer": "GLM-4.5 (revision cbb2c7cfb52fa128a9660cb1a7a78e017899e115; tokenizer.json sha256 9340665016419c825c4bdabbcc9acc43b7ca2c68ce142724afa829abb1be5efd; chat_template.jinja sha256 44f815868bf02fa458dd2f741a338046f4bf45f398eb6d067766726b9d96cce3)",
+      "loss_mask": "glm45",
+      "rows": 6400,
+      "row_tokens": 8192,
+      "padding_tokens": 0,
+      "seed": 42,
+      "packing": "source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into consecutive 8,192-token rows; rows without supervised targets are skipped",
+      "supervised_token_ratio": 0.676,
+      "parquet_sha256": "9760d857200ffd53580f33ae94119be6c8bf1e9a45064c5de31241bf74a25a91",
+      "parquet_bytes": 83825379,
+      "builder": "data/generate_fixed_sft.py with --loss-mask-type glm45 (data/README.md)"
+     }
+    }
+   },
+   "layout": {
+    "label": "TP4 PP16 EP8 DP2",
+    "summary": "TP 4, PP 16 (first stage 5 layers, last stage 3, the 14 others 6), CP 1, EP 8, ETP 1, DP 2, sequence parallel; one 8,192-token row per microbatch (max 8,192 tokens/GPU); no recompute; distributed optimizer, no offload; alltoall dispatcher; no shared-expert overlap",
+    "highlights": "PP 16, no recompute",
+    "tp": 4,
+    "pp": 16,
+    "vpp": 1,
+    "cp": 1,
+    "ep": 8,
+    "etp": 1,
+    "dp": 2,
+    "sequence_parallel": true,
+    "layer_split": {
+     "first": 5,
+     "last": 3
+    },
+    "max_tokens_per_gpu": 8192,
+    "rows_per_microbatch": 1,
+    "recompute": null,
+    "offload": null,
+    "dispatcher": "alltoall"
+   },
+   "result": {
+    "tokens_per_s_per_gpu": 565.44,
+    "usd_per_million_tokens": 3.89,
+    "step_time_cv_percent": 1.12,
+    "mfu": 0.1127,
+    "mfu_note": null,
+    "active_params": {
+     "count": 32854016000,
+     "source": "https://huggingface.co/zai-org/GLM-4.5",
+     "revision": "cbb2c7cfb52fa128a9660cb1a7a78e017899e115"
+    },
+    "measured": "2026-10-21",
+    "steps_per_run": 20,
+    "window": [
+     5,
+     19
+    ],
+    "window_tokens": 15728640,
+    "runs": 1,
+    "profiler": false,
+    "gpu_hours": 38.19,
+    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
+   },
+   "correctness": {
+    "result": "pass",
+    "summary": "passed",
+    "reference": "Megatron-Bridge's GLM-4.5 pretraining recipe for 128 x H100 (`glm45_355b_pretrain_128gpu_h100_bf16_config` in `src/megatron/bridge/recipes/glm/h100/glm45.py`, last changed in commit 9332d71c), here on 128 H200 with miles: TP 2 with sequence parallel, PP 8 (10 layers on the first and last stage, 12 on the others), EP 16, ETP 1, DP 8, one row per microbatch and shared-expert overlap, with two changes carried by both arms: selective recompute of `core_attn` and `moe` in place of the recipe's `core_attn` (which runs out of memory with 8,192-token rows), and no data-parallel overlap (`--overlap-grad-reduce` and `--overlap-param-gather` removed). Model arguments, rows and schedule are the same in both recipes.",
+    "configuration": "pass",
+    "component_tests": [],
+    "convergence": {
+     "steps": 20,
+     "result": "pass",
+     "correlation": 0.9998694,
+     "final_loss_difference": 0.0011,
+     "pointwise_failures": 0,
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both"
+    },
+    "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml (amazon-science/attune aff5b81); 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
+   },
+   "env": {
+    "CUDA_DEVICE_MAX_CONNECTIONS": "1",
+    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:False",
+    "NCCL_GRAPH_REGISTER": "0",
+    "NCCL_NVLS_ENABLE": "0",
+    "TORCH_NCCL_AVOID_RECORD_STREAMS": "1",
+    "TORCH_NCCL_HIGH_PRIORITY": "1",
+    "FI_PROVIDER": "efa",
+    "FI_EFA_USE_DEVICE_RDMA": "1"
+   },
+   "patches": [],
+   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:False\nexport NCCL_GRAPH_REGISTER=0\nexport NCCL_NVLS_ENABLE=0\nexport TORCH_NCCL_AVOID_RECORD_STREAMS=1\nexport TORCH_NCCL_HIGH_PRIORITY=1\nexport FI_PROVIDER=efa\nexport FI_EFA_USE_DEVICE_RDMA=1\n\nMODEL_ARGS_LINE=\"$(python3 miles/utils/external_utils/model_args_utils.py glm4.5-355B-A32B)\"\nread -ra MODEL_ARGS <<< \"$MODEL_ARGS_LINE\"\npython3 train.py \\\n  --actor-num-nodes 16 \\\n  --actor-num-gpus-per-node 8 \\\n  --num-gpus-per-node 8 \\\n  \"${MODEL_ARGS[@]}\" \\\n  --moe-aux-loss-coeff 1e-3 \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --loss-type sft_loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --tensor-model-parallel-size 4 \\\n  --sequence-parallel \\\n  --pipeline-model-parallel-size 16 \\\n  --decoder-first-pipeline-num-layers 5 \\\n  --decoder-last-pipeline-num-layers 3 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 8 \\\n  --expert-tensor-parallel-size 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 --lr-warmup-fraction 0.1 \\\n  --adam-beta1 0.9 --adam-beta2 0.95 --adam-eps 1e-8 --clip-grad 1.0 \\\n  --weight-decay 0.033 --weight-decay-incr-style constant \\\n  --use-distributed-optimizer \\\n  --accumulate-allreduce-grads-in-fp32 \\\n  --ddp-average-in-collective \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --no-rope-fusion \\\n  --cross-entropy-loss-fusion --cross-entropy-fusion-impl native \\\n  --manual-gc --manual-gc-interval 100 \\\n  --distributed-timeout-minutes 30\n",
+   "notes": "- Starting point: Megatron-Bridge's GLM-4.5 pretraining recipe for 128 x H100 (TP 2 with sequence parallel, PP 8, EP\n  16), the reference recipe above. Megatron-Bridge has no H200 recipe for GLM-4.5, and miles' GLM-4.5 launchers are\n  GRPO and GSPO scripts that colocate their rollout engines on the training GPUs and publish no tokens/s figure.\n  Ported to this workload on 128 H200, the Megatron-Bridge recipe measured 224.8 tokens/s/GPU in the campaign's\n  baseline run and 297.7 in an earlier run of the same configuration on other nodes; ATTUNE tuned it to 565.4 (+152%\n  over the baseline run, +90% over the earlier run). A 23-step run of this recipe on other nodes, profiled on its\n  last step, measured 564.9 over steps 5-19.\n- Each pipeline stage holds one node's 8 GPUs (TP 4 x DP 2), so the tensor-, expert- and data-parallel traffic stays\n  inside the node and only the pipeline crosses nodes. The extra stages leave room to drop recompute: the ranks the\n  measured run's log shows peak at about 103 GB reserved of 140, and interleaving (VPP 2) without recompute ran out of\n  memory at step 1.\n- `--moe-aux-loss-coeff 1e-3` after `MODEL_ARGS` keeps the reference recipe's sequence auxiliary-loss coefficient;\n  miles' GLM-4.5 model arguments set it to 0.\n"
   },
   {
    "path": "recipes/glm-4.7-flash/h200/attune-tp1-pp1-ep8.yaml",
