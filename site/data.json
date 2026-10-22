@@ -587,7 +587,16 @@
    "model": "MiniMax-M2",
    "slug": "minimax-m2",
    "hf": "MiniMaxAI/MiniMax-M2",
-   "pairs": []
+   "notes": "- Weights: the FP8 checkpoint `MiniMaxAI/MiniMax-M2` (revision 757303d4), cast to BF16 with slime's\n  `tools/fp8_cast_bf16.py` and converted to Megatron `torch_dist` with slime's `tools/convert_hf_to_torch_dist.py`\n  and the recipes' `MODEL_ARGS` on one 8-GPU node. The BF16 directory also holds the checkout's tokenizer files,\n  `chat_template.jinja`, `generation_config.json`, the remote-code files `configuration_minimax_m2.py` and\n  `modeling_minimax_m2.py`, and its `config.json` without `quantization_config`. `--hf-checkpoint` is the BF16\n  directory and `--ref-load` the conversion.\n- The conversion needs one edit to slime 0.3.0 on Megatron-LM commit 1dcf0daf: in\n  `slime_plugins/mbridge/minimax_m2.py`, `MiniMaxM2Bridge._build_config` passes `rotary_percent=0.5` to\n  `_build_base_config`, which hands it to Megatron's `TransformerConfig`. That class has no `rotary_percent`\n  field, so the conversion stops with a `TypeError`. Delete that keyword argument before converting. The bridge's\n  config only maps the weights; training builds the model from `--rotary-percent 0.5` in `MODEL_ARGS`.\n- `MODEL_ARGS` come from slime's `scripts/models/minimax-m2.sh` at slime 0.3.0. They select slime's MiniMax-M2 layer\n  spec (`--spec slime_plugins.models.minimax_m2 get_minimax_m2_layer_spec`) and the alltoall dispatcher.\n- It trains on its own rows, built with `--loss-mask-type minimax_m2` (data/README.md).\n- Load the checkpoint's config and tokenizer once on each node before the training processes start\n  (`AutoConfig.from_pretrained` and `AutoTokenizer.from_pretrained` on the BF16 directory with\n  `trust_remote_code=True`). Otherwise the processes of a node import the remote-code module\n  `configuration_minimax_m2` at the same time, and one can stop with an `AttributeError` for `MiniMaxM2Config`.\n",
+   "pairs": [
+    {
+     "gpu": "H200",
+     "url": "https://openrecipes.ai/minimax-m2/h200/",
+     "recipes": [
+      "recipes/minimax-m2/h200/attune-tp1-pp8-ep8-vpp4.yaml"
+     ]
+    }
+   ]
   },
   {
    "family": "Inkling",
@@ -2543,6 +2552,148 @@
    "patches": [],
    "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport RAY_memory_monitor_refresh_ms=0\nexport NCCL_MNNVL_ENABLE=1\nexport NCCL_NVLS_ENABLE=0\nexport NCCL_RAS_ENABLE=0\nexport TRITON_CACHE_DIR=\"$KERNEL_CACHE/triton\"\nexport TORCHINDUCTOR_CACHE_DIR=\"$KERNEL_CACHE/inductor\"\nexport FI_PROVIDER=efa\nexport FI_EFA_USE_DEVICE_RDMA=1\n\nMODEL_ARGS_LINE=\"$(python3 miles/utils/external_utils/model_args_utils.py inkling-small)\"\nread -ra MODEL_ARGS <<< \"$MODEL_ARGS_LINE\"\npython3 train.py \\\n  --actor-num-nodes 4 \\\n  --actor-num-gpus-per-node 8 \\\n  --num-gpus-per-node 8 \\\n  \"${MODEL_ARGS[@]}\" \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --model-name inkling \\\n  --megatron-to-hf-mode raw \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --tensor-model-parallel-size 4 \\\n  --sequence-parallel \\\n  --pipeline-model-parallel-size 4 \\\n  --decoder-first-pipeline-num-layers 12 \\\n  --expert-model-parallel-size 8 \\\n  --expert-tensor-parallel-size 1 \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --micro-batch-size 1 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --no-check-for-nan-in-loss-and-grad \\\n  --accumulate-allreduce-grads-in-fp32 \\\n  --optimizer-cpu-offload --overlap-cpu-optimizer-d2h-h2d --use-precision-aware-optimizer \\\n  --optimizer-offload-fraction 0.7 \\\n  --transformer-impl transformer_engine \\\n  --bf16 \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --attention-softmax-in-fp32 \\\n  --no-bias-dropout-fusion \\\n  --distributed-timeout-minutes 30\n",
    "notes": "- Starting point: miles' Inkling launcher, `scripts/run_inkling.py` at miles 0.1.0, with its Inkling-Small profile\n  (model page https://miles.radixark.com/docs/models/thinkingmachines/inkling-small). miles publishes it as a GRPO\n  recipe validated on 4 nodes of 8 H200, with no tokens/s figure. Ported to this workload with that layout (TP 4 with\n  sequence parallel, PP 8, EP 4, Adam on the CPU) on 32 H200, it measured 396.9 tokens/s/GPU; ATTUNE tuned it to\n  616.7 (+55%).\n- EP 8 places each expert group within one node. The first pipeline stage holds the two dense layers and ten MoE\n  layers and peaks highest in memory; at `--optimizer-offload-fraction 0.7`, 30% of the optimizer state stays on the\n  GPU, and a tuning run at 0.6 ran out of memory. Check the memory before lowering the fraction.\n"
+  },
+  {
+   "path": "recipes/minimax-m2/h200/attune-tp1-pp8-ep8-vpp4.yaml",
+   "slug": "attune-tp1-pp8-ep8-vpp4",
+   "rank": 1,
+   "schema_version": 1,
+   "model": "MiniMax-M2",
+   "gpu": {
+    "type": "H200",
+    "memory_gb": 141,
+    "count": 64,
+    "per_node": 8,
+    "instance": "AWS p5en.48xlarge"
+   },
+   "author": {
+    "name": "ATTUNE",
+    "url": "https://arxiv.org/abs/2610.17528"
+   },
+   "status": "verified",
+   "stack": {
+    "framework": "slime 0.3.0: THUDM/slime a897e1f plus 8 commits that do not change the training step",
+    "megatron_lm": "commit 1dcf0daf (megatron-core 0.16.0rc0), with a backported upstream fix for the Qwen3.5 attention output gate at TP above the query-group count",
+    "transformer_engine": "2.10.0",
+    "pytorch": "2.11.0 (CUDA 12.9 build)",
+    "cuda": "12.9",
+    "nccl": "2.28.9 (CUDA 12.9 build; printed by the measured run)",
+    "deepep": "1.2.1 (installed; the alltoall dispatcher does not use it)",
+    "python": "3.12.3",
+    "network": "8 GPUs per node, EFA, 3.2 Tb/s RDMA per node",
+    "source": "in-pod version check of the measured run's training image (same digest), 2026-10-22: installed TE, PyTorch, DeepEP and megatron-core, Megatron-LM git commit, Python, and slime's MiniMax-M2 model and launcher scripts; NCCL from the measured run's log"
+   },
+   "workload": {
+    "row_tokens": 8192,
+    "rows": "SFT conversations",
+    "global_batch": 128,
+    "precision": "bf16",
+    "dataset": {
+     "name": "Tulu 3 SFT mixture",
+     "source": "allenai/tulu-3-sft-mixture",
+     "revision": "b14afda60f1bbebe55d5d2fa1e4df5042f97f8be",
+     "license": "ODC-By 1.0",
+     "rows_sha256": "f731270d13a2b34202cc0266c58a599318ff5957b15c3f9b9e9c1f71f9caf400",
+     "build": {
+      "name": "minimax-m2-tulu3-fixed8192-v1",
+      "tokenizer": "MiniMax-M2 (revision 757303d492a50514c312788b5247a4f696a4c6a3; tokenizer.json sha256 757622126525aeeb131756849d93298070ff3f0319c455ec8c5bb0f6b1cebbe8; chat_template.jinja sha256 86cd6e574dec52bf6d7e678c5b46ceb5223d68b3a1130bbbc09d0a2dc0909438)",
+      "loss_mask": "minimax_m2",
+      "rows": 6400,
+      "row_tokens": 8192,
+      "padding_tokens": 0,
+      "seed": 42,
+      "packing": "source conversations in a seeded global permutation, concatenated with an EOS token between them and cut into consecutive 8,192-token rows; rows without supervised targets are skipped",
+      "supervised_token_ratio": 0.64,
+      "parquet_sha256": "2fb29ca63b79dc153defaacba1b41c783840de528a3ec353e5f6505144575036",
+      "parquet_bytes": 75539521,
+      "builder": "data/generate_fixed_sft.py with --loss-mask-type minimax_m2 (data/README.md)"
+     }
+    }
+   },
+   "layout": {
+    "label": "TP1 PP8 VPP4 EP8 DP8",
+    "summary": "TP 1, PP 8 (first and last stage 7 layers, the others 8), VPP 4, CP 1, EP 8, ETP 1, DP 8; one 8,192-token row per microbatch; full recompute (uniform, 1 layer); precision-aware distributed optimizer; no offload; alltoall dispatcher",
+    "highlights": "VPP 4, no offload",
+    "tp": 1,
+    "pp": 8,
+    "vpp": 4,
+    "cp": 1,
+    "ep": 8,
+    "etp": 1,
+    "dp": 8,
+    "sequence_parallel": false,
+    "layer_split": {
+     "first": 7,
+     "last": 7
+    },
+    "max_tokens_per_gpu": 8192,
+    "rows_per_microbatch": 1,
+    "recompute": {
+     "granularity": "full",
+     "method": "uniform",
+     "num_layers": 1
+    },
+    "offload": null,
+    "dispatcher": "alltoall"
+   },
+   "result": {
+    "tokens_per_s_per_gpu": 2034.42,
+    "usd_per_million_tokens": 1.08,
+    "step_time_cv_percent": 1.57,
+    "mfu": 0.1285,
+    "mfu_note": null,
+    "active_params": {
+     "count": 10415112192,
+     "source": "https://huggingface.co/MiniMaxAI/MiniMax-M2",
+     "revision": "757303d492a50514c312788b5247a4f696a4c6a3"
+    },
+    "measured": "2026-10-21",
+    "steps_per_run": 20,
+    "window": [
+     5,
+     19
+    ],
+    "window_tokens": 15728640,
+    "runs": 1,
+    "profiler": false,
+    "gpu_hours": 9.07,
+    "gpu_hours_note": "GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the convergence check"
+   },
+   "correctness": {
+    "result": "pass",
+    "summary": "passed; 1 component test passed on this image",
+    "reference": "The layout of slime's `scripts/run-minimax-m2.sh` on 64 GPUs: TP 2 with sequence parallelism, PP 2, EP 8 in place of its EP 4, ETP 1, full recompute (uniform, 1 layer), max 8,192 tokens/GPU (one row per microbatch) and CPU optimizer offload with overlapped copies and the precision-aware optimizer. Model arguments, rows and schedule are the same in both recipes.",
+    "configuration": "pass",
+    "component_tests": [
+     {
+      "test": "precision-aware Adam on the GPU and CPU optimizer offload (fraction 1.0, overlapped copies), each against an FP64 reference",
+      "shape": "one Qwen3.5-397B-A17B MoE layer: hidden 4096, 512 experts, top-10, expert FFN 1024, EP 8, ETP 1, 4,096 tokens per rank",
+      "gpu": "H200",
+      "date": "2026-10-11",
+      "result": "pass",
+      "detail": "worst tensor (update) relative L2 error 5.12e-7 on the GPU and 7.98e-7 offloaded against a bound of 1.0e-3 after one step, and 4.99e-5 and 7.72e-5 against 1.1e-3 after three steps at the recipe's hyperparameters (bound 2 x the default GPU optimizer's error + 1e-3); reconstructed FP32 masters bitwise identical to an arm with explicit FP32 masters, the TE remainder self-test passes and the negative controls fail",
+      "note": "run on this recipe's training image (the same image configuration); the optimizer step is elementwise, so the result holds for every model on the image"
+     }
+    ],
+    "convergence": {
+     "steps": 20,
+     "result": "pass",
+     "correlation": 0.9997869,
+     "final_loss_difference": 0.0018,
+     "pointwise_failures": 0,
+     "note": "candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and rows; the parity probe off in both"
+    },
+    "rules": "argument classes of ATTUNE's skill/scripts/correctness/rules/numerics_list.yaml (amazon-science/attune aff5b81); 20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds"
+   },
+   "env": {
+    "CUDA_DEVICE_MAX_CONNECTIONS": "1",
+    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+    "TORCHINDUCTOR_COMPILE_THREADS": "1",
+    "NCCL_NVLS_ENABLE": "$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)"
+   },
+   "patches": [],
+   "run": "export CUDA_DEVICE_MAX_CONNECTIONS=1\nexport PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\nexport TORCHINDUCTOR_COMPILE_THREADS=1\nexport NCCL_NVLS_ENABLE=$([ \"$NVLINK_COUNT\" -gt 0 ] && echo 1 || echo 0)\n\npython3 -m <slime entry module> --async \\\n  --actor-num-nodes 8 \\\n  --actor-num-gpus-per-node 8 \\\n  ${MODEL_ARGS[@]} \\\n  --hf-checkpoint \"$HF_CKPT\" \\\n  --ref-load \"$TORCH_DIST\" \\\n  --rollout-function-path pretokenized_sft_rollout.generate_rollout \\\n  --prompt-data \"$SFT_DATA\" \\\n  --input-key messages \\\n  --metadata-key metadata \\\n  --num-rollout 20 \\\n  --rollout-batch-size 128 \\\n  --global-batch-size 128 \\\n  --loss-type sft_loss \\\n  --calculate-per-token-loss \\\n  --disable-compute-advantages-and-returns \\\n  --debug-train-only \\\n  --seq-length 8192 \\\n  --tensor-model-parallel-size 1 \\\n  --pipeline-model-parallel-size 8 \\\n  --context-parallel-size 1 \\\n  --expert-model-parallel-size 8 \\\n  --expert-tensor-parallel-size 1 \\\n  --recompute-granularity full \\\n  --recompute-method uniform \\\n  --recompute-num-layers 1 \\\n  --use-dynamic-batch-size \\\n  --max-tokens-per-gpu 8192 \\\n  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 \\\n  --lr-warmup-fraction 0.1 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \\\n  --use-distributed-optimizer \\\n  --use-precision-aware-optimizer \\\n  --attention-dropout 0.0 --hidden-dropout 0.0 \\\n  --accumulate-allreduce-grads-in-fp32 --attention-softmax-in-fp32 \\\n  --attention-backend flash \\\n  --distributed-timeout-minutes 30 \\\n  --tensorboard-dir \"$PROFILE_DIR\" \\\n  --pipeline-model-parallel-layout 'Et|(tt|)*30tL'\n",
+   "notes": "- Starting point: slime's MiniMax-M2 script, `scripts/run-minimax-m2.sh` with `scripts/models/minimax-m2.sh` at\n  slime 0.3.0. slime ships it as a 16-node GRPO script that shares the GPUs with its rollout engine and publishes no\n  tokens/s figure for it. Ported to this workload on 64 H200 with its layout (TP 2 with sequence parallel, PP 2,\n  full recompute, Adam on the CPU) and EP 8 in place of its EP 4, at which each GPU's expert weights and FP32\n  gradients alone exceed its memory, it measured 557.8 tokens/s/GPU; ATTUNE tuned it to 2,034.4 (+265%).\n- `--pipeline-model-parallel-layout 'Et|(tt|)*30tL'` cuts the 62 layers into 32 virtual stages, 4 per pipeline rank:\n  the first holds the embedding and 1 layer, the last 1 layer and the loss, and the 30 in between 2 layers each, so\n  ranks 0 and 7 hold 7 layers and the others 8.\n- The reference recipe runs at TP 2 with sequence parallelism, where slime's MiniMax-M2 layer spec gives the\n  full-width q and k norm weights twice their gradient: each TP rank applies the norm to the gathered q and k, and\n  Megatron sums the gradients of these sequence-parallel weights over TP. The forward pass is unchanged, and this\n  recipe, at TP 1, is not affected.\n"
   },
   {
    "path": "recipes/muse-spark-open-816b-a42b/h200/attune-tp4-pp16-ep8.yaml",

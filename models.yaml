@@ -290,6 +290,25 @@ models:
     model: MiniMax-M2
     slug: minimax-m2
     hf: MiniMaxAI/MiniMax-M2
+    notes: |
+      - Weights: the FP8 checkpoint `MiniMaxAI/MiniMax-M2` (revision 757303d4), cast to BF16 with slime's
+        `tools/fp8_cast_bf16.py` and converted to Megatron `torch_dist` with slime's `tools/convert_hf_to_torch_dist.py`
+        and the recipes' `MODEL_ARGS` on one 8-GPU node. The BF16 directory also holds the checkout's tokenizer files,
+        `chat_template.jinja`, `generation_config.json`, the remote-code files `configuration_minimax_m2.py` and
+        `modeling_minimax_m2.py`, and its `config.json` without `quantization_config`. `--hf-checkpoint` is the BF16
+        directory and `--ref-load` the conversion.
+      - The conversion needs one edit to slime 0.3.0 on Megatron-LM commit 1dcf0daf: in
+        `slime_plugins/mbridge/minimax_m2.py`, `MiniMaxM2Bridge._build_config` passes `rotary_percent=0.5` to
+        `_build_base_config`, which hands it to Megatron's `TransformerConfig`. That class has no `rotary_percent`
+        field, so the conversion stops with a `TypeError`. Delete that keyword argument before converting. The bridge's
+        config only maps the weights; training builds the model from `--rotary-percent 0.5` in `MODEL_ARGS`.
+      - `MODEL_ARGS` come from slime's `scripts/models/minimax-m2.sh` at slime 0.3.0. They select slime's MiniMax-M2 layer
+        spec (`--spec slime_plugins.models.minimax_m2 get_minimax_m2_layer_spec`) and the alltoall dispatcher.
+      - It trains on its own rows, built with `--loss-mask-type minimax_m2` (data/README.md).
+      - Load the checkpoint's config and tokenizer once on each node before the training processes start
+        (`AutoConfig.from_pretrained` and `AutoTokenizer.from_pretrained` on the BF16 directory with
+        `trust_remote_code=True`). Otherwise the processes of a node import the remote-code module
+        `configuration_minimax_m2` at the same time, and one can stop with an `AttributeError` for `MiniMaxM2Config`.
   - family: Inkling
     model: Inkling-Small
     slug: inkling-small
