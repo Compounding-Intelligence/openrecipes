@@ -9,8 +9,9 @@ with --trust-remote-code; --loss-mask-type deepseek_v4 also needs it, because it
 generation spans locate, its header as context; --loss-mask-type gemma4 (gemma4_mask.py) each Gemma 4 model turn's
 content and closing marker; --loss-mask-type glm45 (glm45_mask.py) each GLM-4.5 assistant turn after its header and the
 <|user|> that ends it; --loss-mask-type inkling (inkling_mask.py) each Inkling assistant answer after its
-<|message_model|> header; --loss-mask-type minimax_m2 (minimax_m2_mask.py) each MiniMax-M2 assistant turn's content and
-closing EOS.
+<|message_model|> header; --loss-mask-type kimi_k25 (kimi_k25_mask.py) each Kimi K2.5/K2.6 assistant turn's content
+and closing <|im_end|>, the only mask that accepts a tokenizer without offsets (Kimi's tiktoken tokenizer);
+--loss-mask-type minimax_m2 (minimax_m2_mask.py) each MiniMax-M2 assistant turn's content and closing EOS.
 """
 
 import argparse
@@ -47,7 +48,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--loss-mask-type", default="qwen3_5",
                         help="a slime MultiTurnLossMaskGenerator type, deepseek_v4 (dsv4_mask.py), muse_spark "
                              "(muse_spark_mask.py), gemma4 (gemma4_mask.py), glm45 (glm45_mask.py), inkling "
-                             "(inkling_mask.py) or minimax_m2 (minimax_m2_mask.py)")
+                             "(inkling_mask.py), kimi_k25 (kimi_k25_mask.py) or minimax_m2 (minimax_m2_mask.py)")
     parser.add_argument("--sequence-length", type=int, default=4096)
     parser.add_argument("--rows", type=int, default=6400)
     parser.add_argument("--seed", type=int, default=42)
@@ -76,6 +77,7 @@ def tokenizer_digest(path: Path) -> tuple[str, dict[str, str]]:
         "tokenizer_config.json",
         "special_tokens_map.json",
         "added_tokens.json",
+        "tiktoken.model",
     ):
         candidate = path / name
         if not candidate.is_file():
@@ -279,7 +281,7 @@ def main() -> None:
 
         muse_spark_mask.register_config()
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer, trust_remote_code=args.trust_remote_code, use_fast=True)
-    if not tokenizer.is_fast:
+    if not tokenizer.is_fast and args.loss_mask_type != "kimi_k25":
         raise ValueError("A fast tokenizer is required for assistant-mask alignment")
     tokenizer_size = len(tokenizer)
     if args.loss_mask_type == "deepseek_v4":
@@ -302,6 +304,10 @@ def main() -> None:
         from inkling_mask import InklingLossMaskGenerator
 
         mask_generator = InklingLossMaskGenerator(tokenizer, args.tokenizer)
+    elif args.loss_mask_type == "kimi_k25":
+        from kimi_k25_mask import KimiK25LossMaskGenerator
+
+        mask_generator = KimiK25LossMaskGenerator(tokenizer, args.tokenizer)
     elif args.loss_mask_type == "minimax_m2":
         from minimax_m2_mask import MiniMaxM2LossMaskGenerator
 

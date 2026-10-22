@@ -13,6 +13,7 @@ tokens. This directory holds what rebuilds and checks those rows.
 | `gemma4_mask.py` | the gemma4 loss mask the builder uses with `--loss-mask-type gemma4`, for the Gemma 4 recipes |
 | `glm45_mask.py` | the glm45 loss mask the builder uses with `--loss-mask-type glm45`, for the GLM-4.5 recipes |
 | `inkling_mask.py` | the inkling loss mask the builder uses with `--loss-mask-type inkling`, for the Inkling recipes |
+| `kimi_k25_mask.py` | the kimi_k25 loss mask the builder uses with `--loss-mask-type kimi_k25`, for the Kimi K2.6 recipes |
 | `minimax_m2_mask.py` | the minimax_m2 loss mask the builder uses with `--loss-mask-type minimax_m2`, for the MiniMax-M2 recipes |
 | `patch_glm5_mask.py` | adds a glm5 loss mask to slime's `mask_utils.py`, in place; run it before a GLM-5.2 or GLM-4.7-Flash build |
 | `patch_gptoss_mask.py` | adds a gpt_oss (harmony) loss mask to slime's `mask_utils.py`, in place; run it before a gpt-oss build |
@@ -35,8 +36,11 @@ validates every row, and writes the manifest with the source, tokenizer and outp
 - A slime checkout on `PYTHONPATH`. The builder imports slime's `Dataset`, `MultiTurnLossMaskGenerator` and
   `load_processor`. Upstream slime (<https://github.com/THUDM/slime>) has the `qwen3_5` loss mask; GLM-5.2 and
   GLM-4.7-Flash need `patch_glm5_mask.py` and gpt-oss `patch_gptoss_mask.py`. The `deepseek_v4`, `gemma4`, `glm45`,
-  `inkling` and `minimax_m2` masks need no slime generator; the loader check then uses miles when slime is absent. The
-  Gemma 4 and Inkling loader checks load the checkpoint's processor, which needs `torch` and `torchvision`.
+  `inkling`, `kimi_k25` and `minimax_m2` masks need no slime generator; the loader check then uses miles when slime is
+  absent. The Gemma 4 and Inkling loader checks load the checkpoint's processor, which needs `torch` and `torchvision`.
+- The `kimi_k25` mask needs `tiktoken` and `--trust-remote-code`: Kimi's tokenizer is the checkpoint's own
+  `tokenization_kimi.py`, a tiktoken tokenizer without offsets, and this is the one mask the builder runs with such a
+  tokenizer.
 - The `muse_spark` mask needs a miles checkout at commit `bfdcff0e` and Megatron-LM on `PYTHONPATH`: it registers
   miles' Muse Spark config with transformers to load the checkpoint's tokenizer. That import loads Megatron and
   Transformer Engine, so the build needs a host with a CUDA driver; one GPU is enough.
@@ -284,6 +288,27 @@ Run the build once per tokenizer.
      --source-batch-size 2048 --write-batch-size 64 --min-token-entropy-bits 8.0
    ```
 
+   The Kimi K2.6 recipes use `kimi-k26-tulu3-fixed8192-v1`, built with the checkpoint of `moonshotai/Kimi-K2.6`
+   (revision `7eb5002f6aadc958aed6a9177b7ed26bb94011bb`). Its template renders an assistant message without reasoning
+   as `<|im_assistant|>assistant<|im_middle|><think></think>`, the content, then `<|im_end|>`; the header and the empty
+   think block are also the prompt the template builds in non-thinking mode, and `<|im_end|>` is the checkpoint's
+   end-of-generation token. `--loss-mask-type kimi_k25` (`kimi_k25_mask.py`) finds each assistant message's turn by
+   rendering growing prefixes of the conversation and supervises the content and the closing `<|im_end|>`. It reads
+   only each message's role and content, and skips a conversation whose content holds special-token text (2 of the
+   68,168 conversations read in this build) or that has a tool role or tool definitions:
+
+   ```bash
+   python3 -u generate_fixed_sft.py \
+     --input tulu-3-sft-mixture/data \
+     --output kimi-k26-tulu3-fixed8192-v1/train.parquet \
+     --tokenizer <Kimi-K2.6 checkpoint> \
+     --source-dataset allenai/tulu-3-sft-mixture \
+     --source-revision b14afda60f1bbebe55d5d2fa1e4df5042f97f8be \
+     --input-key messages --source-key source --loss-mask-type kimi_k25 --trust-remote-code \
+     --sequence-length 8192 --rows 6400 --seed 42 \
+     --source-batch-size 2048 --write-batch-size 64 --min-token-entropy-bits 8.0
+   ```
+
    The MiniMax-M2 recipes use their own set, built with the checkpoint of `MiniMaxAI/MiniMax-M2` (revision
    `757303d492a50514c312788b5247a4f696a4c6a3`). The template opens the conversation with `]~!b[` and a system turn (the
    template's default identity line when the conversation has no system message), renders an assistant message as
@@ -355,4 +380,8 @@ tokens (default 8,192); set it in the environment of every pod. The adapter refu
 - The GLM-4.5 set was built with transformers 5.8.1, tokenizers 0.22.2 and pyarrow 23.0.1, without remote code: the
   tokenizer has no custom code. Rebuilt with this directory's builder from the same inputs and versions, it matched byte
   for byte.
+- The Kimi K2.6 set was built with transformers 5.12.1, tokenizers 0.22.2, pyarrow 25.0.0 and tiktoken 0.13.0, the
+  versions of the training image, with the tokenizer's remote code (`tokenization_kimi.py`). Its manifest hashes
+  `tiktoken.model` and `tokenizer_config.json`; the checkpoint has no `tokenizer.json`. Rebuilt with this directory's
+  builder from the same inputs and versions, it matched byte for byte.
 - `row_hash` hashes the tokens as native 32-bit integers, so it assumes a little-endian host (x86-64 or ARM64).
