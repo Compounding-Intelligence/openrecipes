@@ -17,10 +17,12 @@ applies to its tokens as a matmul.
 A quantized integer weight pairs with its scale tensor (X.weight with X.scale, X.weight_scale and the like; X_blocks
 with X_scales). It holds FP4 values packed two per byte, and counts at twice its stored size, when the scale is one byte
 per block of 16 or 32 values ([..., n, k] weight bytes with [..., 2k/B] or [..., n] scales); otherwise it holds one
-value per byte. The count stops with an error on any other integer tensor of two or more dimensions, and on routed
-experts without an expert count in the config. It also stops when the stored bytes differ from the index's total_size,
-unless the index's weight map names exactly the tensors it read: some indexes record total_size another way
-(GLM-4.7-Flash's counts elements). Prints JSON.
+value per byte. A compressed-tensors pack-quantized weight (X.weight_packed with X.weight_scale, as Kimi K2.5/K2.6's
+INT4 experts) holds 32 / num_bits values per 32-bit integer, with num_bits from the config's quantization_config. The
+count stops with an error on any other integer tensor of two or more dimensions, and on routed experts without an
+expert count in the config. It also stops when the stored bytes differ from the index's total_size, unless the index's
+weight map names exactly the tensors it read: some indexes record total_size another way (GLM-4.7-Flash's counts
+elements). Prints JSON.
 """
 import argparse
 import json
@@ -36,13 +38,15 @@ SKIP = (re.compile(r"(^|\.)visual\."), re.compile(r"(^|\.)vision_tower\."), re.c
         re.compile(r"(^|\.)(audio_tower|vision_adapter|vision_projection)\."),   # Muse Spark's other modalities
         re.compile(r"(^|\.)embed_(vision|audio)\."),   # Gemma's projections of image and audio tokens
         re.compile(r"(^|\.)audio\."),   # Inkling's audio projection
+        re.compile(r"(^|\.)mm_projector\."),   # Kimi K2.5/K2.6's vision projection
         re.compile(r"scales?(_inv)?$"))   # quantization scales of FP8/FP4/INT8 checkpoints
 EMBED = re.compile(r"(^|\.)(embed|embed_tokens|embeddings|wte|word_embeddings|embed_in|tok_embeddings)\.weight$")
 POSITION = re.compile(r"(^|\.)(ape|pos_embed|position_embeddings?|wpe)(\.weight)?$")   # added to activations
 OUTPUT = re.compile(r"(^|\.)(lm_)?head\.weight$")
 INTEGER = ("I8", "U8", "I16", "U16", "I32", "U32", "I64", "U64")
 INDEX = ("I64",)   # 64-bit integers hold indices (token-to-expert tables), never packed weights
-COMPANIONS = {".weight": (".scale", ".scale_inv", ".weight_scale", ".weight_scale_inv"), "_blocks": ("_scales",)}
+COMPANIONS = {".weight": (".scale", ".scale_inv", ".weight_scale", ".weight_scale_inv"), "_blocks": ("_scales",),
+              ".weight_packed": (".weight_scale",)}
 FP4_SCALES = ("F8_E8M0", "F8_E4M3", "U8")   # one-byte block scales (MXFP4, NVFP4; gpt-oss stores E8M0 as U8)
 BYTES = {"BF16": 2, "F16": 2, "F32": 4, "F64": 8, "F8_E4M3": 1, "F8_E5M2": 1, "F8_E8M0": 1, "I64": 8, "U64": 8,
          "I32": 4, "U32": 4, "I16": 2, "U16": 2, "I8": 1, "U8": 1, "BOOL": 1}
@@ -79,8 +83,9 @@ def headers(src, rev):
     yield None, index
 
 
-def values_per_element(name, t, tensors):
-    """2 for an FP4 weight packed two per byte, 1 for another quantized integer weight, None without a scale tensor."""
+def values_per_element(name, t, tensors, packed=None):
+    """2 for an FP4 weight packed two per byte, `packed` for a pack-quantized one, 1 for another quantized integer
+    weight, None without a scale tensor."""
     for suffix, scales in COMPANIONS.items():
         if not name.endswith(suffix):
             continue
@@ -88,11 +93,23 @@ def values_per_element(name, t, tensors):
             sc = tensors.get(name[:-len(suffix)] + sfx)
             if sc is None:
                 continue
+            if suffix == ".weight_packed":
+                return packed if t["dtype"] == "I32" else None
             w, s = t["shape"], sc["shape"]
             blocks = s == w[:-1] and 2 * w[-1] in (16, 32)
             rows = len(s) == len(w) and s[:-1] == w[:-1] and any(2 * w[-1] == s[-1] * b for b in (16, 32))
             return 2 if t["dtype"] in ("I8", "U8") and sc["dtype"] in FP4_SCALES and (blocks or rows) else 1
     return None
+
+
+def pack_factor(cfg, text):
+    """Values per 32-bit integer in a compressed-tensors pack-quantized checkpoint (32 / num_bits), else None."""
+    quant = text.get("quantization_config") or cfg.get("quantization_config") or {}
+    bits = {(g.get("weights") or {}).get("num_bits") for g in (quant.get("config_groups") or {}).values()}
+    if quant.get("format") != "pack-quantized" or len(bits) != 1:
+        return None
+    (n,) = bits
+    return 32 // n if isinstance(n, int) and n > 0 else None
 
 
 def main(argv=None):
@@ -106,6 +123,7 @@ def main(argv=None):
     k = (text.get("num_experts_per_tok") or text.get("experts_per_token") or text.get("top_k_experts")
          or 1)   # dense models have no routed experts
     e = text.get("n_routed_experts") or text.get("num_experts") or text.get("num_local_experts") or 1
+    packed = pack_factor(cfg, text)
     total = nbytes = active = 0
     parts = {"routed_experts": 0, "other_matmul": 0, "output": 0, "excluded": 0}
     embed = 0
@@ -124,7 +142,7 @@ def main(argv=None):
         skipped = any(p.search(name) for p in SKIP) or bool(m and int(m.group(1)) >= layers)
         index_table = False
         if t["dtype"] in INTEGER and len(t["shape"]) >= 2 and not skipped:
-            per = values_per_element(name, t, tensors)
+            per = values_per_element(name, t, tensors, packed)
             if per is None and t["dtype"] not in INDEX:
                 sys.exit("%s: %s tensor %s has no scale tensor and is not an index table" % (name, t["dtype"], t["shape"]))
             index_table = per is None

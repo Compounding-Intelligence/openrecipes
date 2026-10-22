@@ -159,6 +159,27 @@ models:
     model: Kimi-K2.6
     slug: kimi-k2.6
     hf: moonshotai/Kimi-K2.6
+    notes: |
+      - Weights: `moonshotai/Kimi-K2.6` (revision 7eb5002f) stores the routed experts in INT4 (compressed-tensors, group
+        32) and the other weights in BF16. The recipes train a BF16 copy, written by miles'
+        `tools/convert_kimi_int4_to_bf16.py` at commit ee36bb2a (the launcher's `prepare` step), which dequantizes the
+        experts; the script at 78527b91 differs only in leaving `quantization_config` in the output `config.json`. miles
+        loads the copy through Megatron-Bridge (`--megatron-to-hf-mode bridge --model-name kimi_k25`) with no
+        `torch_dist` conversion, so `--hf-checkpoint` and `--ref-load` are both its directory.
+      - `MODEL_ARGS` come from miles' `scripts/models/kimi-k25.py` at commit 78527b91, printed by
+        `miles/utils/external_utils/model_args_utils.py kimi-k25`; run the command from a miles checkout at that commit,
+        in the `radixark/miles` v0.1.0 image, whose Megatron-Bridge (commit 7f0fb345) holds the Kimi K2.5 bridge. miles
+        has no K2.6 model file: its K2.5 launcher and model page cover both models, and K2.6's `config.json` differs
+        from K2.5's (revision 4d01dfe0) only in `eos_token_id`.
+      - It trains on its own rows, built with `--loss-mask-type kimi_k25 --trust-remote-code` (data/README.md).
+      - The bridge builds the whole vision-language model, so the first pipeline stage also holds the vision tower and
+        its projector (0.47B parameters), which text rows never reach.
+      - The checkpoint's `modeling_deepseek.py` imports `is_torch_fx_available`, which transformers 5 removed.
+        Megatron-Bridge at 7f0fb345 restores it (`conversion/transformers_compat.py`) before it loads that file, which
+        fails to import outside the bridge under transformers 5.12.1.
+      - 3 of the campaign's 23 runs stopped at actor initialization with an ImportError or AttributeError in the
+        checkpoint's tokenizer code, loaded from the Hugging Face modules cache (`~/.cache/huggingface/modules`) that
+        the ranks of a node write at the same time; the one relaunched unchanged ran through.
   - family: Kimi
     model: Kimi-K2.5
     slug: kimi-k2.5

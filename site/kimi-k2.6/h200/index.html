@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training Kimi-K2.6 on H200 | OpenRecipes</title>
+<meta name="description" content="Verified training recipes for Kimi-K2.6 on H200: best 353.4 tokens/s per GPU on 256 GPUs, $6.22 per million tokens.">
+<link rel="canonical" href="https://openrecipes.ai/kimi-k2.6/h200/">
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../style.css">
+<script src="../../app.js" defer></script>
+</head>
+<body>
+<header class="nav"><a class="brand" href="../../"><svg class="mark" width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><path d="M25.85 14.26A10 10 0 1 1 21 7.34" fill="none" stroke="#0e7490" stroke-width="4" stroke-linecap="round"/><circle cx="25.2" cy="7.6" r="2.6" fill="#0f172a"/></svg>OpenRecipes</a><nav class="links" aria-label="Site"><a href="../../#models">Models</a><a href="../../protocol">Protocol</a><a href="../../submit">Submit</a><a href="https://github.com/Compounding-Intelligence/openrecipes">GitHub</a></nav></header>
+<main class="wrap">
+<a class="back" href="../../#models">&lsaquo; All models</a>
+<section class="hud rank"><div class="ml">Kimi</div><h1>Training Kimi-K2.6 on H200</h1><div class="ml">Ranked by tokens/s per GPU &middot; 8,192-token SFT rows &middot; global batch 128 &middot; BF16</div><div class="tablewrap"><table class="stack"><thead><tr><th>#</th><th>Tokens/s per GPU</th><th>$ / 1M tokens</th><th>GPUs</th><th>Layout</th><th>Measured</th><th>Author</th><th></th></tr></thead><tbody><tr><td class="rk" data-label="#"><span class="cv">#1</span></td><td class="tp" data-label="Tokens/s per GPU"><span class="cv"><span class="v hi">353.4</span><span class="gauge" title="100% of the best"><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b></span></span></td><td class="n hi" data-label="$ / 1M tokens"><span class="cv">$6.22</span></td><td class="n" data-label="GPUs"><span class="cv">256</span></td><td data-label="Layout"><span class="cv">TP8 PP16 EP16 DP2<br><small>PP 16, no recompute, expandable segments off</small></span></td><td class="nw" data-label="Measured"><span class="cv">2026-10-22</span></td><td data-label="Author"><span class="cv"><a href="https://arxiv.org/abs/2610.17528">ATTUNE</a></span></td><td class="go" data-label=""><span class="cv"><a href="#attune-tp8-pp16-ep16">Recipe&nbsp;&rsaquo;</a></span></td></tr></tbody></table></div></section>
+<h2>Notes for Kimi-K2.6</h2><div class="card notes prose"><ul><li>Weights: <code>moonshotai/Kimi-K2.6</code> (revision 7eb5002f) stores the routed experts in INT4 (compressed-tensors, group 32) and the other weights in BF16. The recipes train a BF16 copy, written by miles&#x27; <code>tools/convert_kimi_int4_to_bf16.py</code> at commit ee36bb2a (the launcher&#x27;s <code>prepare</code> step), which dequantizes the experts; the script at 78527b91 differs only in leaving <code>quantization_config</code> in the output <code>config.json</code>. miles loads the copy through Megatron-Bridge (<code>--megatron-to-hf-mode bridge --model-name kimi_k25</code>) with no <code>torch_dist</code> conversion, so <code>--hf-checkpoint</code> and <code>--ref-load</code> are both its directory.</li><li><code>MODEL_ARGS</code> come from miles&#x27; <code>scripts/models/kimi-k25.py</code> at commit 78527b91, printed by <code>miles/utils/external_utils/model_args_utils.py kimi-k25</code>; run the command from a miles checkout at that commit, in the <code>radixark/miles</code> v0.1.0 image, whose Megatron-Bridge (commit 7f0fb345) holds the Kimi K2.5 bridge. miles has no K2.6 model file: its K2.5 launcher and model page cover both models, and K2.6&#x27;s <code>config.json</code> differs from K2.5&#x27;s (revision 4d01dfe0) only in <code>eos_token_id</code>.</li><li>It trains on its own rows, built with <code>--loss-mask-type kimi_k25 --trust-remote-code</code> (data/README.md).</li><li>The bridge builds the whole vision-language model, so the first pipeline stage also holds the vision tower and its projector (0.47B parameters), which text rows never reach.</li><li>The checkpoint&#x27;s <code>modeling_deepseek.py</code> imports <code>is_torch_fx_available</code>, which transformers 5 removed. Megatron-Bridge at 7f0fb345 restores it (<code>conversion/transformers_compat.py</code>) before it loads that file, which fails to import outside the bridge under transformers 5.12.1.</li><li>3 of the campaign&#x27;s 23 runs stopped at actor initialization with an ImportError or AttributeError in the checkpoint&#x27;s tokenizer code, loaded from the Hugging Face modules cache (<code>~/.cache/huggingface/modules</code>) that the ranks of a node write at the same time; the one relaunched unchanged ran through.</li></ul><p class="muted small">The steps every recipe shares: <a href="../../protocol#run">Running a recipe</a>.</p></div>
+<h2>Recipes</h2>
+<details class="card recipe" id="attune-tp8-pp16-ep16" open>
+<summary><span class="rank">#1</span><span class="slug">attune-tp8-pp16-ep16</span><span class="tps">353.4 tokens/s/GPU</span><span class="muted small">TP8 PP16 EP16 DP2</span><span class="hl">PP 16, no recompute, expandable segments off</span></summary>
+<div class="body">
+<div class="prose"><ul><li>Starting point: miles&#x27; Kimi launcher, <code>scripts/run_kimi_k25.py</code> with <code>scripts/models/kimi-k25.py</code> at miles 0.1.0 (model page <a href="https://miles.radixark.com/docs/models/kimi/kimi-k2.5">https://miles.radixark.com/docs/models/kimi/kimi-k2.5</a>, &quot;Kimi K2.5 / K2.6&quot;). miles publishes it as a GRPO recipe validated on 32 nodes of 8 H200 that trains the INT4 checkpoint with fake quantization and Adam on the CPU, with no tokens/s figure. Ported to this workload in BF16 with its layout (TP 8 with sequence parallel, PP 8, CP 4, EP 32, full recompute) and Adam on the GPU on 256 H200, it measured 149.6 tokens/s/GPU (149.8 in an earlier run of the same configuration); ATTUNE tuned it to 353.4 (+136%). A 23-step run of this recipe, profiled on its last step, measured 354.6 over steps 5-19.</li><li>Each pipeline stage spans two nodes (TP 8 x DP 2), and EP 16 spreads each MoE layer&#x27;s experts over those 16 GPUs. With 16 stages each GPU holds 2 to 4 of the 61 layers, which leaves the memory to drop both recompute and context parallelism; the ranks the measured run&#x27;s log shows use up to 117 GB of 140 before the end-of-step cache release.</li><li>With <code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True</code>, as in the reference run, a tuning run of this layout measured 216.3 tokens/s/GPU. miles empties the CUDA cache after every step (<code>clear_memory</code> in <code>miles/utils/memory_utils.py</code>), so the allocator takes its memory from the driver again each step.</li></ul></div><dl class="facts"><dt>Author</dt><dd><a href="https://arxiv.org/abs/2610.17528">ATTUNE</a> (<a href="#cite">cite</a>)</dd><dt>GPUs</dt><dd>256 x H200 141 GB (AWS p5en.48xlarge, 8 per node)</dd><dt>Layout</dt><dd>TP 8, PP 16 (first stage 3 layers, last stage 2, the 14 others 4), CP 1, EP 16, ETP 1, DP 2, sequence parallel; one 8,192-token row per microbatch (max 8,192 tokens/GPU); no recompute; precision-aware distributed optimizer, no offload; alltoall dispatcher; expandable segments off</dd><dt>Tokens/s per GPU</dt><dd>353.40</dd><dt>$ / 1M tokens</dt><dd>$6.22</dd><dt>MFU</dt><dd>6.8% (N = 31,686,066,176 active parameters per token)</dd><dt>Step-time CV</dt><dd>1.58%</dd><dt>Convergence check</dt><dd>correlation 0.9999977, final loss difference 0.00013, 0 pointwise failures over 20 steps</dd><dt>Measured</dt><dd>2026-10-22</dd><dt>GPU-hours</dt><dd>63.72</dd><dt>Rows</dt><dd><code>kimi-k26-tulu3-fixed8192-v1</code> (rows_sha256 <code>a24c09c268a1256482a379cee91397a7ff3b2e845d8d1a76eff023da753f15f2</code>)</dd></dl>
+<div class="cols"><div><h3>Stack</h3><dl class="facts"><dt>framework</dt><dd>miles 0.1.0 (radixark/miles commit 78527b91, a slime fork), no local changes</dd><dt>megatron lm</dt><dd>radixark/Megatron-LM commit 37f91617 (megatron-core 0.16.0rc0), no local changes</dd><dt>megatron bridge</dt><dd>0.5.0 (commit 7f0fb345; the Kimi K2.5 vision-language bridge, with the transformers 5 shim for the checkpoint&#x27;s model code)</dd><dt>transformer engine</dt><dd>2.17.0</dd><dt>pytorch</dt><dd>2.11.0 (CUDA 13.0 build)</dd><dt>cuda</dt><dd>13.0</dd><dt>nccl</dt><dd>2.28.9 (CUDA 13.0 build; printed by the measured run)</dd><dt>deepep</dt><dd>1.2.1 (installed; the alltoall dispatcher does not use it)</dd><dt>python</dt><dd>3.12.3</dd><dt>transformers</dt><dd>5.12.1</dd><dt>network</dt><dd>8 GPUs per node, EFA (aws-ofi-nccl 1.20), 3.2 Tb/s RDMA per node</dd></dl></div><div><h3>Environment</h3><ul class="env"><li><code>CUDA_DEVICE_MAX_CONNECTIONS=1</code></li><li><code>PYTORCH_CUDA_ALLOC_CONF=expandable_segments:False</code></li><li><code>NCCL_NVLS_ENABLE=1</code></li><li><code>NCCL_TIMEOUT=3600</code></li><li><code>FI_PROVIDER=efa</code></li><li><code>FI_EFA_USE_DEVICE_RDMA=1</code></li></ul></div></div>
+<div class="filebar"><span class="k">Command</span><span class="acts"><a class="btn o" href="../../protocol#run">How to run</a><button type="button" class="btn o" data-copy="run-attune-tp8-pp16-ep16">Copy</button></span></div>
+<pre id="run-attune-tp8-pp16-ep16">export CUDA_DEVICE_MAX_CONNECTIONS=1
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:False
+export NCCL_NVLS_ENABLE=1
+export NCCL_TIMEOUT=3600
+export FI_PROVIDER=efa
+export FI_EFA_USE_DEVICE_RDMA=1
+
+MODEL_ARGS_LINE=&quot;$(python3 miles/utils/external_utils/model_args_utils.py kimi-k25)&quot;
+read -ra MODEL_ARGS &lt;&lt;&lt; &quot;$MODEL_ARGS_LINE&quot;
+python3 train.py \
+  --actor-num-nodes 32 \
+  --actor-num-gpus-per-node 8 \
+  --num-gpus-per-node 8 \
+  &quot;${MODEL_ARGS[@]}&quot; \
+  --hf-checkpoint &quot;$HF_CKPT&quot; \
+  --ref-load &quot;$HF_CKPT&quot; \
+  --megatron-to-hf-mode bridge \
+  --model-name kimi_k25 \
+  --loss-type sft_loss \
+  --calculate-per-token-loss \
+  --disable-compute-advantages-and-returns \
+  --debug-train-only \
+  --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+  --prompt-data &quot;$SFT_DATA&quot; \
+  --input-key messages \
+  --metadata-key metadata \
+  --num-rollout 20 \
+  --rollout-batch-size 128 \
+  --global-batch-size 128 \
+  --tensor-model-parallel-size 8 \
+  --sequence-parallel \
+  --pipeline-model-parallel-size 16 \
+  --decoder-first-pipeline-num-layers 3 \
+  --decoder-last-pipeline-num-layers 2 \
+  --context-parallel-size 1 \
+  --expert-model-parallel-size 16 \
+  --expert-tensor-parallel-size 1 \
+  --use-dynamic-batch-size \
+  --max-tokens-per-gpu 8192 \
+  --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 --lr-warmup-fraction 0.1 \
+  --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+  --use-precision-aware-optimizer \
+  --use-distributed-optimizer \
+  --attention-dropout 0.0 --hidden-dropout 0.0 \
+  --accumulate-allreduce-grads-in-fp32 \
+  --attention-softmax-in-fp32 \
+  --attention-backend flash \
+  --no-check-for-nan-in-loss-and-grad \
+  --no-gradient-accumulation-fusion
+</pre>
+<div class="filebar"><span class="k">recipes/kimi-k2.6/h200/attune-tp8-pp16-ep16.yaml</span><span class="acts"><a class="btn o" href="../../recipes/kimi-k2.6/h200/attune-tp8-pp16-ep16.yaml" download>Download</a><a class="btn o" href="https://github.com/Compounding-Intelligence/openrecipes/blob/main/recipes/kimi-k2.6/h200/attune-tp8-pp16-ep16.yaml">GitHub</a><button type="button" class="btn o" data-copy="file-attune-tp8-pp16-ep16">Copy</button></span></div>
+<pre class="file" id="file-attune-tp8-pp16-ep16"># recipes/kimi-k2.6/h200/attune-tp8-pp16-ep16.yaml
+# An OpenRecipes recipe; the fields are documented in schema/recipe.schema.yaml.
+schema_version: 1
+model: Kimi-K2.6
+gpu:
+  type: H200
+  memory_gb: 141
+  count: 256
+  per_node: 8
+  instance: AWS p5en.48xlarge
+author:
+  name: ATTUNE
+  url: https://arxiv.org/abs/2610.17528
+status: verified
+stack:
+  framework: miles 0.1.0 (radixark/miles commit 78527b91, a slime fork), no local changes
+  megatron_lm: radixark/Megatron-LM commit 37f91617 (megatron-core 0.16.0rc0), no local changes
+  megatron_bridge: 0.5.0 (commit 7f0fb345; the Kimi K2.5 vision-language bridge, with the transformers 5 shim for the
+    checkpoint&#x27;s model code)
+  transformer_engine: 2.17.0
+  pytorch: 2.11.0 (CUDA 13.0 build)
+  cuda: &#x27;13.0&#x27;
+  nccl: 2.28.9 (CUDA 13.0 build; printed by the measured run)
+  deepep: 1.2.1 (installed; the alltoall dispatcher does not use it)
+  python: 3.12.3
+  transformers: 5.12.1
+  network: 8 GPUs per node, EFA (aws-ofi-nccl 1.20), 3.2 Tb/s RDMA per node
+  source: &#x27;version check of the measured run&#x27;&#x27;s training image (same digest), 2026-10-22: miles and Megatron-LM git commits
+    (clean trees), installed TE, PyTorch, megatron-core, Megatron-Bridge, DeepEP and transformers, Python, and miles&#x27;&#x27;
+    Kimi K2.5 launcher and model arguments; NCCL from the measured run&#x27;&#x27;s log. The image is radixark/miles v0.1.0 (amd64
+    digest sha256:45ae7833f97a01369dbd8f336784830a87d94587bc010c7b8065291cc15cd7ca) with EFA 1.49 added&#x27;
+workload:
+  row_tokens: 8192
+  rows: SFT conversations
+  global_batch: 128
+  precision: bf16
+  dataset:
+    name: Tulu 3 SFT mixture
+    source: allenai/tulu-3-sft-mixture
+    revision: b14afda60f1bbebe55d5d2fa1e4df5042f97f8be
+    license: ODC-By 1.0
+    rows_sha256: a24c09c268a1256482a379cee91397a7ff3b2e845d8d1a76eff023da753f15f2
+    build:
+      name: kimi-k26-tulu3-fixed8192-v1
+      tokenizer: Kimi-K2.6 (revision 7eb5002f6aadc958aed6a9177b7ed26bb94011bb; tiktoken.model sha256 b6c497a7469b33ced9c38afb1ad6e47f03f5e5dc05f15930799210ec050c5103;
+        tokenizer_config.json sha256 12fcab43d2b6068f46769f5ff373960bf7c17a94d7abbc50e2491306b2f6cf58; tokenization_kimi.py
+        sha256 2ab1ffb6f5c4380758bd8d9752ff1041c09024182676a4311528fbdf92fb9599; chat_template.jinja sha256 8bf859698fd4781c0e1e1c63ce74422aab27e53ccc5f47116317c64cda06132f)
+      loss_mask: kimi_k25
+      rows: 6400
+      row_tokens: 8192
+      padding_tokens: 0
+      seed: 42
+      packing: source conversations in a seeded global permutation, concatenated with an EOS token ([EOS]) between them
+        and cut into consecutive 8,192-token rows; rows without supervised targets are skipped
+      supervised_token_ratio: 0.666
+      parquet_sha256: 7ee719299ac3ca0a386f79f0b18c11094b65416571436874b84189135f14cc69
+      parquet_bytes: 91955447
+      builder: data/generate_fixed_sft.py with --loss-mask-type kimi_k25 --trust-remote-code (data/README.md)
+layout:
+  label: TP8 PP16 EP16 DP2
+  summary: TP 8, PP 16 (first stage 3 layers, last stage 2, the 14 others 4), CP 1, EP 16, ETP 1, DP 2, sequence parallel;
+    one 8,192-token row per microbatch (max 8,192 tokens/GPU); no recompute; precision-aware distributed optimizer, no
+    offload; alltoall dispatcher; expandable segments off
+  highlights: PP 16, no recompute, expandable segments off
+  tp: 8
+  pp: 16
+  vpp: 1
+  cp: 1
+  ep: 16
+  etp: 1
+  dp: 2
+  sequence_parallel: true
+  layer_split:
+    first: 3
+    last: 2
+  max_tokens_per_gpu: 8192
+  rows_per_microbatch: 1
+  recompute: null
+  offload: null
+  dispatcher: alltoall
+result:
+  tokens_per_s_per_gpu: 353.4
+  usd_per_million_tokens: 6.22
+  step_time_cv_percent: 1.58
+  mfu: 0.0679
+  mfu_note: null
+  active_params:
+    count: 31686066176
+    source: https://huggingface.co/moonshotai/Kimi-K2.6
+    revision: 7eb5002f6aadc958aed6a9177b7ed26bb94011bb
+  measured: 2026-10-22
+  steps_per_run: 20
+  window:
+  - 5
+  - 19
+  window_tokens: 15728640
+  runs: 1
+  profiler: false
+  gpu_hours: 63.72
+  gpu_hours_note: GPUs x (scheduler admission to finish), including startup; the same run is the candidate arm of the
+    convergence check
+correctness:
+  result: pass
+  summary: passed
+  reference: &#x27;miles&#x27;&#x27; layout for Kimi K2.5 and K2.6 (`scripts/run_kimi_k25.py`, the layout it validated on 32 nodes of
+    8 H200), here in BF16 without INT4 fake quantization and with Adam on the GPU: TP 8 with sequence parallel, PP 8 (5
+    layers on the last stage), CP 4, EP 32, ETP 1, DP 1, full recompute (uniform, 1 layer) and max 4,096 tokens/GPU (two
+    rows per microbatch), with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`. Model arguments, rows and schedule
+    are the same in both recipes.&#x27;
+  configuration: pass
+  component_tests: []
+  convergence:
+    steps: 20
+    result: pass
+    correlation: 0.9999977
+    final_loss_difference: 0.00013
+    pointwise_failures: 0
+    note: &#x27;candidate arm: the measured run; reference arm: a 20-step run of the reference recipe on the same image and
+      rows; the parity probe off in both&#x27;
+  rules: argument classes of ATTUNE&#x27;s skill/scripts/correctness/rules/numerics_list.yaml (amazon-science/attune aff5b81);
+    20-step check by Megatron-Bridge validate_convergence with its pipeline thresholds
+env:
+  CUDA_DEVICE_MAX_CONNECTIONS: &#x27;1&#x27;
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:False
+  NCCL_NVLS_ENABLE: &#x27;1&#x27;
+  NCCL_TIMEOUT: &#x27;3600&#x27;
+  FI_PROVIDER: efa
+  FI_EFA_USE_DEVICE_RDMA: &#x27;1&#x27;
+patches: []
+run: |
+  export CUDA_DEVICE_MAX_CONNECTIONS=1
+  export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:False
+  export NCCL_NVLS_ENABLE=1
+  export NCCL_TIMEOUT=3600
+  export FI_PROVIDER=efa
+  export FI_EFA_USE_DEVICE_RDMA=1
+
+  MODEL_ARGS_LINE=&quot;$(python3 miles/utils/external_utils/model_args_utils.py kimi-k25)&quot;
+  read -ra MODEL_ARGS &lt;&lt;&lt; &quot;$MODEL_ARGS_LINE&quot;
+  python3 train.py \
+    --actor-num-nodes 32 \
+    --actor-num-gpus-per-node 8 \
+    --num-gpus-per-node 8 \
+    &quot;${MODEL_ARGS[@]}&quot; \
+    --hf-checkpoint &quot;$HF_CKPT&quot; \
+    --ref-load &quot;$HF_CKPT&quot; \
+    --megatron-to-hf-mode bridge \
+    --model-name kimi_k25 \
+    --loss-type sft_loss \
+    --calculate-per-token-loss \
+    --disable-compute-advantages-and-returns \
+    --debug-train-only \
+    --rollout-function-path pretokenized_sft_rollout.generate_rollout \
+    --prompt-data &quot;$SFT_DATA&quot; \
+    --input-key messages \
+    --metadata-key metadata \
+    --num-rollout 20 \
+    --rollout-batch-size 128 \
+    --global-batch-size 128 \
+    --tensor-model-parallel-size 8 \
+    --sequence-parallel \
+    --pipeline-model-parallel-size 16 \
+    --decoder-first-pipeline-num-layers 3 \
+    --decoder-last-pipeline-num-layers 2 \
+    --context-parallel-size 1 \
+    --expert-model-parallel-size 16 \
+    --expert-tensor-parallel-size 1 \
+    --use-dynamic-batch-size \
+    --max-tokens-per-gpu 8192 \
+    --optimizer adam --lr 1e-5 --lr-decay-style cosine --min-lr 1e-6 --lr-warmup-fraction 0.1 \
+    --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
+    --use-precision-aware-optimizer \
+    --use-distributed-optimizer \
+    --attention-dropout 0.0 --hidden-dropout 0.0 \
+    --accumulate-allreduce-grads-in-fp32 \
+    --attention-softmax-in-fp32 \
+    --attention-backend flash \
+    --no-check-for-nan-in-loss-and-grad \
+    --no-gradient-accumulation-fusion
+notes: |
+  - Starting point: miles&#x27; Kimi launcher, `scripts/run_kimi_k25.py` with `scripts/models/kimi-k25.py` at miles 0.1.0
+    (model page https://miles.radixark.com/docs/models/kimi/kimi-k2.5, &quot;Kimi K2.5 / K2.6&quot;). miles publishes it as a
+    GRPO recipe validated on 32 nodes of 8 H200 that trains the INT4 checkpoint with fake quantization and Adam on the
+    CPU, with no tokens/s figure. Ported to this workload in BF16 with its layout (TP 8 with sequence parallel, PP 8,
+    CP 4, EP 32, full recompute) and Adam on the GPU on 256 H200, it measured 149.6 tokens/s/GPU (149.8 in an earlier
+    run of the same configuration); ATTUNE tuned it to 353.4 (+136%). A 23-step run of this recipe, profiled on its
+    last step, measured 354.6 over steps 5-19.
+  - Each pipeline stage spans two nodes (TP 8 x DP 2), and EP 16 spreads each MoE layer&#x27;s experts over those 16 GPUs.
+    With 16 stages each GPU holds 2 to 4 of the 61 layers, which leaves the memory to drop both recompute and context
+    parallelism; the ranks the measured run&#x27;s log shows use up to 117 GB of 140 before the end-of-step cache release.
+  - With `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`, as in the reference run, a tuning run of this layout
+    measured 216.3 tokens/s/GPU. miles empties the CUDA cache after every step (`clear_memory` in
+    `miles/utils/memory_utils.py`), so the allocator takes its memory from the driver again each step.
+</pre>
+</div>
+</details>
+<h2 id="cite">Citation</h2><div class="card notes"><p>If you use a recipe by ATTUNE, please cite <a href="https://arxiv.org/abs/2610.17528">the paper</a>.</p><div class="filebar"><span class="k">BibTeX</span><span class="acts"><button type="button" class="btn o" data-copy="bibtex-1">Copy</button></span></div><pre id="bibtex-1">@article{fan2026attune,
+  title   = {{ATTUNE: Agentic Throughput Tuning for LLM Training}},
+  author  = {Leo Fan and Hongyang Wang and Wenbo Chen and Jingguo Liu and Xian Li and Xuan Wang and
+             Ruochen Wen and Yiming Yan and Hao Wu and Zheshen Wang and Benoit Dumoulin},
+  journal = {arXiv preprint arXiv:2610.17528},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2610.17528}
+}
+</pre></div>
+<h2>Kimi-K2.6 on other GPUs</h2>
+<div class="others"><div class="card gpu off"><div class="k">H100</div><div class="v">&ndash;</div><div class="small">No recipe yet</div></div><div class="card gpu here"><div class="k">H200 &middot; 256 GPUs &middot; this page</div><div class="v">353.4</div><div class="small muted">tokens/s/GPU &middot; $6.22 / 1M tokens</div></div><div class="card gpu off"><div class="k">B200</div><div class="v">&ndash;</div><div class="small">No recipe yet</div></div></div>
+</main>
+<footer><div class="wrap">OpenRecipes, Apache-2.0. Measurements through 2026-10-22.</div></footer>
+</body>
+</html>

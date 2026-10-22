@@ -179,3 +179,34 @@ def test_inkling_audio_and_vision_towers_and_mtp_layers_excluded(tmp_path, capsy
     assert out["parts"]["routed_experts"] == 64
     assert out["parts"]["other_matmul"] == 88
     assert out["active_params"] == 152
+
+
+def test_kimi_pack_quantized_int4_experts_and_vision_projection(tmp_path, capsys):
+    quant = {"format": "pack-quantized", "config_groups": {"group_0": {"weights": {"num_bits": 4, "group_size": 32}}}}
+    config = {"text_config": {"num_hidden_layers": 1, "n_routed_experts": 4, "num_experts_per_tok": 2,
+                              "quantization_config": quant}}
+    src = _checkpoint(tmp_path, config, {"model.safetensors": {
+        "language_model.model.embed_tokens.weight": ("BF16", [10, 4]),
+        "language_model.model.layers.0.mlp.experts.0.up_proj.weight_packed": ("I32", [8, 4]),   # 8 x 32 values
+        "language_model.model.layers.0.mlp.experts.0.up_proj.weight_scale": ("BF16", [8, 1]),
+        "language_model.model.layers.0.mlp.experts.0.up_proj.weight_shape": ("I32", [2]),
+        "language_model.model.layers.0.mlp.shared_experts.up_proj.weight": ("BF16", [8, 4]),    # 32
+        "language_model.model.layers.0.self_attn.o_proj.weight": ("BF16", [4, 4]),              # 16
+        "language_model.lm_head.weight": ("BF16", [10, 4]),                                     # 40
+        "vision_tower.encoder.blocks.0.wqkv.weight": ("BF16", [12, 4]),
+        "mm_projector.proj.0.weight": ("BF16", [16, 16]),
+    }})
+    out = _count(src, capsys)
+    assert out["parts"]["routed_experts"] == 128   # 256 unpacked values x top-2 of 4
+    assert out["parts"]["other_matmul"] == 48
+    assert out["parts"]["output"] == 40
+    assert out["active_params"] == 216
+
+
+def test_pack_quantized_weight_without_a_pack_quantized_config_stops(tmp_path, capsys):
+    src = _checkpoint(tmp_path, {"num_hidden_layers": 1}, {"model.safetensors": {
+        "layers.0.mlp.up_proj.weight_packed": ("I32", [8, 4]),
+        "layers.0.mlp.up_proj.weight_scale": ("BF16", [8, 1]),
+    }})
+    with pytest.raises(SystemExit):
+        active_params.main([src])
